@@ -28,7 +28,6 @@ from astrodbkit2.astrodb import Database
 # global vars
 path = os.path.realpath(__file__)  # path to file
 path = '/'.join(path.split('/')[:-3]) + '/SIMPLE-db'  # go to 2 directories up and across to simple-db not simple-web
-print(path)
 CONNECTION_STRING = f'sqlite:///{path}/SIMPLE.db'  # should be in base directory
 
 
