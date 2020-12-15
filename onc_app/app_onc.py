@@ -3,8 +3,8 @@ app_onc = Flask(__name__)
 
 import astrodbkit
 from astrodbkit import astrodb
-from SEDkit import sed
-from SEDkit import utilities as u
+#from SEDkit import sed
+#from SEDkit import utilities as u
 import os
 import sys
 import re
