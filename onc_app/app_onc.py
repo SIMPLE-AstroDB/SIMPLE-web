@@ -3,8 +3,8 @@ app_onc = Flask(__name__)
 
 import astrodbkit
 from astrodbkit import astrodb
-from SEDkit import sed
-from SEDkit import utilities as u
+#from SEDkit import sed
+#from SEDkit import utilities as u
 import os
 import sys
 import re
@@ -28,7 +28,7 @@ app_onc.vars['search'] = ''
 app_onc.vars['specid'] = ''
 app_onc.vars['source_id'] = ''
 
-db_file = os.environ['ONC_database']
+db_file = 'bdnyc_database.db'
 db = astrodb.Database(db_file)
 pd.set_option('max_colwidth', -1)
 
@@ -46,7 +46,8 @@ def onc_query():
     # Get list of the catalogs
     source_count, = db.list("SELECT Count(*) FROM sources").fetchone()
     catalogs = db.query("SELECT * FROM publications", fmt='table')
-    cat_names = ''.join(['<li><a href="https://ui.adsabs.harvard.edu/?#abs/{}/abstract">{}</a></li>'.format(cat['bibcode'],cat['description'].replace('VizieR Online Data Catalog: ','')) for cat in catalogs])
+    #cat_names = ''.join(['<li><a href="https://ui.adsabs.harvard.edu/?#abs/{}/abstract">{}</a></li>'.format(cat['bibcode'],cat['description'].replace('VizieR Online Data Catalog: ','')) for cat in catalogs])
+    cat_names = 'simple catalog names placeholder'
 
     table_names = db.query("select * from sqlite_master where type='table' or type='view'")['name']
 
