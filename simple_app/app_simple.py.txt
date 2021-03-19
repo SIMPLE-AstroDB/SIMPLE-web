@@ -1,0 +1,55 @@
+from flask import Flask, render_template, request, redirect, make_response, url_for
+app_onc = Flask(__name__)
+
+import astrodbkit
+from astrodbkit import astrodb
+
+app_onc.vars = dict()
+app_onc.vars['query'] = ''
+app_onc.vars['search'] = ''
+app_onc.vars['specid'] = ''
+app_onc.vars['source_id'] = ''
+
+db_file = 'bdnyc_database.db'
+db = astrodb.Database(db_file)
+pd.set_option('max_colwidth', -1)
+
+# Redirect to the main page
+@app_onc.route('/')
+@app_onc.route('/index')
+
+# Page with a text box to take the SQL query
+@app_onc.route('/index', methods=['GET', 'POST'])
+def onc_query():
+    defquery = 'SELECT * FROM sources'
+    if app_onc.vars['query']=='':
+        app_onc.vars['query'] = defquery
+
+    # Get list of the catalogs
+    source_count, = db.list("SELECT Count(*) FROM sources").fetchone()
+    catalogs = db.query("SELECT * FROM publications", fmt='table')
+    #cat_names = ''.join(['<li><a href="https://ui.adsabs.harvard.edu/?#abs/{}/abstract">{}</a></li>'.format(cat['bibcode'],cat['description'].replace('VizieR Online Data Catalog: ','')) for cat in catalogs])
+    cat_names = 'simple catalog names placeholder'
+
+    table_names = db.query("select * from sqlite_master where type='table' or type='view'")['name']
+
+    tables = '\n'.join(['<option value="{0}" {1}> {0}</option>'.format(t,'selected=selected' if t=='browse' else '') for t in table_names])
+
+    columns_html = []
+    columns_js = []
+    for tab in table_names:
+        cols = list(db.query("pragma table_info('{}')".format(tab))['name'])
+
+        col_html = ''.join(['<input type="checkbox" value="{0}" name="selections"> {0}<br>'.format(c) for c in cols])
+        columns_html.append('<div id="{}" class="columns" style="display:none">{}</div>'.format(tab,col_html))
+
+        col_js = ','.join(["{id:'"+c+"',label:'"+c+"',type:'string'}" for c in cols])
+        columns_js.append(col_js)
+
+    column_select = ''.join(columns_html)
+    column_script = ''.join(columns_js)
+
+    return render_template('index.html', cat_names=cat_names, source_count=source_count,
+                           defsearch=app_onc.vars['search'], specid=app_onc.vars['specid'],
+                           source_id=app_onc.vars['source_id'], version=astrodbkit.__version__,
+                           tables=tables, column_select=column_select, column_script=col_js)
