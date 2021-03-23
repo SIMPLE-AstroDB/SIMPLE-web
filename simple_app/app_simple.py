@@ -57,8 +57,12 @@ def index_page():
 def search():
     form = SearchForm()
     query = form.search.data
+    db = SimpleDB(db_file, connection_arguments={'check_same_thread': False})
+    results: pd.DataFrame = db.search_object(query, fmt='pandas')
     if request.method == 'POST' and form.validate_on_submit():
-        return redirect((url_for('search_results', query=query)))
+        if len(results) > 1:
+            return redirect((url_for('search_results', query=query)))
+        return redirect((url_for('solo_result', query=query)))
     return render_template('search.html', form=form)
 
 
@@ -69,6 +73,14 @@ def search_results(query: str):
     query = query.upper()
     results: str = markdown(results.to_html())
     return render_template('search_results.html', query=query, results=results)
+
+
+@app_simple.route('/solo_result/<query>')
+def solo_result(query: str):
+    db = SimpleDB(db_file, connection_arguments={'check_same_thread': False})
+    resultdict: dict = db.inventory(query)
+    query = query.upper()
+    return render_template('solo_result.html', query=query, resultdict=resultdict)
 
 
 @app_simple.route('/autocomplete', methods=['GET'])

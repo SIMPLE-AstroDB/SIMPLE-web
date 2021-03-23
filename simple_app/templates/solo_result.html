@@ -1,0 +1,10 @@
+{% extends "base.html" %}
+<!-- TODO: for a solo object, split up the page and show everything, including aladin -->
+{% block content %}
+
+<div class='block'>
+    <h1>Full data for: {{ query|safe }}</h1>
+    <p style="line-height:1.5em; font-size: x-large">{{ resultdict|tojson|safe }}</p>
+</div>
+
+{% endblock %}
