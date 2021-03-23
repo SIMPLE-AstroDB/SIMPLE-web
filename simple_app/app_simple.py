@@ -1,6 +1,11 @@
-from flask import Flask, render_template
-import pandas as pd
 from astrodbkit2.astrodb import Database
+from flask import Flask, render_template, request, redirect, url_for, jsonify
+from flask_wtf import FlaskForm
+from markdown2 import markdown
+import os
+import pandas as pd
+from wtforms import StringField, SubmitField
+from wtforms.validators import DataRequired, StopValidation
 
 # initialise
 app_simple = Flask(__name__)
@@ -9,6 +14,7 @@ app_simple.vars['query'] = ''
 app_simple.vars['search'] = ''
 app_simple.vars['specid'] = ''
 app_simple.vars['source_id'] = ''
+app_simple.config['SECRET_KEY'] = os.urandom(32)
 
 db_file = 'sqlite:///../SIMPLE.db'
 pd.set_option('max_colwidth', None)  # deprecation warning
@@ -18,19 +24,68 @@ class SimpleDB(Database):  # this keeps pycharm happy about unresolved reference
     Sources = None
 
 
+class CheckResultsLength(object):
+    def __call__(self, form, field):
+        db = SimpleDB(db_file, connection_arguments={'check_same_thread': False})
+        results: pd.DataFrame = db.search_object(field.data, fmt='pandas')
+        if not len(results):
+            field.errors[:] = []
+            raise StopValidation(field.gettext('No results'))
+
+
+class SearchForm(FlaskForm):
+    search = StringField('', [DataRequired(), CheckResultsLength()], id='autocomplete')
+    submit = SubmitField('Query')
+
+
+_db = SimpleDB(db_file, connection_arguments={'check_same_thread': False})
+allresults = _db.search_object('', fmt='pandas').source.values.tolist()
+del _db
+
+
 # website pathing
 @app_simple.route('/')
 @app_simple.route('/index', methods=['GET', 'POST'])
 def index_page():
     # open database object, use connection arguments to have different threads to calm sqlite
     db = SimpleDB(db_file, connection_arguments={'check_same_thread': False})
-    defquery = 'SELECT * FROM sources'
-    if app_simple.vars['query'] == '':
-        app_simple.vars['query'] = defquery
-
     source_count = db.query(db.Sources).count()
-    test_query = db.search_object('twa 27', fmt='pandas').source.values
-    return render_template('index_simple.html', source_count=source_count, test_query=test_query)
+    return render_template('index_simple.html', source_count=source_count)
+
+
+@app_simple.route('/search', methods=['GET', 'POST'])
+def search():
+    form = SearchForm()
+    query = form.search.data
+    db = SimpleDB(db_file, connection_arguments={'check_same_thread': False})
+    results: pd.DataFrame = db.search_object(query, fmt='pandas')
+    if request.method == 'POST' and form.validate_on_submit():
+        if len(results) > 1:
+            return redirect((url_for('search_results', query=query)))
+        return redirect((url_for('solo_result', query=query)))
+    return render_template('search.html', form=form)
+
+
+@app_simple.route('/search_results/<query>')
+def search_results(query: str):
+    db = SimpleDB(db_file, connection_arguments={'check_same_thread': False})
+    results: pd.DataFrame = db.search_object(query, fmt='pandas')
+    query = query.upper()
+    results: str = markdown(results.to_html())
+    return render_template('search_results.html', query=query, results=results)
+
+
+@app_simple.route('/solo_result/<query>')
+def solo_result(query: str):
+    db = SimpleDB(db_file, connection_arguments={'check_same_thread': False})
+    resultdict: dict = db.inventory(query)
+    query = query.upper()
+    return render_template('solo_result.html', query=query, resultdict=resultdict)
+
+
+@app_simple.route('/autocomplete', methods=['GET'])
+def autocomplete():
+    return jsonify(alljsonlist=allresults)
 
 
 @app_simple.route('/feedback')
