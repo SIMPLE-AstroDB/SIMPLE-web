@@ -1,8 +1,8 @@
 <!DOCTYPE html>
-<!--[if lt IE 7]>      <html class="no-js lt-ie9 lt-ie8 lt-ie7"> <![endif]-->
-<!--[if IE 7]>         <html class="no-js lt-ie9 lt-ie8"> <![endif]-->
-<!--[if IE 8]>         <html class="no-js lt-ie9"> <![endif]-->
-<!--[if gt IE 8]><!--> <html class="no-js"> <!--<![endif]-->
+<!--[if lt IE 7]>      <html class="no-js lt-ie9 lt-ie8 lt-ie7" lang="en"> <![endif]-->
+<!--[if IE 7]>         <html class="no-js lt-ie9 lt-ie8" lang="en"> <![endif]-->
+<!--[if IE 8]>         <html class="no-js lt-ie9" lang="en"> <![endif]-->
+<!--[if gt IE 8]><!--> <html class="no-js" lang="en"> <!--<![endif]-->
 <head>
 
     <!--Set up meta data -->
@@ -14,6 +14,7 @@
 
     <!-- general css -->
     <link rel=stylesheet type=text/css href="{{ url_for('static', filename='css/style.css') }}">
+    <link rel="stylesheet" type="text/css" href="{{ url_for('static', filename='css/forms.css') }}">
 
     <!-- JS AND CSS NOT IN USE YET, WILL BE USEFUL LATER WITH ADDED FUNCTIONALITY -->
     <!-- TODO: download local versions of scripts when they are to be used -->
@@ -93,20 +94,20 @@
             
 </head>
 
-<body style="line-height:1.5em;">
+<body style="line-height:1.5em; width: fit-content; color: #5f6988">
     <div id="header">
         <div class='head'>
             <a href='/'>
                 <div>
-                    <h1 style="padding-top:38px;">SIMPLE Database</h1>
+                    <h1 style="padding-top:38px;" class="title">SIMPLE Database</h1>
                 </div>
             </a>
         </div>
         <div class='clearfix'>
             <ul>
-                <li><a href="/">Query the Database</a></li>
-                <li><a href="/schema">About the SIMPLE Database</a></li>
-                <li><a href="/feedback">Feedback/Questions</a></li>
+                <li><a href="/search" class="title">Query the Database</a></li>
+                <li><a href="/schema" class="title">About the SIMPLE Database</a></li>
+                <li><a href="/feedback" class="title">Feedback/Questions</a></li>
             </ul>
         </div>
     </div>
@@ -119,7 +120,7 @@
     <footer>
         <div id="footer" style='border-top:1px black solid; padding:20px;'>
 
-            <div syle='float:left;'>
+            <div style='float:left;'>
                 <p style='float:left; margin:0;'>Encountered an error or mistake? We'd love your
                     <a href="/feedback">feedback</a>!</p>
             </div>

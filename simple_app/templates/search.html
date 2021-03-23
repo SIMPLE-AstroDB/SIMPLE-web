@@ -1,0 +1,26 @@
+{% extends "base.html" %}
+
+{% block content %}
+
+<div class="form-wrapper">
+    <h2 class="title">Search for an object</h2>
+    <form method="post" action="{{ url_for('search') }}" target="_blank">
+        {{ form.csrf_token }}
+        <fieldset class="form-field">
+            {{ form.search.label }}
+            {{ form.search(size=40) }}
+        </fieldset>
+        {% if form.search.errors %}
+        <fieldset class="form-field">
+            {% for error in form.search.errors %}
+                <p id="footer" style="color: #5f6988">
+                    {{ error }}
+                </p>
+            {% endfor %}
+        </fieldset>
+        {% endif %}
+        {{ form.submit }}
+    </form>
+</div>
+
+{% endblock %}

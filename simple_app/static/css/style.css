@@ -1,5 +1,5 @@
 html {
-    width:1100px;
+    width:60%;
     margin:auto;
 }
 
@@ -7,11 +7,12 @@ a               { color: #377BA8; text-decoration: none; }
 a:hover         { text-decoration: underline; }
 h1, h2          { font-family: 'Georgia', serif; margin: 0; }
 h2              { font-size: 1.2em; }
-.error          { background: #F0D6D6; padding: 0.5em; margin: 2em auto; width: 35em; border: 5px solid #ccc;
+.error          { background: #F0D6D6; margin: 2em auto; width: 35em; border: 5px solid #ccc;
                   padding: 0.8em; }
 
-.page           { background: white; padding: 0.8em;}
-.page div.block {margin:10px 0; padding:20px; }
+.page           { background: white; padding: 0.8em; width: fit-content}
+.page div.block {margin:10px 0; padding:20px; font-family: "Poppins", sans-serif; font-size: large;
+                color: #5f6988}
 .page div.grey {border:1px #ccc solid; background-color:#eee;}
 .page div.grey h2 {border-bottom:1px #ccc solid;}
 .page div.grey ul li, .page div.grey ol li {margin:0.5em 0;}
@@ -25,7 +26,8 @@ h2              { font-size: 1.2em; }
 #header { background: #ffffff; overflow:hidden; white-space: nowrap;}
 #header img {float:left;}
 #header ul { list-style-type: none; margin: 0; padding: 0; overflow: hidden;
-               border:1px; border-color: #000000; background-color: #1E68AD; }
+    border: 1px #000000;
+    background-color: #5eb9d7; }
 #header li { float: left; }
 #header li a { display: block; color: white; text-align: center;
                  padding: 14px 16px; text-decoration: none; }
@@ -58,7 +60,7 @@ a:hover span {display: block; text-align: center; }
 }
 
 .basicinfo td {
-    padding:10px 20px 0px 0;
+    padding:10px 20px 0 0;
 }
 
 img.view {height:14px;}
@@ -70,7 +72,7 @@ img.view {height:14px;}
     margin: 10px;
     border:1px black solid;
 }
-.clearfix { clear:both }
+.clearfix { clear:both; width: fit-content }
 .hidden {visibility: hidden; position:absolute;}
 /*
  * Table styles
@@ -89,6 +91,7 @@ td a {
 td, th {
   vertical-align: middle;
   border: none;
+    padding: 5px;
 }
 
 table {
