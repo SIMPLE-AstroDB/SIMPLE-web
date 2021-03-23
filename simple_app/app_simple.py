@@ -1,5 +1,5 @@
 from astrodbkit2.astrodb import Database
-from flask import Flask, render_template, request, redirect, url_for
+from flask import Flask, render_template, request, redirect, url_for, jsonify
 from flask_wtf import FlaskForm
 from markdown2 import markdown
 import os
@@ -34,8 +34,13 @@ class CheckResultsLength(object):
 
 
 class SearchForm(FlaskForm):
-    search = StringField('', [DataRequired(), CheckResultsLength()])
+    search = StringField('', [DataRequired(), CheckResultsLength()], id='autocomplete')
     submit = SubmitField('Query')
+
+
+_db = SimpleDB(db_file, connection_arguments={'check_same_thread': False})
+allresults = _db.search_object('', fmt='pandas').source.values.tolist()
+del _db
 
 
 # website pathing
@@ -64,6 +69,11 @@ def search_results(query: str):
     query = query.upper()
     results: str = markdown(results.to_html())
     return render_template('search_results.html', query=query, results=results)
+
+
+@app_simple.route('/autocomplete', methods=['GET'])
+def autocomplete():
+    return jsonify(alljsonlist=allresults)
 
 
 @app_simple.route('/feedback')

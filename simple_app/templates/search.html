@@ -22,5 +22,17 @@
         {{ form.submit }}
     </form>
 </div>
+<script>
+$(function() {
+    $.ajax({
+        url: '{{ url_for("autocomplete") }}'
+        }).done(function (data) {
+            $('#autocomplete').autocomplete({
+                source: data.alljsonlist,
+                minLength: 2
+            });
+        });
+    });
+</script>
 
 {% endblock %}
