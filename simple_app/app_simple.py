@@ -14,18 +14,22 @@ db_file = 'sqlite:///../SIMPLE.db'
 pd.set_option('max_colwidth', None)  # deprecation warning
 
 
+class SimpleDB(Database):  # this keeps pycharm happy about unresolved references
+    Sources = None
+
+
 # website pathing
 @app_simple.route('/')
 @app_simple.route('/index', methods=['GET', 'POST'])
 def index_page():
-    db = Database(db_file)
+    # open database object, use connection arguments to have different threads to calm sqlite
+    db = SimpleDB(db_file, connection_arguments={'check_same_thread': False})
     defquery = 'SELECT * FROM sources'
     if app_simple.vars['query'] == '':
         app_simple.vars['query'] = defquery
 
     source_count = db.query(db.Sources).count()
     test_query = db.search_object('twa 27', fmt='pandas').source.values
-    del db  # sqlalchemy starts complaining about threads otherwise
     return render_template('index_simple.html', source_count=source_count, test_query=test_query)
 
 
