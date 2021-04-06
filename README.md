@@ -1,16 +1,68 @@
-# SIMPLE-web 
+# SIMPLE Website 
 
-To run the application locally, clone the database and application repos and set the database environment variable with:
+This is the repo for the codes corresponding to generating the SIMPLE website, designed to be as
+interactive as possible.  
+### Installation
+To run the application locally, clone the application repo and move into it with:
 
-```
+```bash
 git clone https://github.com/SIMPLE-AstroDB/SIMPLE-web.git
+cd SIMPLE-web
 ```
 
-Then run the application with `python SIMPLE-web/onc_app/app_onc.py`. Launch a browser and enter the URL `http://0.0.0.0:5000/`.
+Then, if you are running conda (recommended):
+```bash
+conda env create -f environment.yml
+```
+or:
+```bash
+conda create --name simple --file requirements.txt
+```
 
-For feedback, questions, or if you've found an error, please [create an Issue here](https://github.com/SIMPLE-AstroDB/SIMPLE-web/issues).
+### Running
+Then run the application with   
+```python 
+python simple_app/app_simple.py
+```
+For more options (help) run
+```python 
+python simple_app/app_simple.py -h
+```
+Launch a browser and enter the URL [http://127.0.0.1:8000](http://127.0.0.1:8000).  
+If you have changed either the host or port with system arguments, use those instead.  
 
-The database repo can be found at https://github.com/SIMPLE-AstroDB/SIMPLE-db
+### Updating
+We also recommend keeping up to date with the repo changes, and most importantly, 
+the [astrodbkit2](https://github.com/dr-rodriguez/AstrodbKit2) package:
+```bash
+git pull
+pip install git+https://github.com/dr-rodriguez/AstrodbKit2
+```
+
+### Contributing
+Alternatively, all contributors are very welcome to fork (button top right of page) the repo
+to make edits to the website code, in which case:
+```bash
+git clone https://github.com/<your-github-username>/SIMPLE-web.git
+cd SIMPLE-web
+git remote add origin https://github.com/<your-github-username>/SIMPLE-web.git
+git remote add upstream https://github.com/SIMPLE-AstroDB/SIMPLE-web.git
+git remote -v
+```
+The last line is to verify the remote is set up correctly, you can then push to *your* (origin) repo 
+(we advise using branches to easily isolate different changes you may be making) and pull from the upstream repo. 
+You can then create online a pull request to merge your repo into the upsteam repo after review.
+```bash
+git pull upsteam main
+git add <files you have changed>
+git commit -m "A good, informative commit message"
+git push origin main  # or instead of main, a different branch
+```
+
+For feedback, questions, or if you've found an error, 
+please [create an Issue here](https://github.com/SIMPLE-AstroDB/SIMPLE-web/issues).
+
+The database repo can be found [here](https://github.com/SIMPLE-AstroDB/SIMPLE-db).  
 
 This application builds and expands on the original code used by:
  - [ONCdbWeb](https://github.com/ONCdb/ONCdbWeb) built by the ONCdb Team at STScI
