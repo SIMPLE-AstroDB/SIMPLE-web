@@ -74,7 +74,7 @@ class SearchForm(FlaskForm):
 
 def all_sources():
     db = SimpleDB(db_file, connection_arguments={'check_same_thread': False})  # open database
-    allresults = db.search_object('', fmt='astropy')['source'].tolist()
+    allresults = db.query(db.Sources).table()['source'].tolist()
     return allresults
 
 
