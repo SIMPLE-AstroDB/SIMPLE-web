@@ -14,6 +14,7 @@ from wtforms.validators import DataRequired, StopValidation
 # internal packages
 import argparse
 import os
+from urllib.parse import quote
 
 # initialise
 app_simple = Flask(__name__)
@@ -90,8 +91,14 @@ def search_results(query: str):
     db = SimpleDB(db_file, connection_arguments={'check_same_thread': False})  # open database
     results: Table = db.search_object(query, fmt='astropy')  # get all results for that object
     results: pd.DataFrame = results.to_pandas()  # convert to pandas from astropy table
+    sourcelinks: list = []  # empty list
+    for src in results.source.values:  # over every source in table
+        urllnk = quote(src)  # convert object name to url safe
+        srclnk = f'<a href="/solo_result/{urllnk}" target="_blank">{src}</a>'  # construct hyperlink
+        sourcelinks.append(srclnk)  # add that to list
+    results['source'] = sourcelinks  # update dataframe with the linked ones
     query = query.upper()  # convert contents of search bar to all upper case
-    results: str = markdown(results.to_html())  # convert the results into markdown to display nice on page
+    results: str = markdown(results.to_html(index=False, escape=False))  # convert results into markdown
     return render_template('search_results.html', query=query, results=results)
 
 
