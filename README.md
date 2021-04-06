@@ -6,7 +6,7 @@ interactive as possible.
 To run the application locally, clone the application repo and move into it with:
 
 ```bash
-git clone https://github.com/SIMPLE-AstroDB/SIMPLE-web.git
+git clone --recurse-submodules https://github.com/SIMPLE-AstroDB/SIMPLE-web.git
 cd SIMPLE-web
 ```
 
@@ -17,6 +17,12 @@ conda env create -f environment.yml
 or:
 ```bash
 conda create --name simple --file requirements.txt
+```
+
+#### If you have already cloned the repo and need to add the submodule in
+First time:
+```bash
+git submodule update --init
 ```
 
 ### Running
@@ -35,7 +41,7 @@ If you have changed either the host or port with system arguments, use those ins
 We also recommend keeping up to date with the repo changes, and most importantly, 
 the [astrodbkit2](https://github.com/dr-rodriguez/AstrodbKit2) package:
 ```bash
-git pull
+git pull --recurse-submodules
 pip install git+https://github.com/dr-rodriguez/AstrodbKit2
 ```
 
