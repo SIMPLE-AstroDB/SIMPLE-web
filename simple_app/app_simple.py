@@ -4,10 +4,10 @@ then connect to.
 """
 # external packages
 from astrodbkit2.astrodb import Database
+from astropy.table import Table
 from flask import Flask, render_template, request, redirect, url_for, jsonify
 from flask_wtf import FlaskForm
 from markdown2 import markdown
-import numpy as np
 import pandas as pd
 from wtforms import StringField, SubmitField
 from wtforms.validators import DataRequired, StopValidation
@@ -45,7 +45,7 @@ class SimpleDB(Database):  # this keeps pycharm happy about unresolved reference
 class CheckResultsLength(object):
     def __call__(self, form, field):
         db = SimpleDB(db_file, connection_arguments={'check_same_thread': False})  # open database
-        results: pd.DataFrame = db.search_object(field.data, fmt='pandas')  # search by what is currently in searchbar
+        results = db.search_object(field.data, fmt='astropy')  # search by what is currently in searchbar
         if not len(results):  # if that search is empty
             field.errors[:] = []  # clear existing errors
             raise StopValidation(field.gettext('No results'))  # stop validating and return error
@@ -58,8 +58,7 @@ class SearchForm(FlaskForm):
 
 def all_sources():
     db = SimpleDB(db_file, connection_arguments={'check_same_thread': False})  # open database
-    # FIXME: db.search_object(..fmt='pandas') not returning column names
-    allresults = np.array(db.search_object(''))[:, 0].tolist()  # list all the sources by main name
+    allresults = db.search_object('', fmt='astropy')['source'].tolist()
     return allresults
 
 
@@ -78,7 +77,7 @@ def search():
     form = SearchForm()  # searchbar
     query = form.search.data  # the content in searchbar
     db = SimpleDB(db_file, connection_arguments={'check_same_thread': False})  # open database
-    results: pd.DataFrame = db.search_object(query, fmt='pandas')  # get the results for that object
+    results = db.search_object(query, fmt='astropy')  # get the results for that object
     if request.method == 'POST' and form.validate_on_submit():  # if everything okay with the search
         if len(results) > 1:  # if more than one result
             return redirect((url_for('search_results', query=query)))  # return table of all results
@@ -89,7 +88,8 @@ def search():
 @app_simple.route('/search_results/<query>')
 def search_results(query: str):
     db = SimpleDB(db_file, connection_arguments={'check_same_thread': False})  # open database
-    results: pd.DataFrame = db.search_object(query, fmt='pandas')  # get all results for that object
+    results: Table = db.search_object(query, fmt='astropy')  # get all results for that object
+    results: pd.DataFrame = results.to_pandas()  # convert to pandas from astropy table
     query = query.upper()  # convert contents of search bar to all upper case
     results: str = markdown(results.to_html())  # convert the results into markdown to display nice on page
     return render_template('search_results.html', query=query, results=results)
