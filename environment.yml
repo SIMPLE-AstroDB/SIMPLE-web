@@ -5,11 +5,16 @@ channels:
 dependencies:
   - _libgcc_mutex=0.1=main
   - astropy=4.2=py38h27cfd23_0
+  - backcall=0.2.0=pyhd3eb1b0_0
   - blas=1.0=mkl
   - ca-certificates=2021.1.19=h06a4308_1
   - certifi=2020.12.5=py38h06a4308_0
+  - decorator=5.0.5=pyhd3eb1b0_0
   - greenlet=1.0.0=py38h2531618_2
   - intel-openmp=2020.2=254
+  - ipython=7.22.0=py38hb070fc8_0
+  - ipython_genutils=0.2.0=pyhd3eb1b0_1
+  - jedi=0.17.0=py38_0
   - ld_impl_linux-64=2.33.1=h53a641e_7
   - libffi=3.3=he6710b0_2
   - libgcc-ng=9.1.0=hdf63c60_0
@@ -23,8 +28,14 @@ dependencies:
   - numpy-base=1.19.2=py38hfa32c7d_0
   - openssl=1.1.1k=h27cfd23_0
   - packaging=20.9=pyhd3eb1b0_0
+  - parso=0.8.2=pyhd3eb1b0_0
+  - pexpect=4.8.0=pyhd3eb1b0_3
+  - pickleshare=0.7.5=pyhd3eb1b0_1003
   - pip=21.0.1=py38h06a4308_0
+  - prompt-toolkit=3.0.17=pyh06a4308_0
+  - ptyprocess=0.7.0=pyhd3eb1b0_2
   - pyerfa=1.7.2=py38h27cfd23_0
+  - pygments=2.8.1=pyhd3eb1b0_0
   - pyparsing=2.4.7=pyhd3eb1b0_0
   - python=3.8.8=hdb3f193_4
   - python-dateutil=2.8.1=pyhd3eb1b0_0
@@ -35,6 +46,8 @@ dependencies:
   - sqlalchemy=1.4.5=py38h27cfd23_0
   - sqlite=3.35.4=hdfb4753_0
   - tk=8.6.10=hbc83047_0
+  - traitlets=5.0.5=pyhd3eb1b0_0
+  - wcwidth=0.2.5=py_0
   - wheel=0.36.2=pyhd3eb1b0_0
   - xz=5.2.5=h7b6447c_0
   - zlib=1.2.11=h7b6447c_3
