@@ -1,0 +1,3 @@
+[submodule "SIMPLE-db"]
+	path = SIMPLE-db
+	url = https://github.com/SIMPLE-AstroDB/SIMPLE-db
