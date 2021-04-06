@@ -1,10 +1,67 @@
 {% extends "base.html" %}
 <!-- TODO: for a solo object, split up the page and show everything, including aladin -->
 {% block content %}
-
-<div class='block'>
     <h1>Full data for: {{ query|safe }}</h1>
-    <p style="line-height:1.5em; font-size: x-large">{{ resultdict|tojson|safe }}</p>
-</div>
+
+    <div class="block">
+        <h2>Sources</h2>
+        <p style="line-height:1.5em; font-size: x-large">{{ everything.sources|safe }}</p>
+    </div>
+
+    <div class="block">
+        <h2>Names</h2>
+        <p style="line-height:1.5em; font-size: x-large">{{ everything.names|safe }}</p>
+    </div>
+
+    <div class="block">
+        <h2>Photometry</h2>
+        <p style="line-height:1.5em; font-size: x-large">{{ everything.photometry|safe }}</p>
+    </div>
+
+    <div class="block">
+        <h2>Spectral Types</h2>
+        <p style="line-height:1.5em; font-size: x-large">{{ everything.spectraltypes|safe }}</p>
+    </div>
+
+    <div class="block">
+        <h2>Radial Velocities</h2>
+        <p style="line-height:1.5em; font-size: x-large">{{ everything.radialvelocities|safe }}</p>
+    </div>
+
+    <div class="block">
+        <h2>Parallaxes</h2>
+        <p style="line-height:1.5em; font-size: x-large">{{ everything.parallaxes|safe }}</p>
+    </div>
+
+    <div class="block">
+        <h2>Proper Motions</h2>
+        <p style="line-height:1.5em; font-size: x-large">{{ everything.propermotions|safe }}</p>
+    </div>
+
+    <div class="block">
+        <h2>Publications</h2>
+        <p style="line-height:1.5em; font-size: x-large">{{ everything.publications|safe }}</p>
+    </div>
+
+    <div class="block">
+        <h2>Gravities</h2>
+        <p style="line-height:1.5em; font-size: x-large">{{ everything.gravities|safe }}</p>
+    </div>
+
+    <div class="block">
+        <h2>Instruments</h2>
+        <p style="line-height:1.5em; font-size: x-large">{{ everything.instruments|safe }}</p>
+    </div>
+
+    <div class="block">
+        <h2>Telescopes</h2>
+        <p style="line-height:1.5em; font-size: x-large">{{ everything.telescopes|safe }}</p>
+    </div>
+
+    <div class="block">
+        <h2>Aladin</h2>
+        <!-- TODO: add aladin div here -->
+        <p style="line-height:1.5em; font-size: x-large"></p>
+    </div>
 
 {% endblock %}

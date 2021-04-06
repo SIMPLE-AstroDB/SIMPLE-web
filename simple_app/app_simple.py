@@ -43,6 +43,21 @@ class SimpleDB(Database):  # this keeps pycharm happy about unresolved reference
     Sources = None  # initialise class attribute
 
 
+class Inventory:
+
+    def __init__(self, resultdict: dict):
+        self.results = resultdict
+        for key in self.results:
+            lowkey: str = key.lower()
+            setattr(self, lowkey, self.listconcat(key))
+        return
+
+    def listconcat(self, key: str) -> str:
+        obj = self.results[key]
+        df = pd.concat([pd.DataFrame(row, index=[i]) for i, row in enumerate(obj)], ignore_index=True)
+        return markdown(df.to_html(index=False))
+
+
 class CheckResultsLength(object):
     def __call__(self, form, field):
         db = SimpleDB(db_file, connection_arguments={'check_same_thread': False})  # open database
@@ -107,7 +122,8 @@ def solo_result(query: str):
     db = SimpleDB(db_file, connection_arguments={'check_same_thread': False})  # open database
     resultdict: dict = db.inventory(query)  # get everything about that object
     query = query.upper()  # convert query to all upper case
-    return render_template('solo_result.html', query=query, resultdict=resultdict)
+    everything = Inventory(resultdict)  # parsing the inventory into markdown
+    return render_template('solo_result.html', query=query, resultdict=resultdict, everything=everything)
 
 
 @app_simple.route('/autocomplete', methods=['GET'])
