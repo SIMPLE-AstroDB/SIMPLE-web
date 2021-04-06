@@ -44,18 +44,26 @@ class SimpleDB(Database):  # this keeps pycharm happy about unresolved reference
 
 
 class Inventory:
+    ra, dec = 0, 0
 
     def __init__(self, resultdict: dict):
         self.results = resultdict
         for key in self.results:
             lowkey: str = key.lower()
             setattr(self, lowkey, self.listconcat(key))
+        try:
+            srcs = self.listconcat('Sources', rtnmk=False)
+            self.ra, self.dec = srcs.ra[0], srcs.dec[0]
+        except (KeyError, AttributeError):
+            pass
         return
 
-    def listconcat(self, key: str) -> str:
+    def listconcat(self, key: str, rtnmk: bool = True):
         obj = self.results[key]
         df = pd.concat([pd.DataFrame(row, index=[i]) for i, row in enumerate(obj)], ignore_index=True)
-        return markdown(df.to_html(index=False))
+        if rtnmk:
+            return markdown(df.to_html(index=False))
+        return df
 
 
 class CheckResultsLength(object):

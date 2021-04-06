@@ -58,10 +58,17 @@
         <p style="line-height:1.5em; font-size: x-large">{{ everything.telescopes|safe }}</p>
     </div>
 
-    <div class="block">
+    <div class="block" style="height: 450px">
         <h2>Aladin</h2>
-        <!-- TODO: add aladin div here -->
-        <p style="line-height:1.5em; font-size: x-large"></p>
+        <div id="aladin-lite-div" class="block"
+             style="width:400px; height:400px; float: left; border: white"></div>
+        <script type="text/javascript"
+                src="https://aladin.u-strasbg.fr/AladinLite/api/v2/latest/aladin.min.js" charset="utf-8"></script>
+        <script type="text/javascript">
+            var aladin = A.aladin('#aladin-lite-div',
+                {survey: "P/PanSTARRS/DR1/color/z/zg/g", fov:1/120,
+                    target: "{{ everything.ra }} {{ everything.dec }}"});
+        </script>
     </div>
 
 {% endblock %}
