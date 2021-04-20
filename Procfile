@@ -1,1 +1,1 @@
-web: python simple_app/app_simple.py -p 8000
+web: python simple_app/app_simple.py -p 8000 -i '0.0.0.0'
