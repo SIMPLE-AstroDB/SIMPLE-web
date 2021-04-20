@@ -4,16 +4,17 @@ then connect to.
 """
 # external packages
 from astrodbkit2.astrodb import Database
+from astropy.table import Table
 from flask import Flask, render_template, request, redirect, url_for, jsonify
 from flask_wtf import FlaskForm
 from markdown2 import markdown
-import numpy as np
 import pandas as pd
 from wtforms import StringField, SubmitField
 from wtforms.validators import DataRequired, StopValidation
 # internal packages
 import argparse
 import os
+from urllib.parse import quote
 
 # initialise
 app_simple = Flask(__name__)
@@ -42,10 +43,33 @@ class SimpleDB(Database):  # this keeps pycharm happy about unresolved reference
     Sources = None  # initialise class attribute
 
 
+class Inventory:
+    ra, dec = 0, 0
+
+    def __init__(self, resultdict: dict):
+        self.results = resultdict
+        for key in self.results:
+            lowkey: str = key.lower()
+            setattr(self, lowkey, self.listconcat(key))
+        try:
+            srcs = self.listconcat('Sources', rtnmk=False)
+            self.ra, self.dec = srcs.ra[0], srcs.dec[0]
+        except (KeyError, AttributeError):
+            pass
+        return
+
+    def listconcat(self, key: str, rtnmk: bool = True):
+        obj = self.results[key]
+        df = pd.concat([pd.DataFrame(row, index=[i]) for i, row in enumerate(obj)], ignore_index=True)
+        if rtnmk:
+            return markdown(df.to_html(index=False))
+        return df
+
+
 class CheckResultsLength(object):
     def __call__(self, form, field):
         db = SimpleDB(db_file, connection_arguments={'check_same_thread': False})  # open database
-        results: pd.DataFrame = db.search_object(field.data, fmt='pandas')  # search by what is currently in searchbar
+        results = db.search_object(field.data, fmt='astropy')  # search by what is currently in searchbar
         if not len(results):  # if that search is empty
             field.errors[:] = []  # clear existing errors
             raise StopValidation(field.gettext('No results'))  # stop validating and return error
@@ -58,8 +82,7 @@ class SearchForm(FlaskForm):
 
 def all_sources():
     db = SimpleDB(db_file, connection_arguments={'check_same_thread': False})  # open database
-    # FIXME: db.search_object(..fmt='pandas') not returning column names
-    allresults = np.array(db.search_object(''))[:, 0].tolist()  # list all the sources by main name
+    allresults = db.query(db.Sources).table()['source'].tolist()
     return allresults
 
 
@@ -78,7 +101,7 @@ def search():
     form = SearchForm()  # searchbar
     query = form.search.data  # the content in searchbar
     db = SimpleDB(db_file, connection_arguments={'check_same_thread': False})  # open database
-    results: pd.DataFrame = db.search_object(query, fmt='pandas')  # get the results for that object
+    results = db.search_object(query, fmt='astropy')  # get the results for that object
     if request.method == 'POST' and form.validate_on_submit():  # if everything okay with the search
         if len(results) > 1:  # if more than one result
             return redirect((url_for('search_results', query=query)))  # return table of all results
@@ -89,9 +112,16 @@ def search():
 @app_simple.route('/search_results/<query>')
 def search_results(query: str):
     db = SimpleDB(db_file, connection_arguments={'check_same_thread': False})  # open database
-    results: pd.DataFrame = db.search_object(query, fmt='pandas')  # get all results for that object
+    results: Table = db.search_object(query, fmt='astropy')  # get all results for that object
+    results: pd.DataFrame = results.to_pandas()  # convert to pandas from astropy table
+    sourcelinks: list = []  # empty list
+    for src in results.source.values:  # over every source in table
+        urllnk = quote(src)  # convert object name to url safe
+        srclnk = f'<a href="/solo_result/{urllnk}" target="_blank">{src}</a>'  # construct hyperlink
+        sourcelinks.append(srclnk)  # add that to list
+    results['source'] = sourcelinks  # update dataframe with the linked ones
     query = query.upper()  # convert contents of search bar to all upper case
-    results: str = markdown(results.to_html())  # convert the results into markdown to display nice on page
+    results: str = markdown(results.to_html(index=False, escape=False))  # convert results into markdown
     return render_template('search_results.html', query=query, results=results)
 
 
@@ -100,7 +130,8 @@ def solo_result(query: str):
     db = SimpleDB(db_file, connection_arguments={'check_same_thread': False})  # open database
     resultdict: dict = db.inventory(query)  # get everything about that object
     query = query.upper()  # convert query to all upper case
-    return render_template('solo_result.html', query=query, resultdict=resultdict)
+    everything = Inventory(resultdict)  # parsing the inventory into markdown
+    return render_template('solo_result.html', query=query, resultdict=resultdict, everything=everything)
 
 
 @app_simple.route('/autocomplete', methods=['GET'])

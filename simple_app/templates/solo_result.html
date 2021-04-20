@@ -1,10 +1,74 @@
 {% extends "base.html" %}
 <!-- TODO: for a solo object, split up the page and show everything, including aladin -->
 {% block content %}
-
-<div class='block'>
     <h1>Full data for: {{ query|safe }}</h1>
-    <p style="line-height:1.5em; font-size: x-large">{{ resultdict|tojson|safe }}</p>
-</div>
+
+    <div class="block">
+        <h2>Sources</h2>
+        <p style="line-height:1.5em; font-size: x-large">{{ everything.sources|safe }}</p>
+    </div>
+
+    <div class="block">
+        <h2>Names</h2>
+        <p style="line-height:1.5em; font-size: x-large">{{ everything.names|safe }}</p>
+    </div>
+
+    <div class="block">
+        <h2>Photometry</h2>
+        <p style="line-height:1.5em; font-size: x-large">{{ everything.photometry|safe }}</p>
+    </div>
+
+    <div class="block">
+        <h2>Spectral Types</h2>
+        <p style="line-height:1.5em; font-size: x-large">{{ everything.spectraltypes|safe }}</p>
+    </div>
+
+    <div class="block">
+        <h2>Radial Velocities</h2>
+        <p style="line-height:1.5em; font-size: x-large">{{ everything.radialvelocities|safe }}</p>
+    </div>
+
+    <div class="block">
+        <h2>Parallaxes</h2>
+        <p style="line-height:1.5em; font-size: x-large">{{ everything.parallaxes|safe }}</p>
+    </div>
+
+    <div class="block">
+        <h2>Proper Motions</h2>
+        <p style="line-height:1.5em; font-size: x-large">{{ everything.propermotions|safe }}</p>
+    </div>
+
+    <div class="block">
+        <h2>Publications</h2>
+        <p style="line-height:1.5em; font-size: x-large">{{ everything.publications|safe }}</p>
+    </div>
+
+    <div class="block">
+        <h2>Gravities</h2>
+        <p style="line-height:1.5em; font-size: x-large">{{ everything.gravities|safe }}</p>
+    </div>
+
+    <div class="block">
+        <h2>Instruments</h2>
+        <p style="line-height:1.5em; font-size: x-large">{{ everything.instruments|safe }}</p>
+    </div>
+
+    <div class="block">
+        <h2>Telescopes</h2>
+        <p style="line-height:1.5em; font-size: x-large">{{ everything.telescopes|safe }}</p>
+    </div>
+
+    <div class="block" style="height: 450px; position: absolute; float: right; right: 0; top: 0">
+        <h2>Aladin</h2>
+        <div id="aladin-lite-div" class="block"
+             style="width:400px; height:400px; float: left; border: white"></div>
+        <script type="text/javascript"
+                src="https://aladin.u-strasbg.fr/AladinLite/api/v2/latest/aladin.min.js" charset="utf-8"></script>
+        <script type="text/javascript">
+            var aladin = A.aladin('#aladin-lite-div',
+                {survey: "P/PanSTARRS/DR1/color/z/zg/g", fov:1/120,
+                    target: "{{ everything.ra }} {{ everything.dec }}"});
+        </script>
+    </div>
 
 {% endblock %}
