@@ -1,1 +1,1 @@
-web: python simple_app/app_simple.py
+web: python runapp.py
