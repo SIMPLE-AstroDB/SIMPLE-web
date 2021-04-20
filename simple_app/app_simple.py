@@ -6,6 +6,7 @@ then connect to.
 from astrodbkit2.astrodb import Database, REFERENCE_TABLES  # used for pulling out database and querying
 from astropy.table import Table  # tabulating
 from flask import Flask, render_template, request, redirect, url_for, jsonify  # website functionality
+from flask_cors import CORS
 from flask_wtf import FlaskForm  # web forms
 from markdown2 import markdown  # using markdown formatting
 import pandas as pd  # running dataframes
@@ -20,6 +21,7 @@ from urllib.parse import quote  # handling strings into url friendly form
 # initialise
 app_simple = Flask(__name__)  # start flask app
 app_simple.config['SECRET_KEY'] = os.urandom(32)  # need to generate csrf token as basic security for Flask
+CORS(app_simple)  # makes CORS work (aladin notably)
 
 
 def sysargs():
