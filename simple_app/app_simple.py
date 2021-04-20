@@ -6,7 +6,7 @@ then connect to.
 from astrodbkit2.astrodb import Database, REFERENCE_TABLES  # used for pulling out database and querying
 from astropy.table import Table  # tabulating
 from flask import Flask, render_template, request, redirect, url_for, jsonify  # website functionality
-from flask_cors import CORS
+from flask_cors import CORS  # cross origin fix (aladin mostly)
 from flask_wtf import FlaskForm  # web forms
 from markdown2 import markdown  # using markdown formatting
 import pandas as pd  # running dataframes
