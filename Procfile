@@ -1,1 +1,1 @@
-web: python simple_app/app_simple.py -p 5000 -i '0.0.0.0'
+web: python simple_app/app_simple.py -p $PORT -i '0.0.0.0'
