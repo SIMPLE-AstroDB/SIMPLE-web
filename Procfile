@@ -1,1 +1,1 @@
-web: python runapp.py
+web: python simple_app/app_simple.py -p 5000
