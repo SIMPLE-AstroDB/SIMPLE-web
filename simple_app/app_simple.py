@@ -41,6 +41,8 @@ def sysargs():
     _args.add_argument('-d', '--debug', help='Run Flask in debug mode?', default=False, action='store_true')
     _args.add_argument('-f', '--file', default='SIMPLE.db',
                        help='Database file path relative to current directory, default SIMPLE.db')
+    _args.add_argument('-r', '--refresh', default=False, action='store_true',
+                       help='Refresh the database file?')
     _args = _args.parse_args()
     return _args
 
@@ -70,6 +72,8 @@ class Inventory:
         """
         self.results: dict = resultdict  # given inventory for a target
         for key in self.results:  # over every key in inventory
+            if args.debug:
+                print(key)
             if key in REFERENCE_TABLES:  # ignore the reference table ones
                 continue
             lowkey: str = key.lower()  # lower case of the key
@@ -143,6 +147,17 @@ def all_sources():
     db = SimpleDB(db_file, connection_arguments={'check_same_thread': False})  # open database
     allresults: list = db.query(db.Sources).table()['source'].tolist()  # gets all the main IDs in the database
     return allresults
+
+
+def refreshing():
+    """
+    Regenerates the database binary file if underlying data has been changed. Takes a while to run.
+    """
+    cwd: str = os.getcwd()  # current working directory
+    os.chdir('SIMPLE-db')  # change directory to submodule
+    exec(open('scripts/tutorials/generate_database.py').read())  # please someone do this in a better way with imports
+    os.chdir(cwd)  # change back
+    return
 
 
 # website pathing
@@ -240,6 +255,9 @@ def schema_page():
 
 if __name__ == '__main__':
     args = sysargs()  # get all system arguments
+    if args.refresh:
+        refreshing()
+        args.refresh = False
     db_file = f'sqlite:///{args.file}'  # the database file
     all_results = all_sources()  # find all the objects once
     app_simple.run(host=args.host, port=args.port, debug=args.debug)  # generate the application on server side
