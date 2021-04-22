@@ -255,9 +255,9 @@ def schema_page():
 
 if __name__ == '__main__':
     args = sysargs()  # get all system arguments
-    if args.refresh:
-        refreshing()
-        args.refresh = False
+    if args.refresh:  # if refreshing
+        refreshing()  # run refreshing code
+        args.refresh = False  # then set to false (the debug option sometimes interacts with this elsewise)
     db_file = f'sqlite:///{args.file}'  # the database file
     all_results = all_sources()  # find all the objects once
     app_simple.run(host=args.host, port=args.port, debug=args.debug)  # generate the application on server side
