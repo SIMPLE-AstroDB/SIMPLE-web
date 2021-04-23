@@ -153,10 +153,8 @@ def refreshing():
     """
     Regenerates the database binary file if underlying data has been changed. Takes a while to run.
     """
-    cwd: str = os.getcwd()  # current working directory
-    os.chdir('SIMPLE-db')  # change directory to submodule
-    exec(open('scripts/tutorials/generate_database.py').read())  # please someone do this in a better way with imports
-    os.chdir(cwd)  # change back
+    # noinspection PyUnresolvedReferences
+    import generate_database  # run this script
     return
 
 
