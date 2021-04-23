@@ -15,6 +15,7 @@ from wtforms.validators import DataRequired, StopValidation  # validating web fo
 # internal packages
 import argparse  # system arguments
 import os  # operating system
+import sys  # system
 from typing import Union, List  # type hinting
 from urllib.parse import quote  # handling strings into url friendly form
 
@@ -42,7 +43,7 @@ def sysargs():
     _args.add_argument('-f', '--file', default='SIMPLE.db',
                        help='Database file path relative to current directory, default SIMPLE.db')
     _args.add_argument('-r', '--refresh', default=False, action='store_true',
-                       help='Refresh the database file?')
+                       help='Refresh the database file? Do not call alongside debug.')
     _args = _args.parse_args()
     return _args
 
@@ -153,6 +154,7 @@ def refreshing():
     """
     Regenerates the database binary file if underlying data has been changed. Takes a while to run.
     """
+    sys.path.append(os.getcwd())  # hack to get generate_database importable
     # noinspection PyUnresolvedReferences
     import generate_database  # run this script
     return
@@ -255,7 +257,6 @@ if __name__ == '__main__':
     args = sysargs()  # get all system arguments
     if args.refresh:  # if refreshing
         refreshing()  # run refreshing code
-        args.refresh = False  # then set to false (the debug option sometimes interacts with this elsewise)
     db_file = f'sqlite:///{args.file}'  # the database file
     all_results = all_sources()  # find all the objects once
     app_simple.run(host=args.host, port=args.port, debug=args.debug)  # generate the application on server side
