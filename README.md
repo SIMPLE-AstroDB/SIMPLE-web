@@ -41,8 +41,13 @@ If you have changed either the host or port with system arguments, use those ins
 We also recommend keeping up to date with the repo changes, and most importantly, 
 the [astrodbkit2](https://github.com/dr-rodriguez/AstrodbKit2) package:
 ```bash
-git pull --recurse-submodules
+git pull --recurse-submodules upstream main
 pip install git+https://github.com/dr-rodriguez/AstrodbKit2
+```
+Alternatively, one can update the submodule by:
+```bash
+cd SIMPLE-db
+git pull upstream main
 ```
 
 ### Contributing
