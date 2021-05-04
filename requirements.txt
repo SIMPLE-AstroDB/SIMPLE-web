@@ -45,3 +45,4 @@ Werkzeug==1.0.1
 wheel==0.36.2
 WTForms==2.3.3
 zipp==3.4.1
+flask-cors==3.0.10
