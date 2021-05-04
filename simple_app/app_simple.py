@@ -42,8 +42,6 @@ def sysargs():
     _args.add_argument('-d', '--debug', help='Run Flask in debug mode?', default=False, action='store_true')
     _args.add_argument('-f', '--file', default='SIMPLE.db',
                        help='Database file path relative to current directory, default SIMPLE.db')
-    _args.add_argument('-r', '--refresh', default=False, action='store_true',
-                       help='Refresh the database file? Do not call alongside debug.')
     _args = _args.parse_args()
     return _args
 
@@ -150,16 +148,6 @@ def all_sources():
     return allresults
 
 
-def refreshing():
-    """
-    Regenerates the database binary file if underlying data has been changed. Takes a while to run.
-    """
-    sys.path.append(os.getcwd())  # hack to get generate_database importable
-    # noinspection PyUnresolvedReferences
-    import generate_database  # run this script
-    return
-
-
 # website pathing
 @app_simple.route('/')
 @app_simple.route('/index', methods=['GET', 'POST'])
@@ -255,8 +243,6 @@ def schema_page():
 
 if __name__ == '__main__':
     args = sysargs()  # get all system arguments
-    if args.refresh:  # if refreshing
-        refreshing()  # run refreshing code
     db_file = f'sqlite:///{args.file}'  # the database file
     all_results = all_sources()  # find all the objects once
     app_simple.run(host=args.host, port=args.port, debug=args.debug)  # generate the application on server side
