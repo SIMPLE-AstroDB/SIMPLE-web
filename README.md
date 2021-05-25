@@ -19,10 +19,10 @@ or:
 conda create --name simple --file requirements.txt
 ```
 
-#### If you have already cloned the repo and need to add the submodule in
-First time:
+### Refresh the database
+Get a fresh copy of the database from the binary repo.
 ```bash
-git submodule update --init
+wget https://raw.githubusercontent.com/SIMPLE-AstroDB/SIMPLE-binary/main/SIMPLE.db
 ```
 
 ### Running
@@ -44,10 +44,9 @@ the [astrodbkit2](https://github.com/dr-rodriguez/AstrodbKit2) package:
 git pull --recurse-submodules upstream main
 pip install git+https://github.com/dr-rodriguez/AstrodbKit2
 ```
-Alternatively, one can update the submodule by:
+You can also get the latest copy of the SQLite database binary file with:
 ```bash
-cd SIMPLE-db
-git pull upstream main
+wget https://raw.githubusercontent.com/SIMPLE-AstroDB/SIMPLE-binary/main/SIMPLE.db
 ```
 
 For feedback, questions, or if you've found an error, 
