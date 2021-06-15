@@ -5,10 +5,14 @@ then connect to.
 # external packages
 from astrodbkit2.astrodb import Database, REFERENCE_TABLES  # used for pulling out database and querying
 from astropy.table import Table  # tabulating
+from bokeh.embed import json_item
+from bokeh.models import ColumnDataSource
+from bokeh.plotting import figure
 from flask import Flask, render_template, request, redirect, url_for, jsonify  # website functionality
 from flask_cors import CORS  # cross origin fix (aladin mostly)
 from flask_wtf import FlaskForm  # web forms
 from markdown2 import markdown  # using markdown formatting
+import numpy as np  # numerical python
 import pandas as pd  # running dataframes
 from wtforms import StringField, SubmitField  # web forms
 from wtforms.validators import DataRequired, StopValidation  # validating web forms
@@ -50,6 +54,7 @@ class SimpleDB(Database):  # this keeps pycharm happy about unresolved reference
     Wrapper class for astrodbkit2.Database specific to SIMPLE
     """
     Sources = None  # initialise class attribute
+    Photometry = None
 
 
 class Inventory:
@@ -147,6 +152,33 @@ def all_sources():
     return allresults
 
 
+def all_photometry():
+    """
+    Get all the photometric data from the database to be used in later CMD as background
+
+    Returns
+    -------
+    allphoto: pd.DataFrame
+        All the photometry in a dataframe
+    allbands: np.ndarray
+        The unique passbands to create dropdowns by
+    """
+    db = SimpleDB(db_file, connection_arguments={'check_same_thread': False})  # open database
+    allphoto: pd.DataFrame = db.query(db.Photometry).pandas()  # get all photometry
+    allbands: np.ndarray = allphoto.band.unique()  # the unique bands
+    outphoto = {band: np.empty(len(allphoto)) for band in allbands}  # initialised dictionary
+    i = 0  # start counter
+    for target, photo in allphoto.groupby('source'):  # over all objects
+        for band in allbands:  # over all bands
+            val = None  # start as None
+            if band in photo.band:  # if that band is present for given object
+                val = photo[photo.band == band].magnitude  # use that magnitude
+            outphoto[band][i] = val  # set that value in the dictionary
+        i += 1  # step counter
+    allphoto = pd.DataFrame(outphoto)  # use rearranged dataframe
+    return allphoto, allbands
+
+
 # website pathing
 @app_simple.route('/')
 @app_simple.route('/index', methods=['GET', 'POST'])
@@ -210,9 +242,24 @@ def solo_result(query: str):
     """
     db = SimpleDB(db_file, connection_arguments={'check_same_thread': False})  # open database
     resultdict: dict = db.inventory(query)  # get everything about that object
+    p = figure(title='CAMD', sizing_mode='fixed', plot_width=400, plot_height=400)
+    cdsfull = ColumnDataSource(data=all_photo)  # bokeh cds object
+    thiscds = ColumnDataSource(data={})
+    thisplot = p.circle(x=all_photo['WISE_W1'].median(), y=all_photo['WISE_W2'].median(),
+                        color='gray', alpha=0)  # default plot for this object
+    fullplot = p.circle(x='WISE_W1', y='WISE_W2', source=cdsfull, color='gray', alpha=0.5, size=1)
     query = query.upper()  # convert query to all upper case
     everything = Inventory(resultdict)  # parsing the inventory into markdown
-    return render_template('solo_result.html', query=query, resultdict=resultdict, everything=everything)
+    try:
+        thisphoto: pd.DataFrame = everything.listconcat('Photometry', False)  # the photometry for this object
+    except KeyError:  # no photometry for this object
+        pass
+    else:
+        # thiscds = ColumnDataSource(data=thisphoto)  # this object cds
+        # thisplot = p.circle(x='WISE_W1', y='WISE_W2', source=thiscds, color='blue', size=5)  # plot for this object
+        pass
+    return render_template('solo_result.html', query=query, resultdict=resultdict, everything=everything,
+                           plot=jsonify(json_item(p)))
 
 
 @app_simple.route('/autocomplete', methods=['GET'])
@@ -243,4 +290,5 @@ if __name__ == '__main__':
     args = sysargs()  # get all system arguments
     db_file = f'sqlite:///{args.file}'  # the database file
     all_results = all_sources()  # find all the objects once
+    all_photo, all_bands = all_photometry()  # get all the photometry
     app_simple.run(host=args.host, port=args.port, debug=args.debug)  # generate the application on server side
