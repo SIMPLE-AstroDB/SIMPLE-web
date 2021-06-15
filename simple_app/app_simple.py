@@ -15,7 +15,6 @@ from wtforms.validators import DataRequired, StopValidation  # validating web fo
 # internal packages
 import argparse  # system arguments
 import os  # operating system
-import sys  # system
 from typing import Union, List  # type hinting
 from urllib.parse import quote  # handling strings into url friendly form
 
@@ -155,7 +154,6 @@ def index_page():
     """
     The main splash page
     """
-    # db = SimpleDB(db_file, connection_arguments={'check_same_thread': False})
     source_count = len(all_results)  # count the number of sources
     return render_template('index_simple.html', source_count=source_count)
 
