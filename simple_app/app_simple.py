@@ -6,8 +6,9 @@ then connect to.
 from astrodbkit2.astrodb import Database, REFERENCE_TABLES  # used for pulling out database and querying
 from astropy.table import Table  # tabulating
 from bokeh.embed import json_item
-from bokeh.models import ColumnDataSource
-from bokeh.plotting import figure
+from bokeh.models import ColumnDataSource, Range1d
+from bokeh.plotting import figure, curdoc
+from bokeh.resources import CDN
 from flask import Flask, render_template, request, redirect, url_for, jsonify  # website functionality
 from flask_cors import CORS  # cross origin fix (aladin mostly)
 from flask_wtf import FlaskForm  # web forms
@@ -152,6 +153,30 @@ def all_sources():
     return allresults
 
 
+def find_colours(photodf: pd.DataFrame, allbands: np.ndarray):
+    """
+    Find all the colours using available photometry
+
+    Parameters
+    ----------
+    photodf: pd.DataFrame
+        The dataframe with all photometry in
+    allbands: np.ndarray
+        All the photometric bands
+
+    Returns
+    -------
+    photodf: pd.DataFrame
+        The dataframe with all photometry and colours in
+    """
+    for i, band in enumerate(allbands):  # loop over all bands TODO: sort by wavelength?
+        if i + 1 == len(allbands):  # last band
+            break
+        nextband: str = allbands[i + 1]  # next band
+        photodf[f'{band}_{nextband}'] = photodf[band] - photodf[nextband]  # colour
+    return photodf
+
+
 def all_photometry():
     """
     Get all the photometric data from the database to be used in later CMD as background
@@ -166,16 +191,18 @@ def all_photometry():
     db = SimpleDB(db_file, connection_arguments={'check_same_thread': False})  # open database
     allphoto: pd.DataFrame = db.query(db.Photometry).pandas()  # get all photometry
     allbands: np.ndarray = allphoto.band.unique()  # the unique bands
-    outphoto = {band: np.empty(len(allphoto)) for band in allbands}  # initialised dictionary
+    outphoto = pd.DataFrame({band: np.empty(len(allphoto.source.unique())) for band in allbands})  # initial dict
     i = 0  # start counter
+    # FIXME: some sources have multiple mags for the same band
     for target, photo in allphoto.groupby('source'):  # over all objects
         for band in allbands:  # over all bands
             val = None  # start as None
-            if band in photo.band:  # if that band is present for given object
-                val = photo[photo.band == band].magnitude  # use that magnitude
+            if band in photo.band.values:  # if that band is present for given object
+                val = photo[photo.band == band].iloc[0].magnitude  # use that magnitude
             outphoto[band][i] = val  # set that value in the dictionary
         i += 1  # step counter
     allphoto = pd.DataFrame(outphoto)  # use rearranged dataframe
+    allphoto = find_colours(allphoto, allbands)  # get the colours
     return allphoto, allbands
 
 
@@ -240,26 +267,55 @@ def solo_result(query: str):
     query: str
         The query -- full match to a main ID
     """
+    curdoc().template_variables['query'] = query  # add query to bokeh curdoc
     db = SimpleDB(db_file, connection_arguments={'check_same_thread': False})  # open database
     resultdict: dict = db.inventory(query)  # get everything about that object
-    p = figure(title='CAMD', sizing_mode='fixed', plot_width=400, plot_height=400)
-    cdsfull = ColumnDataSource(data=all_photo)  # bokeh cds object
-    thiscds = ColumnDataSource(data={})
-    thisplot = p.circle(x=all_photo['WISE_W1'].median(), y=all_photo['WISE_W2'].median(),
-                        color='gray', alpha=0)  # default plot for this object
-    fullplot = p.circle(x='WISE_W1', y='WISE_W2', source=cdsfull, color='gray', alpha=0.5, size=1)
     query = query.upper()  # convert query to all upper case
     everything = Inventory(resultdict)  # parsing the inventory into markdown
+    return render_template('solo_result.html', resources=CDN,
+                           query=query, resultdict=resultdict, everything=everything)
+
+
+@app_simple.route('/camdplot')
+def camdplot():
+    """
+    Creates CAMD plot as JSON object
+
+    Returns
+    -------
+    plot
+        JSON object for page to use
+    """
+    db = SimpleDB(db_file, connection_arguments={'check_same_thread': False})  # open database
+    query: str = curdoc().template_variables['query']  # get the query (on page)
+    if args.debug:
+        print(query)
+        print(all_photo)
+    resultdict: dict = db.inventory(query)  # get everything about that object
+    everything = Inventory(resultdict)  # parsing the inventory
+    # TODO: hover to show object name, ref, relevant colour, be clickable to trigger query
+    p = figure(title='CAMD', plot_width=800, plot_height=400, active_scroll='wheel_zoom', active_drag='box_zoom',
+               tools='pan,wheel_zoom,box_zoom,hover,reset', tooltips=[('x,y', '($x, $y)')])
+    cdsfull = ColumnDataSource(data=all_photo)  # bokeh cds object
+    p.circle(x='WISE_W1_WISE_W2', y='WISE_W3_WISE_W4', source=cdsfull,
+             color='gray', alpha=0.5, size=2)  # plot all objects
     try:
         thisphoto: pd.DataFrame = everything.listconcat('Photometry', False)  # the photometry for this object
     except KeyError:  # no photometry for this object
         pass
     else:
-        # thiscds = ColumnDataSource(data=thisphoto)  # this object cds
-        # thisplot = p.circle(x='WISE_W1', y='WISE_W2', source=thiscds, color='blue', size=5)  # plot for this object
-        pass
-    return render_template('solo_result.html', query=query, resultdict=resultdict, everything=everything,
-                           plot=jsonify(json_item(p)))
+        # FIXME: some sources have multiple mags for same band
+        newphoto = {band: [bandval.iloc[0].magnitude, ] for band, bandval in thisphoto.groupby('band')}  # rearrange df
+        thisphoto: pd.DataFrame = find_colours(pd.DataFrame(newphoto), all_bands)  # get the colours
+        thiscds = ColumnDataSource(data=thisphoto)  # this object cds
+        p.circle(x='WISE_W1_WISE_W2', y='WISE_W3_WISE_W4', source=thiscds,
+                 color='blue', size=10)  # plot for this object
+    p.x_range = Range1d(all_photo.WISE_W1_WISE_W2.min(), all_photo.WISE_W1_WISE_W2.max())  # x limits
+    p.y_range = Range1d(all_photo.WISE_W3_WISE_W4.min(), all_photo.WISE_W3_WISE_W4.max())  # y limits
+    p.xaxis.axis_label = 'WISE_W1 - WISE_W2'  # x label
+    p.yaxis.axis_label = 'WISE_W3 - WISE_W4'  # y label
+    plot = jsonify(json_item(p, 'camdplot'))  # bokeh plot object put into json object
+    return plot
 
 
 @app_simple.route('/autocomplete', methods=['GET'])

@@ -28,10 +28,10 @@
 <!--    <script src="{{ url_for('static', filename='js/query-builder.standalone.min.js') }}"></script>-->
 
     <!--Bokeh -->
-    <link rel="stylesheet" href="//cdn.pydata.org/bokeh/release/bokeh-2.2.0.min.css" type="text/css" />
-    <link rel="stylesheet" href="//cdn.pydata.org/bokeh/release/bokeh-widgets-2.2.0.min.css" type="text/css" />
-    <script type="text/javascript" src="//cdn.pydata.org/bokeh/release/bokeh-2.2.0.min.js"></script>
-    <script type="text/javascript" src="//cdn.pydata.org/bokeh/release/bokeh-widgets-2.2.0.min.js"></script>
+{#    <link rel="stylesheet" href="//cdn.pydata.org/bokeh/release/bokeh-2.3.2.min.css" type="text/css" />#}
+{#    <link rel="stylesheet" href="//cdn.pydata.org/bokeh/release/bokeh-widgets-2.3.2.min.css" type="text/css" />#}
+    <script type="text/javascript" src="//cdn.pydata.org/bokeh/release/bokeh-2.3.2.min.js"></script>
+    <script type="text/javascript" src="//cdn.pydata.org/bokeh/release/bokeh-widgets-2.3.2.min.js"></script>
     <script type="text/javascript">Bokeh.set_log_level("info");</script>
 
     <!-- DataTables -->
@@ -92,7 +92,7 @@
 
     <!-- Aladin -->
     <link rel="stylesheet" href="//aladin.u-strasbg.fr/AladinLite/api/v2/latest/aladin.min.css" />
-
+    {{ resources }}
     {{ script|safe }}
             
 </head>

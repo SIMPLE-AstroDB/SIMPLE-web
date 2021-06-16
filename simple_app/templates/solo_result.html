@@ -16,9 +16,13 @@
     <div class="block">
         <h2>Photometry</h2>
         <p style="line-height:1.5em; font-size: x-large">{{ everything.photometry|safe }}</p>
-        <div class="block">
-            {{ plot|safe }}
+        <div class="block" id="camdplot">
         </div>
+        <script>
+        fetch('/camdplot')
+            .then(function(response) { return response.json(); })
+            .then(function(item) { return Bokeh.embed.embed_item(item); })
+        </script>
     </div>
 
     <div class="block">
