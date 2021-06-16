@@ -6,7 +6,8 @@ then connect to.
 from astrodbkit2.astrodb import Database, REFERENCE_TABLES  # used for pulling out database and querying
 from astropy.table import Table  # tabulating
 from bokeh.embed import json_item
-from bokeh.models import ColumnDataSource, Range1d
+from bokeh.layouts import row, column
+from bokeh.models import ColumnDataSource, Range1d, CustomJS, Select, Toggle
 from bokeh.plotting import figure, curdoc
 from bokeh.resources import CDN
 from flask import Flask, render_template, request, redirect, url_for, jsonify  # website functionality
@@ -22,6 +23,8 @@ import argparse  # system arguments
 import os  # operating system
 from typing import Union, List  # type hinting
 from urllib.parse import quote  # handling strings into url friendly form
+# local packages
+from simple_callbacks import JSCallbacks
 
 # initialise
 app_simple = Flask(__name__)  # start flask app
@@ -102,8 +105,8 @@ class Inventory:
             Switch for whether to return either a markdown string or a dataframe
         """
         obj: List[dict] = self.results[key]  # the value for the given key
-        df: pd.DataFrame = pd.concat([pd.DataFrame(row, index=[i])  # create dataframe from found dict
-                                      for i, row in enumerate(obj)], ignore_index=True)  # for every dict in the list
+        df: pd.DataFrame = pd.concat([pd.DataFrame(objrow, index=[i])  # create dataframe from found dict
+                                      for i, objrow in enumerate(obj)], ignore_index=True)  # every dict in the list
         if rtnmk:  # return markdown boolean
             return markdown(df.to_html(index=False))  # wrap the dataframe into html then markdown
         return df  # otherwise return dataframe as is
@@ -295,26 +298,49 @@ def camdplot():
     everything = Inventory(resultdict)  # parsing the inventory
     # TODO: hover to show object name, ref, relevant colour, be clickable to trigger query
     p = figure(title='CAMD', plot_width=800, plot_height=400, active_scroll='wheel_zoom', active_drag='box_zoom',
-               tools='pan,wheel_zoom,box_zoom,hover,reset', tooltips=[('x,y', '($x, $y)')])
+               tools='pan,wheel_zoom,box_zoom,hover,reset', tooltips=[('x,y', '($x, $y)')],
+               sizing_mode='stretch_width')
     cdsfull = ColumnDataSource(data=all_photo)  # bokeh cds object
-    p.circle(x='WISE_W1_WISE_W2', y='WISE_W3_WISE_W4', source=cdsfull,
-             color='gray', alpha=0.5, size=2)  # plot all objects
+    fullplot = p.circle(x='WISE_W1_WISE_W2', y='WISE_W3_WISE_W4', source=cdsfull,
+                        color='gray', alpha=0.5, size=2)  # plot all objects
     try:
         thisphoto: pd.DataFrame = everything.listconcat('Photometry', False)  # the photometry for this object
     except KeyError:  # no photometry for this object
+        thisplot = None
         pass
     else:
         # FIXME: some sources have multiple mags for same band
         newphoto = {band: [bandval.iloc[0].magnitude, ] for band, bandval in thisphoto.groupby('band')}  # rearrange df
         thisphoto: pd.DataFrame = find_colours(pd.DataFrame(newphoto), all_bands)  # get the colours
         thiscds = ColumnDataSource(data=thisphoto)  # this object cds
-        p.circle(x='WISE_W1_WISE_W2', y='WISE_W3_WISE_W4', source=thiscds,
-                 color='blue', size=10)  # plot for this object
+        thisplot = p.circle(x='WISE_W1_WISE_W2', y='WISE_W3_WISE_W4', source=thiscds,
+                            color='blue', size=10)  # plot for this object
     p.x_range = Range1d(all_photo.WISE_W1_WISE_W2.min(), all_photo.WISE_W1_WISE_W2.max())  # x limits
     p.y_range = Range1d(all_photo.WISE_W3_WISE_W4.min(), all_photo.WISE_W3_WISE_W4.max())  # y limits
-    p.xaxis.axis_label = 'WISE_W1 - WISE_W2'  # x label
-    p.yaxis.axis_label = 'WISE_W3 - WISE_W4'  # y label
-    plot = jsonify(json_item(p, 'camdplot'))  # bokeh plot object put into json object
+    p.xaxis.axis_label = 'W1 - W2'  # x label
+    p.yaxis.axis_label = 'W3 - W4'  # y label
+    buttonxflip = Toggle(label='X Flip')
+    buttonxflip.js_on_click(CustomJS(code=jscallbacks.button_flip, args={'axrange': p.x_range}))
+    buttonyflip = Toggle(label='Y Flip')
+    buttonyflip.js_on_click(CustomJS(code=jscallbacks.button_flip, args={'axrange': p.y_range}))
+    just_colours: pd.DataFrame = all_photo.drop(columns=all_bands)  # only the colours
+    axis_names = [f'{col.split("_")[1]} - {col.split("_")[3]}' for col in just_colours.columns]  # convert nicely
+    dropmenu = [*zip(just_colours.columns, axis_names), ]  # zip up into menu
+    dropdownx = Select(title='X Axis', options=dropmenu, value='WISE_W1_WISE_W2', width=200, height=50)  # x axis select
+    dropdownx.js_on_change('value', CustomJS(code=jscallbacks.dropdownx_js,
+                                             args={'fullplot': fullplot, 'thisplot': thisplot,
+                                                   'fulldata': cdsfull.data, 'xbut': buttonxflip,
+                                                   'xaxis': p.xaxis[0], 'xrange': p.x_range}))
+    dropdowny = Select(title='Y Axis', options=dropmenu, value='WISE_W3_WISE_W4', width=200, height=50)  # y axis select
+    dropdowny.js_on_change('value', CustomJS(code=jscallbacks.dropdowny_js,
+                                             args={'fullplot': fullplot, 'thisplot': thisplot,
+                                                   'fulldata': cdsfull.data, 'ybut': buttonyflip,
+                                                   'yaxis': p.yaxis[0], 'yrange': p.y_range}))
+    plot = jsonify(json_item(row(p, column(dropdownx,
+                                           dropdowny,
+                                           row(buttonxflip, buttonyflip, sizing_mode='scale_width'),
+                                           sizing_mode='fixed', width=200, height=200),
+                                 sizing_mode='scale_width'), 'camdplot'))  # bokeh object in json
     return plot
 
 
@@ -345,6 +371,7 @@ def schema_page():
 if __name__ == '__main__':
     args = sysargs()  # get all system arguments
     db_file = f'sqlite:///{args.file}'  # the database file
+    jscallbacks = JSCallbacks()
     all_results = all_sources()  # find all the objects once
     all_photo, all_bands = all_photometry()  # get all the photometry
     app_simple.run(host=args.host, port=args.port, debug=args.debug)  # generate the application on server side
