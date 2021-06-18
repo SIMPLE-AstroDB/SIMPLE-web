@@ -49,6 +49,11 @@ You can also get the latest copy of the SQLite database binary file with:
 wget https://raw.githubusercontent.com/SIMPLE-AstroDB/SIMPLE-binary/main/SIMPLE.db
 ```
 
+If updating requirements, update them with:
+```bash
+pip freeze > requirements.txt
+```
+
 For feedback, questions, or if you've found an error, 
 please [create an Issue here](https://github.com/SIMPLE-AstroDB/SIMPLE-web/issues).
 
