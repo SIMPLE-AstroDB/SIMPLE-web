@@ -172,10 +172,13 @@ def find_colours(photodf: pd.DataFrame, allbands: np.ndarray):
         The dataframe with all photometry and colours in
     """
     for i, band in enumerate(allbands):  # loop over all bands TODO: sort by wavelength?
-        if i + 1 == len(allbands):  # last band
-            break
-        nextband: str = allbands[i + 1]  # next band
-        photodf[f'{band}_{nextband}'] = photodf[band] - photodf[nextband]  # colour
+        j = 1  # start count
+        while j < 20:
+            if i + j == len(allbands):  # last band
+                break
+            nextband: str = allbands[i + j]  # next band
+            photodf[f'{band}_{nextband}'] = photodf[band] - photodf[nextband]  # colour
+            j += 1
     return photodf
 
 
