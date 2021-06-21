@@ -5,17 +5,23 @@
 
     <div class="block">
         <h2>Sources</h2>
-        <p style="line-height:1.5em; font-size: x-large">{{ everything.sources|safe }}</p>
+        <p style="line-height:1.5em; font-size: x-large">
+            {{ everything.sources|safe if everything.sources else 'No Sources for ' + query|safe }}
+        </p>
     </div>
 
     <div class="block">
         <h2>Names</h2>
-        <p style="line-height:1.5em; font-size: x-large">{{ everything.names|safe }}</p>
+        <p style="line-height:1.5em; font-size: x-large">
+            {{ everything.names|safe if everything.names else 'No Names for ' + query|safe }}
+        </p>
     </div>
 
     <div class="block">
         <h2>Photometry</h2>
-        <p style="line-height:1.5em; font-size: x-large">{{ everything.photometry|safe }}</p>
+        <p style="line-height:1.5em; font-size: x-large">
+            {{ everything.photometry|safe if everything.photometry else 'No Photometry for ' + query|safe }}
+        </p>
         <div class="block" id="camdplot">
         </div>
         <script>
@@ -27,27 +33,37 @@
 
     <div class="block">
         <h2>Spectral Types</h2>
-        <p style="line-height:1.5em; font-size: x-large">{{ everything.spectraltypes|safe }}</p>
+        <p style="line-height:1.5em; font-size: x-large">
+            {{ everything.spectraltypes|safe if everything.spectraltypes else 'No Spectral Types for ' + query|safe }}
+        </p>
     </div>
 
     <div class="block">
         <h2>Radial Velocities</h2>
-        <p style="line-height:1.5em; font-size: x-large">{{ everything.radialvelocities|safe }}</p>
+        <p style="line-height:1.5em; font-size: x-large">
+    {{ everything.radialvelocities|safe if everything.radialvelocities else 'No Radial Velocities for ' + query|safe }}
+        </p>
     </div>
 
     <div class="block">
         <h2>Parallaxes</h2>
-        <p style="line-height:1.5em; font-size: x-large">{{ everything.parallaxes|safe }}</p>
+        <p style="line-height:1.5em; font-size: x-large">
+            {{ everything.parallaxes|safe if everything.parallaxes else 'No Parallaxes for ' + query|safe }}
+        </p>
     </div>
 
     <div class="block">
         <h2>Proper Motions</h2>
-        <p style="line-height:1.5em; font-size: x-large">{{ everything.propermotions|safe }}</p>
+        <p style="line-height:1.5em; font-size: x-large">
+            {{ everything.propermotions|safe if everything.propermotions else 'No Proper Motions for ' + query|safe }}
+        </p>
     </div>
 
     <div class="block">
         <h2>Gravities</h2>
-        <p style="line-height:1.5em; font-size: x-large">{{ everything.gravities|safe }}</p>
+        <p style="line-height:1.5em; font-size: x-large">
+            {{ everything.gravities|safe if everything.gravities else 'No Gravities for ' + query|safe }}
+        </p>
     </div>
 
     <div class="block" style="height: 450px; position: absolute; float: right; right: 0; top: 0">
