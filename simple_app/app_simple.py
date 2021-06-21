@@ -5,10 +5,10 @@ then connect to.
 # external packages
 from astrodbkit2.astrodb import Database, REFERENCE_TABLES  # used for pulling out database and querying
 from astropy.table import Table  # tabulating
-from bokeh.embed import json_item
-from bokeh.layouts import row, column
-from bokeh.models import ColumnDataSource, Range1d, CustomJS, Select, Toggle
-from bokeh.plotting import figure, curdoc
+from bokeh.embed import json_item  # bokeh embedding
+from bokeh.layouts import row, column  # bokeh displaying nicely
+from bokeh.models import ColumnDataSource, Range1d, CustomJS, Select, Toggle, TapTool, OpenURL  # bokeh models
+from bokeh.plotting import figure, curdoc  # bokeh plotting
 from flask import Flask, render_template, request, redirect, url_for, jsonify  # website functionality
 from flask_cors import CORS  # cross origin fix (aladin mostly)
 from flask_wtf import FlaskForm  # web forms
@@ -201,6 +201,21 @@ def parse_photometry(photodf: pd.DataFrame,  allbands: np.ndarray, multisource: 
         Dictionary of effectively transposed photometry
     """
     def one_source_iter(onephotodf: pd.DataFrame):
+        """
+        Parses the photometry dataframe handling multiple references for same magnitude for one object
+
+        Parameters
+        ----------
+        onephotodf: pd.DataFrame
+            The dataframe with all the photometry in it
+
+        Returns
+        -------
+        thisnewphot: dict
+            Dictionary of transposed photometry
+        arrsize: int
+            The number of rows in the dictionary
+        """
         refgrp = onephotodf.groupby('reference')  # all references grouped
         arrsize: int = len(refgrp)  # the number of rows
         thisnewphot = {band: [None, ] * arrsize for band in onephotodf.band.unique()}  # initial dictionary
@@ -339,7 +354,7 @@ def camdplot():
     tooltips = [('Target', '@target'), *zip(bands, vals), ('Ref', '@ref')]  # tooltips for hover tool
     p = figure(title='CAMD', plot_width=800, plot_height=400, active_scroll='wheel_zoom', active_drag='box_zoom',
                tools='pan,wheel_zoom,box_zoom,hover,tap,reset', tooltips=tooltips,
-               sizing_mode='stretch_width')
+               sizing_mode='stretch_width')  # bokeh figure
     cdsfull = ColumnDataSource(data=all_photo)  # bokeh cds object
     fullplot = p.circle_x(x='WISE_W1_WISE_W2', y='WISE_W3_WISE_W4', source=cdsfull,
                           color='gray', alpha=0.5, size=5)  # plot all objects
@@ -359,6 +374,8 @@ def camdplot():
     p.y_range = Range1d(all_photo.WISE_W3_WISE_W4.min(), all_photo.WISE_W3_WISE_W4.max())  # y limits
     p.xaxis.axis_label = 'W1 - W2'  # x label
     p.yaxis.axis_label = 'W3 - W4'  # y label
+    taptool = p.select(type=TapTool)  # tapping
+    taptool.callback = OpenURL(url='/solo_result/@target')  # open new page on target when source tapped
     buttonxflip = Toggle(label='X Flip')
     buttonxflip.js_on_click(CustomJS(code=jscallbacks.button_flip, args={'axrange': p.x_range}))
     buttonyflip = Toggle(label='Y Flip')
