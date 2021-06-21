@@ -182,6 +182,54 @@ def find_colours(photodf: pd.DataFrame, allbands: np.ndarray):
     return photodf
 
 
+def parse_photometry(photodf: pd.DataFrame,  allbands: np.ndarray, multisource: bool = False) -> dict:
+    """
+    Parses the photometry dataframe handling multiple references for same magnitude
+
+    Parameters
+    ----------
+    photodf: pd.DataFrame
+        The dataframe with all photometry in
+    allbands: np.ndarray
+        All the photometric bands
+    multisource: bool
+        Switch whether to iterate over initial dataframe with multiple sources
+
+    Returns
+    -------
+    newphoto: dict
+        Dictionary of effectively transposed photometry
+    """
+    def one_source_iter(onephotodf: pd.DataFrame):
+        refgrp = onephotodf.groupby('reference')  # all references grouped
+        arrsize: int = len(refgrp)  # the number of rows
+        thisnewphot = {band: [None, ] * arrsize for band in onephotodf.band.unique()}  # initial dictionary
+        thisnewphot['ref'] = [None, ] * arrsize  # references
+        for i, (ref, refval) in enumerate(refgrp):  # over all references
+            for band, bandval in refval.groupby('band'):  # over all bands
+                thisnewphot[band][i] = bandval.iloc[0].magnitude  # given magnitude (0 index of length 1 dataframe)
+            thisnewphot['ref'][i] = ref  # reference for these mags
+        return thisnewphot, arrsize
+
+    if not multisource:
+        newphoto = one_source_iter(photodf)[0]
+    else:
+        newphoto: dict = {band: [] for band in np.hstack([allbands, ['ref', 'target']])}  # empty dict
+        for target, targetdf in photodf.groupby('source'):
+            specificphoto, grplen = one_source_iter(targetdf)  # get the dictionary for this object photometry
+            targetname = [target, ] * grplen  # list of the target name
+            for key in newphoto.keys():  # over all keys
+                key: str = key
+                if key == 'target':
+                    continue
+                try:
+                    newphoto[key].extend(specificphoto[key])  # extend the list for given key
+                except KeyError:  # if that key wasn't present for the object
+                    newphoto[key].extend([None, ] * grplen)  # use None as filler
+            newphoto['target'].extend(targetname)  # add target to table
+    return newphoto
+
+
 def all_photometry():
     """
     Get all the photometric data from the database to be used in later CMD as background
@@ -196,16 +244,7 @@ def all_photometry():
     db = SimpleDB(db_file, connection_arguments={'check_same_thread': False})  # open database
     allphoto: pd.DataFrame = db.query(db.Photometry).pandas()  # get all photometry
     allbands: np.ndarray = allphoto.band.unique()  # the unique bands
-    outphoto = pd.DataFrame({band: np.empty(len(allphoto.source.unique())) for band in allbands})  # initial dict
-    i = 0  # start counter
-    # FIXME: some sources have multiple mags for the same band
-    for target, photo in allphoto.groupby('source'):  # over all objects
-        for band in allbands:  # over all bands
-            val = None  # start as None
-            if band in photo.band.values:  # if that band is present for given object
-                val = photo[photo.band == band].iloc[0].magnitude  # use that magnitude
-            outphoto[band][i] = val  # set that value in the dictionary
-        i += 1  # step counter
+    outphoto: dict = parse_photometry(allphoto, allbands, True)  # transpose photometric table
     allphoto = pd.DataFrame(outphoto)  # use rearranged dataframe
     allphoto = find_colours(allphoto, allbands)  # get the colours
     return allphoto, allbands
@@ -293,26 +332,25 @@ def camdplot():
     """
     db = SimpleDB(db_file, connection_arguments={'check_same_thread': False})  # open database
     query: str = curdoc().template_variables['query']  # get the query (on page)
-    if args.debug:
-        print(query)
-        print(all_photo)
     resultdict: dict = db.inventory(query)  # get everything about that object
     everything = Inventory(resultdict)  # parsing the inventory
-    # TODO: hover to show object name, ref, relevant colour, be clickable to trigger query
+    bands = [band.split("_")[1] for band in all_bands]  # nice band names
+    vals = [f'@{band}' for band in all_bands]  # the values in CDS
+    tooltips = [('Target', '@target'), *zip(bands, vals), ('Ref', '@ref')]  # tooltips for hover tool
     p = figure(title='CAMD', plot_width=800, plot_height=400, active_scroll='wheel_zoom', active_drag='box_zoom',
-               tools='pan,wheel_zoom,box_zoom,hover,reset', tooltips=[('x,y', '($x, $y)')],
+               tools='pan,wheel_zoom,box_zoom,hover,tap,reset', tooltips=tooltips,
                sizing_mode='stretch_width')
     cdsfull = ColumnDataSource(data=all_photo)  # bokeh cds object
-    fullplot = p.circle(x='WISE_W1_WISE_W2', y='WISE_W3_WISE_W4', source=cdsfull,
-                        color='gray', alpha=0.5, size=2)  # plot all objects
+    fullplot = p.circle_x(x='WISE_W1_WISE_W2', y='WISE_W3_WISE_W4', source=cdsfull,
+                          color='gray', alpha=0.5, size=5)  # plot all objects
     try:
         thisphoto: pd.DataFrame = everything.listconcat('Photometry', False)  # the photometry for this object
     except KeyError:  # no photometry for this object
         thisplot = None
         pass
     else:
-        # FIXME: some sources have multiple mags for same band
-        newphoto = {band: [bandval.iloc[0].magnitude, ] for band, bandval in thisphoto.groupby('band')}  # rearrange df
+        newphoto: dict = parse_photometry(thisphoto, all_bands)  # transpose photometric table
+        newphoto['target'] = [query, ] * len(newphoto['ref'])
         thisphoto: pd.DataFrame = find_colours(pd.DataFrame(newphoto), all_bands)  # get the colours
         thiscds = ColumnDataSource(data=thisphoto)  # this object cds
         thisplot = p.circle(x='WISE_W1_WISE_W2', y='WISE_W3_WISE_W4', source=thiscds,
@@ -325,7 +363,7 @@ def camdplot():
     buttonxflip.js_on_click(CustomJS(code=jscallbacks.button_flip, args={'axrange': p.x_range}))
     buttonyflip = Toggle(label='Y Flip')
     buttonyflip.js_on_click(CustomJS(code=jscallbacks.button_flip, args={'axrange': p.y_range}))
-    just_colours: pd.DataFrame = all_photo.drop(columns=all_bands)  # only the colours
+    just_colours: pd.DataFrame = all_photo.drop(columns=np.hstack([all_bands, ['ref', 'target']]))  # only the colours
     axis_names = [f'{col.split("_")[1]} - {col.split("_")[3]}' for col in just_colours.columns]  # convert nicely
     dropmenu = [*zip(just_colours.columns, axis_names), ]  # zip up into menu
     dropdownx = Select(title='X Axis', options=dropmenu, value='WISE_W1_WISE_W2', width=200, height=50)  # x axis select
