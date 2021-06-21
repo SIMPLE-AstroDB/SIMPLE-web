@@ -9,7 +9,6 @@ from bokeh.embed import json_item
 from bokeh.layouts import row, column
 from bokeh.models import ColumnDataSource, Range1d, CustomJS, Select, Toggle
 from bokeh.plotting import figure, curdoc
-from bokeh.resources import CDN
 from flask import Flask, render_template, request, redirect, url_for, jsonify  # website functionality
 from flask_cors import CORS  # cross origin fix (aladin mostly)
 from flask_wtf import FlaskForm  # web forms
@@ -275,7 +274,7 @@ def solo_result(query: str):
     resultdict: dict = db.inventory(query)  # get everything about that object
     query = query.upper()  # convert query to all upper case
     everything = Inventory(resultdict)  # parsing the inventory into markdown
-    return render_template('solo_result.html', resources=CDN,
+    return render_template('solo_result.html',
                            query=query, resultdict=resultdict, everything=everything)
 
 
