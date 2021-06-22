@@ -5,19 +5,25 @@ then connect to.
 # external packages
 from astrodbkit2.astrodb import Database, REFERENCE_TABLES  # used for pulling out database and querying
 from astropy.table import Table  # tabulating
+from bokeh.embed import json_item  # bokeh embedding
+from bokeh.layouts import row, column  # bokeh displaying nicely
+from bokeh.models import ColumnDataSource, Range1d, CustomJS, Select, Toggle, TapTool, OpenURL  # bokeh models
+from bokeh.plotting import figure, curdoc  # bokeh plotting
 from flask import Flask, render_template, request, redirect, url_for, jsonify  # website functionality
 from flask_cors import CORS  # cross origin fix (aladin mostly)
 from flask_wtf import FlaskForm  # web forms
 from markdown2 import markdown  # using markdown formatting
+import numpy as np  # numerical python
 import pandas as pd  # running dataframes
 from wtforms import StringField, SubmitField  # web forms
 from wtforms.validators import DataRequired, StopValidation  # validating web forms
 # internal packages
 import argparse  # system arguments
 import os  # operating system
-import sys  # system
 from typing import Union, List  # type hinting
 from urllib.parse import quote  # handling strings into url friendly form
+# local packages
+from simple_callbacks import JSCallbacks
 
 # initialise
 app_simple = Flask(__name__)  # start flask app
@@ -51,6 +57,7 @@ class SimpleDB(Database):  # this keeps pycharm happy about unresolved reference
     Wrapper class for astrodbkit2.Database specific to SIMPLE
     """
     Sources = None  # initialise class attribute
+    Photometry = None
 
 
 class Inventory:
@@ -97,8 +104,8 @@ class Inventory:
             Switch for whether to return either a markdown string or a dataframe
         """
         obj: List[dict] = self.results[key]  # the value for the given key
-        df: pd.DataFrame = pd.concat([pd.DataFrame(row, index=[i])  # create dataframe from found dict
-                                      for i, row in enumerate(obj)], ignore_index=True)  # for every dict in the list
+        df: pd.DataFrame = pd.concat([pd.DataFrame(objrow, index=[i])  # create dataframe from found dict
+                                      for i, objrow in enumerate(obj)], ignore_index=True)  # every dict in the list
         if rtnmk:  # return markdown boolean
             return markdown(df.to_html(index=False))  # wrap the dataframe into html then markdown
         return df  # otherwise return dataframe as is
@@ -148,6 +155,116 @@ def all_sources():
     return allresults
 
 
+def find_colours(photodf: pd.DataFrame, allbands: np.ndarray):
+    """
+    Find all the colours using available photometry
+
+    Parameters
+    ----------
+    photodf: pd.DataFrame
+        The dataframe with all photometry in
+    allbands: np.ndarray
+        All the photometric bands
+
+    Returns
+    -------
+    photodf: pd.DataFrame
+        The dataframe with all photometry and colours in
+    """
+    for i, band in enumerate(allbands):  # loop over all bands TODO: sort by wavelength?
+        j = 1  # start count
+        while j < 20:
+            if i + j == len(allbands):  # last band
+                break
+            nextband: str = allbands[i + j]  # next band
+            photodf[f'{band}_{nextband}'] = photodf[band] - photodf[nextband]  # colour
+            j += 1
+    return photodf
+
+
+def parse_photometry(photodf: pd.DataFrame,  allbands: np.ndarray, multisource: bool = False) -> dict:
+    """
+    Parses the photometry dataframe handling multiple references for same magnitude
+
+    Parameters
+    ----------
+    photodf: pd.DataFrame
+        The dataframe with all photometry in
+    allbands: np.ndarray
+        All the photometric bands
+    multisource: bool
+        Switch whether to iterate over initial dataframe with multiple sources
+
+    Returns
+    -------
+    newphoto: dict
+        Dictionary of effectively transposed photometry
+    """
+    def one_source_iter(onephotodf: pd.DataFrame):
+        """
+        Parses the photometry dataframe handling multiple references for same magnitude for one object
+
+        Parameters
+        ----------
+        onephotodf: pd.DataFrame
+            The dataframe with all the photometry in it
+
+        Returns
+        -------
+        thisnewphot: dict
+            Dictionary of transposed photometry
+        arrsize: int
+            The number of rows in the dictionary
+        """
+        refgrp = onephotodf.groupby('reference')  # all references grouped
+        arrsize: int = len(refgrp)  # the number of rows
+        thisnewphot = {band: [None, ] * arrsize for band in onephotodf.band.unique()}  # initial dictionary
+        thisnewphot['ref'] = [None, ] * arrsize  # references
+        for i, (ref, refval) in enumerate(refgrp):  # over all references
+            for band, bandval in refval.groupby('band'):  # over all bands
+                thisnewphot[band][i] = bandval.iloc[0].magnitude  # given magnitude (0 index of length 1 dataframe)
+            thisnewphot['ref'][i] = ref  # reference for these mags
+        return thisnewphot, arrsize
+
+    if not multisource:
+        newphoto = one_source_iter(photodf)[0]
+    else:
+        newphoto: dict = {band: [] for band in np.hstack([allbands, ['ref', 'target']])}  # empty dict
+        for target, targetdf in photodf.groupby('source'):
+            specificphoto, grplen = one_source_iter(targetdf)  # get the dictionary for this object photometry
+            targetname = [target, ] * grplen  # list of the target name
+            for key in newphoto.keys():  # over all keys
+                key: str = key
+                if key == 'target':
+                    continue
+                try:
+                    newphoto[key].extend(specificphoto[key])  # extend the list for given key
+                except KeyError:  # if that key wasn't present for the object
+                    newphoto[key].extend([None, ] * grplen)  # use None as filler
+            newphoto['target'].extend(targetname)  # add target to table
+    return newphoto
+
+
+def all_photometry():
+    """
+    Get all the photometric data from the database to be used in later CMD as background
+
+    Returns
+    -------
+    allphoto: pd.DataFrame
+        All the photometry in a dataframe
+    allbands: np.ndarray
+        The unique passbands to create dropdowns by
+    """
+    db = SimpleDB(db_file, connection_arguments={'check_same_thread': False})  # open database
+    allphoto: pd.DataFrame = db.query(db.Photometry).pandas()  # get all photometry
+    allbands: np.ndarray = allphoto.band.unique()  # the unique bands
+    outphoto: dict = parse_photometry(allphoto, allbands, True)  # transpose photometric table
+    allphoto = pd.DataFrame(outphoto)  # use rearranged dataframe
+    allphoto = find_colours(allphoto, allbands)  # get the colours
+    return allphoto, allbands
+
+
 # website pathing
 @app_simple.route('/')
 @app_simple.route('/index', methods=['GET', 'POST'])
@@ -155,7 +272,6 @@ def index_page():
     """
     The main splash page
     """
-    # db = SimpleDB(db_file, connection_arguments={'check_same_thread': False})
     source_count = len(all_results)  # count the number of sources
     return render_template('index_simple.html', source_count=source_count)
 
@@ -210,11 +326,79 @@ def solo_result(query: str):
     query: str
         The query -- full match to a main ID
     """
+    curdoc().template_variables['query'] = query  # add query to bokeh curdoc
     db = SimpleDB(db_file, connection_arguments={'check_same_thread': False})  # open database
     resultdict: dict = db.inventory(query)  # get everything about that object
     query = query.upper()  # convert query to all upper case
     everything = Inventory(resultdict)  # parsing the inventory into markdown
-    return render_template('solo_result.html', query=query, resultdict=resultdict, everything=everything)
+    return render_template('solo_result.html',
+                           query=query, resultdict=resultdict, everything=everything)
+
+
+@app_simple.route('/camdplot')
+def camdplot():
+    """
+    Creates CAMD plot as JSON object
+
+    Returns
+    -------
+    plot
+        JSON object for page to use
+    """
+    db = SimpleDB(db_file, connection_arguments={'check_same_thread': False})  # open database
+    query: str = curdoc().template_variables['query']  # get the query (on page)
+    resultdict: dict = db.inventory(query)  # get everything about that object
+    everything = Inventory(resultdict)  # parsing the inventory
+    bands = [band.split("_")[1] for band in all_bands]  # nice band names
+    vals = [f'@{band}' for band in all_bands]  # the values in CDS
+    tooltips = [('Target', '@target'), *zip(bands, vals), ('Ref', '@ref')]  # tooltips for hover tool
+    p = figure(title='CAMD', plot_width=800, plot_height=400, active_scroll='wheel_zoom', active_drag='box_zoom',
+               tools='pan,wheel_zoom,box_zoom,hover,tap,reset', tooltips=tooltips,
+               sizing_mode='stretch_width')  # bokeh figure
+    cdsfull = ColumnDataSource(data=all_photo)  # bokeh cds object
+    fullplot = p.circle_x(x='WISE_W1_WISE_W2', y='WISE_W3_WISE_W4', source=cdsfull,
+                          color='gray', alpha=0.5, size=5)  # plot all objects
+    try:
+        thisphoto: pd.DataFrame = everything.listconcat('Photometry', False)  # the photometry for this object
+    except KeyError:  # no photometry for this object
+        thisplot = None
+        pass
+    else:
+        newphoto: dict = parse_photometry(thisphoto, all_bands)  # transpose photometric table
+        newphoto['target'] = [query, ] * len(newphoto['ref'])
+        thisphoto: pd.DataFrame = find_colours(pd.DataFrame(newphoto), all_bands)  # get the colours
+        thiscds = ColumnDataSource(data=thisphoto)  # this object cds
+        thisplot = p.circle(x='WISE_W1_WISE_W2', y='WISE_W3_WISE_W4', source=thiscds,
+                            color='blue', size=10)  # plot for this object
+    p.x_range = Range1d(all_photo.WISE_W1_WISE_W2.min(), all_photo.WISE_W1_WISE_W2.max())  # x limits
+    p.y_range = Range1d(all_photo.WISE_W3_WISE_W4.min(), all_photo.WISE_W3_WISE_W4.max())  # y limits
+    p.xaxis.axis_label = 'W1 - W2'  # x label
+    p.yaxis.axis_label = 'W3 - W4'  # y label
+    taptool = p.select(type=TapTool)  # tapping
+    taptool.callback = OpenURL(url='/solo_result/@target')  # open new page on target when source tapped
+    buttonxflip = Toggle(label='X Flip')
+    buttonxflip.js_on_click(CustomJS(code=jscallbacks.button_flip, args={'axrange': p.x_range}))
+    buttonyflip = Toggle(label='Y Flip')
+    buttonyflip.js_on_click(CustomJS(code=jscallbacks.button_flip, args={'axrange': p.y_range}))
+    just_colours: pd.DataFrame = all_photo.drop(columns=np.hstack([all_bands, ['ref', 'target']]))  # only the colours
+    axis_names = [f'{col.split("_")[1]} - {col.split("_")[3]}' for col in just_colours.columns]  # convert nicely
+    dropmenu = [*zip(just_colours.columns, axis_names), ]  # zip up into menu
+    dropdownx = Select(title='X Axis', options=dropmenu, value='WISE_W1_WISE_W2', width=200, height=50)  # x axis select
+    dropdownx.js_on_change('value', CustomJS(code=jscallbacks.dropdownx_js,
+                                             args={'fullplot': fullplot, 'thisplot': thisplot,
+                                                   'fulldata': cdsfull.data, 'xbut': buttonxflip,
+                                                   'xaxis': p.xaxis[0], 'xrange': p.x_range}))
+    dropdowny = Select(title='Y Axis', options=dropmenu, value='WISE_W3_WISE_W4', width=200, height=50)  # y axis select
+    dropdowny.js_on_change('value', CustomJS(code=jscallbacks.dropdowny_js,
+                                             args={'fullplot': fullplot, 'thisplot': thisplot,
+                                                   'fulldata': cdsfull.data, 'ybut': buttonyflip,
+                                                   'yaxis': p.yaxis[0], 'yrange': p.y_range}))
+    plot = jsonify(json_item(row(p, column(dropdownx,
+                                           dropdowny,
+                                           row(buttonxflip, buttonyflip, sizing_mode='scale_width'),
+                                           sizing_mode='fixed', width=200, height=200),
+                                 sizing_mode='scale_width'), 'camdplot'))  # bokeh object in json
+    return plot
 
 
 @app_simple.route('/autocomplete', methods=['GET'])
@@ -244,5 +428,7 @@ def schema_page():
 if __name__ == '__main__':
     args = sysargs()  # get all system arguments
     db_file = f'sqlite:///{args.file}'  # the database file
+    jscallbacks = JSCallbacks()
     all_results = all_sources()  # find all the objects once
+    all_photo, all_bands = all_photometry()  # get all the photometry
     app_simple.run(host=args.host, port=args.port, debug=args.debug)  # generate the application on server side
