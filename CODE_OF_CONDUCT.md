@@ -58,7 +58,7 @@ representative at an online or offline event.
 
 ## Enforcement
 
-IInstances of abusive, harassing, or otherwise unacceptable behavior may be
+Instances of abusive, harassing, or otherwise unacceptable behavior may be
 reported to Kelle Cruz (@kelle) or David Rodriguez (@dr-rodriguez) for enforcement.
 All complaints will be reviewed and investigated promptly and fairly.
 
