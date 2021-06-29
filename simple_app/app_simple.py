@@ -4,10 +4,12 @@ then connect to.
 """
 # external packages
 from astrodbkit2.astrodb import Database, REFERENCE_TABLES  # used for pulling out database and querying
+from astropy.coordinates import SkyCoord
 from astropy.table import Table  # tabulating
 from bokeh.embed import json_item  # bokeh embedding
 from bokeh.layouts import row, column  # bokeh displaying nicely
-from bokeh.models import ColumnDataSource, Range1d, CustomJS, Select, Toggle, TapTool, OpenURL  # bokeh models
+from bokeh.models import ColumnDataSource, Range1d, CustomJS,\
+    Select, Toggle, TapTool, OpenURL, HoverTool  # bokeh models
 from bokeh.plotting import figure, curdoc  # bokeh plotting
 from flask import Flask, render_template, request, redirect, url_for, jsonify  # website functionality
 from flask_cors import CORS  # cross origin fix (aladin mostly)
@@ -149,10 +151,13 @@ def all_sources():
     -------
     allresults
         Just the main IDs
+    fullresults
+        The full dataframe of all the sources
     """
     db = SimpleDB(db_file, connection_arguments={'check_same_thread': False})  # open database
-    allresults: list = db.query(db.Sources).table()['source'].tolist()  # gets all the main IDs in the database
-    return allresults
+    fullresults: pd.DataFrame = db.query(db.Sources).pandas()
+    allresults: list = fullresults['source'].tolist()  # gets all the main IDs in the database
+    return allresults, fullresults
 
 
 def find_colours(photodf: pd.DataFrame, allbands: np.ndarray):
@@ -263,6 +268,81 @@ def all_photometry():
     allphoto = pd.DataFrame(outphoto)  # use rearranged dataframe
     allphoto = find_colours(allphoto, allbands)  # get the colours
     return allphoto, allbands
+
+
+def coordinate_project():
+    """
+    Projects RA and Dec coordinates onto Mollweide grid
+
+    Returns
+    -------
+    raproj: np.ndarray
+        The projected RA coordinates
+    decproj: np.ndarray
+        The projected DEC coordinates
+    """
+    def fnewton_solve(thetan: float, phi: float, acc: float = 1e-4):
+        """
+        Solves the numerical transformation to project coordinate
+
+        Parameters
+        ----------
+        thetan
+            theta in radians
+        phi
+            phi in raidans
+        acc
+            Accuracy of calculation
+
+        Returns
+        -------
+        thetan
+            theta in radians
+        """
+        thetanp1 = thetan - (2 * thetan + np.sin(2 * thetan) - np.pi * np.sin(phi)) / (2 + 2 * np.cos(2 * thetan))
+        if np.isnan(thetanp1):  # at pi/2
+            return phi
+        elif np.abs(thetanp1 - thetan) / np.abs(thetan) < acc:  # less than desired accuracy
+            return thetanp1
+        else:
+            return fnewton_solve(thetanp1, phi)
+
+    @np.vectorize
+    def project_mollweide(ra: Union[np.ndarray, float], dec: Union[np.ndarray, float]):
+        """
+        Mollweide projection of the co-ordinates, see https://en.wikipedia.org/wiki/Mollweide_projection
+
+        Parameters
+        ----------
+        ra
+            Longitudes (RA in degrees)
+        dec
+            Latitudes (Dec in degrees)
+
+        Returns
+        -------
+        x
+            Projected RA
+        y
+            Projected DEC
+        """
+        r = np.pi / 2 / np.sqrt(2)
+        theta = fnewton_solve(dec, dec)  # project
+        x = r * (2 * np.sqrt(2)) / np.pi * ra * np.cos(theta)
+        y = r * np.sqrt(2) * np.sin(theta)
+        x, y = np.rad2deg([x, y])  # back to degrees
+        return x, y
+
+    ravalues: np.ndarray = all_results_full.ra.values  # all ra values
+    decvalues: np.ndarray = all_results_full.dec.values  # all dec values
+    allcoords = SkyCoord(ravalues, decvalues, unit='deg', frame='icrs')  # make astropy skycoord object
+    ravalues = allcoords.galactic.l.value  # convert to galactic
+    decvalues = allcoords.galactic.b.value  # convert to galactic
+    ravalues -= 180  # shift position
+    ravalues = np.array([np.abs(180 - raval) if raval >= 0 else -np.abs(raval + 180) for raval in ravalues])
+    ravalues, decvalues = np.deg2rad([ravalues, decvalues])  # convert to radians
+    raproj, decproj = project_mollweide(ravalues, decvalues)  # project to Mollweide
+    return raproj, decproj
 
 
 # website pathing
@@ -402,11 +482,34 @@ def camdplot():
 
 
 @app_simple.route('/multiplot')
-def multiplot():
+def multiplotpage():
     """
     The page for all the plots
     """
     return render_template('multiplot.html')
+
+
+@app_simple.route('/multiplot_bokeh')
+def multiplotbokeh():
+    # TODO: Different projections available or coordinate frames
+    raproj, decproj = coordinate_project()  # project coordinates to galactic
+    all_results_full['raproj'] = raproj  # ra
+    all_results_full['decproj'] = decproj  # dec
+    all_results_full_cut: pd.DataFrame = all_results_full[['source', 'raproj', 'decproj']]  # cut dataframe
+    skycds = ColumnDataSource(all_results_full_cut)  # convert to CDS
+    tooltips = [('Target', '@source')]  # tooltips for hover
+    thishover = HoverTool(names=['circle', ], tooltips=tooltips)  # hovertool
+    thistap = TapTool(names=['circle', ])  # taptool
+    psky = figure(title='Sky Plot', plot_width=800, plot_height=400, active_scroll='wheel_zoom', active_drag='box_zoom',
+                  tools='pan,wheel_zoom,box_zoom,box_select,reset',
+                  sizing_mode='stretch_width', x_range=[-180, 180], y_range=[-90, 90])  # bokeh figure
+    psky.add_tools(thishover)  # add hover tool to plot
+    psky.add_tools(thistap)  # add tap tool to plot
+    psky.ellipse(x=0, y=0, width=360, height=180, color='lightgrey', name='background')  # background ellipse
+    psky.circle(source=skycds, x='raproj', y='decproj', size=6, name='circle')
+    thistap.callback = OpenURL(url='/solo_result/@source')  # open new page on target when source tapped
+    plot = jsonify(json_item(column(psky, sizing_mode='fixed', width=1000, height=400), 'multiplot'))  # pass to json
+    return plot
 
 
 @app_simple.route('/autocomplete', methods=['GET'])
@@ -437,6 +540,6 @@ if __name__ == '__main__':
     args = sysargs()  # get all system arguments
     db_file = f'sqlite:///{args.file}'  # the database file
     jscallbacks = JSCallbacks()
-    all_results = all_sources()  # find all the objects once
+    all_results, all_results_full = all_sources()  # find all the objects once
     all_photo, all_bands = all_photometry()  # get all the photometry
     app_simple.run(host=args.host, port=args.port, debug=args.debug)  # generate the application on server side

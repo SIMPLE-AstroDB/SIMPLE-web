@@ -1,5 +1,14 @@
 {% extends "base.html" %}
-
 {% block content %}
+
+<div class="block">
+    <div class="block" id="multiplot">
+        </div>
+        <script>
+        fetch('/multiplot_bokeh')
+            .then(function(response) { return response.json(); })
+            .then(function(item) { return Bokeh.embed.embed_item(item); })
+        </script>
+</div>
 
 {% endblock %}
