@@ -401,6 +401,14 @@ def camdplot():
     return plot
 
 
+@app_simple.route('/multiplot')
+def multiplot():
+    """
+    The page for all the plots
+    """
+    return render_template('multiplot.html')
+
+
 @app_simple.route('/autocomplete', methods=['GET'])
 def autocomplete():
     """
