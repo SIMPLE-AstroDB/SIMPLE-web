@@ -432,7 +432,8 @@ def camdplot():
     bands = [band.split("_")[1] for band in all_bands]  # nice band names
     vals = [f'@{band}' for band in all_bands]  # the values in CDS
     tooltips = [('Target', '@target'), *zip(bands, vals), ('Ref', '@ref')]  # tooltips for hover tool
-    p = figure(title='CAMD', plot_width=800, plot_height=400, active_scroll='wheel_zoom', active_drag='box_zoom',
+    p = figure(title='Colour-Colour', plot_width=800, plot_height=400,
+               active_scroll='wheel_zoom', active_drag='box_zoom',
                tools='pan,wheel_zoom,box_zoom,hover,tap,reset', tooltips=tooltips,
                sizing_mode='stretch_width')  # bokeh figure
     cdsfull = ColumnDataSource(data=all_photo)  # bokeh cds object
@@ -473,11 +474,12 @@ def camdplot():
                                              args={'fullplot': fullplot, 'thisplot': thisplot,
                                                    'fulldata': cdsfull.data, 'ybut': buttonyflip,
                                                    'yaxis': p.yaxis[0], 'yrange': p.y_range}))
-    plot = jsonify(json_item(row(p, column(dropdownx,
-                                           dropdowny,
-                                           row(buttonxflip, buttonyflip, sizing_mode='scale_width'),
-                                           sizing_mode='fixed', width=200, height=200),
-                                 sizing_mode='scale_width'), 'camdplot'))  # bokeh object in json
+    plots = row(p, column(dropdownx,
+                          dropdowny,
+                          row(buttonxflip, buttonyflip, sizing_mode='scale_width'),
+                          sizing_mode='fixed', width=200, height=200),
+                sizing_mode='scale_width')
+    plot = jsonify(json_item(plots, 'camdplot'))  # bokeh object in json
     return plot
 
 
@@ -496,19 +498,63 @@ def multiplotbokeh():
     all_results_full['raproj'] = raproj  # ra
     all_results_full['decproj'] = decproj  # dec
     all_results_full_cut: pd.DataFrame = all_results_full[['source', 'raproj', 'decproj']]  # cut dataframe
-    skycds = ColumnDataSource(all_results_full_cut)  # convert to CDS
-    tooltips = [('Target', '@source')]  # tooltips for hover
+    all_results_mostfull: pd.DataFrame = pd.merge(all_results_full_cut, all_photo,
+                                                  left_on='source', right_on='target', how='left')
+    fullcds = ColumnDataSource(all_results_mostfull)  # convert to CDS
+    bands = [band.split("_")[1] for band in all_bands]  # nice band names
+    vals = [f'@{band}' for band in all_bands]  # the values in CDS
+    tooltips = [('Target', '@source'), *zip(bands, vals), ('Ref', '@ref')]  # tooltips for hover tool
+    # sky plot
     thishover = HoverTool(names=['circle', ], tooltips=tooltips)  # hovertool
     thistap = TapTool(names=['circle', ])  # taptool
-    psky = figure(title='Sky Plot', plot_width=800, plot_height=400, active_scroll='wheel_zoom', active_drag='box_zoom',
+    psky = figure(title='Sky Plot', plot_width=1200, plot_height=600,
+                  active_scroll='wheel_zoom', active_drag='box_zoom',
                   tools='pan,wheel_zoom,box_zoom,box_select,reset',
                   sizing_mode='stretch_width', x_range=[-180, 180], y_range=[-90, 90])  # bokeh figure
     psky.add_tools(thishover)  # add hover tool to plot
     psky.add_tools(thistap)  # add tap tool to plot
     psky.ellipse(x=0, y=0, width=360, height=180, color='lightgrey', name='background')  # background ellipse
-    psky.circle(source=skycds, x='raproj', y='decproj', size=6, name='circle')
+    psky.circle(source=fullcds, x='raproj', y='decproj', size=6, name='circle')
     thistap.callback = OpenURL(url='/solo_result/@source')  # open new page on target when source tapped
-    plot = jsonify(json_item(column(psky, sizing_mode='fixed', width=1000, height=400), 'multiplot'))  # pass to json
+    # colour-colour
+    pcc = figure(title='Colour-Colour', plot_width=400, plot_height=400,
+                 active_scroll='wheel_zoom', active_drag='box_zoom',
+                 tools='pan,wheel_zoom,box_zoom,box_select,hover,tap,reset', tooltips=tooltips,
+                 sizing_mode='stretch_width')  # bokeh figure
+    fullplot = pcc.circle(x='WISE_W1_WISE_W2', y='WISE_W3_WISE_W4', source=fullcds, size=5)  # plot all objects
+    pcc.x_range = Range1d(all_photo.WISE_W1_WISE_W2.min(), all_photo.WISE_W1_WISE_W2.max())  # x limits
+    pcc.y_range = Range1d(all_photo.WISE_W3_WISE_W4.min(), all_photo.WISE_W3_WISE_W4.max())  # y limits
+    pcc.xaxis.axis_label = 'W1 - W2'  # x label
+    pcc.yaxis.axis_label = 'W3 - W4'  # y label
+    taptool = pcc.select(type=TapTool)  # tapping
+    taptool.callback = OpenURL(url='/solo_result/@source')  # open new page on target when source tapped
+    buttonxflip = Toggle(label='X Flip', width=200, height=50)
+    buttonxflip.js_on_click(CustomJS(code=jscallbacks.button_flip, args={'axrange': pcc.x_range}))
+    buttonyflip = Toggle(label='Y Flip', width=200, height=50)
+    buttonyflip.js_on_click(CustomJS(code=jscallbacks.button_flip, args={'axrange': pcc.y_range}))
+    just_colours: pd.DataFrame = all_photo.drop(columns=np.hstack([all_bands, ['ref', 'target']]))  # only the colours
+    axis_names = [f'{col.split("_")[1]} - {col.split("_")[3]}' for col in just_colours.columns]  # convert nicely
+    dropmenu = [*zip(just_colours.columns, axis_names), ]  # zip up into menu
+    dropdownx = Select(title='X Axis', options=dropmenu, value='WISE_W1_WISE_W2', width=200, height=50)  # x axis select
+    dropdownx.js_on_change('value', CustomJS(code=jscallbacks.dropdownx_js,
+                                             args={'fullplot': fullplot,
+                                                   'fulldata': fullcds.data, 'xbut': buttonxflip,
+                                                   'xaxis': pcc.xaxis[0], 'xrange': pcc.x_range}))
+    dropdowny = Select(title='Y Axis', options=dropmenu, value='WISE_W3_WISE_W4', width=200, height=50)  # y axis select
+    dropdowny.js_on_change('value', CustomJS(code=jscallbacks.dropdowny_js,
+                                             args={'fullplot': fullplot,
+                                                   'fulldata': fullcds.data, 'ybut': buttonyflip,
+                                                   'yaxis': pcc.yaxis[0], 'yrange': pcc.y_range}))
+    plots = column(psky,
+                   row(column(pcc,
+                              row(dropdownx, dropdowny,
+                                  sizing_mode='stretch_width'),
+                              row(buttonxflip, buttonyflip,
+                                  sizing_mode='stretch_width'),
+                              sizing_mode='scale_width'),
+                       sizing_mode='scale_width'),
+                   sizing_mode='fixed', width=1200, height=1100)
+    plot = jsonify(json_item(plots, 'multiplot'))  # pass to json
     return plot
 
 

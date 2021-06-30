@@ -31,10 +31,12 @@ class JSCallbacks:
         xrange.start = minx;
         xrange.end = maxx;
     }
-    thisplot.glyph.x.field = this.value;
+    try {
+        thisplot.glyph.x.field = this.value;
+        thisplot.glyph.change.emit();
+    } catch ( error ) {}
     fullplot.glyph.x.field = this.value;
     xaxis.axis_label = this.label;
-    thisplot.glyph.change.emit();
     fullplot.glyph.change.emit();
     """
 
@@ -65,10 +67,12 @@ class JSCallbacks:
         yrange.start = miny;
         yrange.end = maxy;
     }
-    thisplot.glyph.y.field = this.value;
+    try {
+        thisplot.glyph.y.field = this.value;
+        thisplot.glyph.change.emit();
+    } catch ( error ) {}
     fullplot.glyph.y.field = this.value;
     yaxis.axis_label = this.label;
-    thisplot.glyph.change.emit();
     fullplot.glyph.change.emit();
     """
 
