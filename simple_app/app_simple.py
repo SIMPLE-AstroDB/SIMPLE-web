@@ -4,10 +4,12 @@ then connect to.
 """
 # external packages
 from astrodbkit2.astrodb import Database, REFERENCE_TABLES  # used for pulling out database and querying
+from astropy.coordinates import SkyCoord
 from astropy.table import Table  # tabulating
 from bokeh.embed import json_item  # bokeh embedding
 from bokeh.layouts import row, column  # bokeh displaying nicely
-from bokeh.models import ColumnDataSource, Range1d, CustomJS, Select, Toggle, TapTool, OpenURL  # bokeh models
+from bokeh.models import ColumnDataSource, Range1d, CustomJS,\
+    Select, Toggle, TapTool, OpenURL, HoverTool  # bokeh models
 from bokeh.plotting import figure, curdoc  # bokeh plotting
 from flask import Flask, render_template, request, redirect, url_for, jsonify  # website functionality
 from flask_cors import CORS  # cross origin fix (aladin mostly)
@@ -58,6 +60,7 @@ class SimpleDB(Database):  # this keeps pycharm happy about unresolved reference
     """
     Sources = None  # initialise class attribute
     Photometry = None
+    Parallaxes = None
 
 
 class Inventory:
@@ -149,10 +152,13 @@ def all_sources():
     -------
     allresults
         Just the main IDs
+    fullresults
+        The full dataframe of all the sources
     """
     db = SimpleDB(db_file, connection_arguments={'check_same_thread': False})  # open database
-    allresults: list = db.query(db.Sources).table()['source'].tolist()  # gets all the main IDs in the database
-    return allresults
+    fullresults: pd.DataFrame = db.query(db.Sources).pandas()
+    allresults: list = fullresults['source'].tolist()  # gets all the main IDs in the database
+    return allresults, fullresults
 
 
 def find_colours(photodf: pd.DataFrame, allbands: np.ndarray):
@@ -265,6 +271,133 @@ def all_photometry():
     return allphoto, allbands
 
 
+def all_parallaxes():
+    """
+    Get the parallaxes from the database for every object
+
+    Returns
+    -------
+    allplx: pd.DataFrame
+        The dataframe of all the parallaxes
+    """
+    db = SimpleDB(db_file, connection_arguments={'check_same_thread': False})  # open database
+    allplx: pd.DataFrame = db.query(db.Parallaxes).pandas()  # get all photometry
+    allplx = allplx[['source', 'parallax']]
+    return allplx
+
+
+def absmags(df: pd.DataFrame) -> pd.DataFrame:
+    """
+    Calculate all the absolute magnitudes in a given dataframe
+
+    Parameters
+    ----------
+    df
+        The input dataframe
+    Returns
+    -------
+    df
+        The output dataframe with absolute mags calculated
+    """
+    def pogsonlaw(m: Union[float, np.ndarray], dist: Union[float, np.ndarray]) -> Union[float, np.ndarray]:
+        """
+        Distance modulus equation
+
+        Parameters
+        ----------
+        m
+            The apparent magnitude
+        dist
+            The distance in pc
+        Returns
+        -------
+        _
+            Absolute magnitude
+        """
+        return m - 5 * np.log10(dist) + 5
+
+    df['dist'] = np.divide(1000, df['parallax'])
+    for mag in all_bands:
+        abs_mag = "M_" + mag
+        df[abs_mag] = pogsonlaw(df[mag], df['dist'])
+    return df
+
+
+def coordinate_project():
+    """
+    Projects RA and Dec coordinates onto Mollweide grid
+
+    Returns
+    -------
+    raproj: np.ndarray
+        The projected RA coordinates
+    decproj: np.ndarray
+        The projected DEC coordinates
+    """
+    def fnewton_solve(thetan: float, phi: float, acc: float = 1e-4):
+        """
+        Solves the numerical transformation to project coordinate
+
+        Parameters
+        ----------
+        thetan
+            theta in radians
+        phi
+            phi in raidans
+        acc
+            Accuracy of calculation
+
+        Returns
+        -------
+        thetan
+            theta in radians
+        """
+        thetanp1 = thetan - (2 * thetan + np.sin(2 * thetan) - np.pi * np.sin(phi)) / (2 + 2 * np.cos(2 * thetan))
+        if np.isnan(thetanp1):  # at pi/2
+            return phi
+        elif np.abs(thetanp1 - thetan) / np.abs(thetan) < acc:  # less than desired accuracy
+            return thetanp1
+        else:
+            return fnewton_solve(thetanp1, phi)
+
+    @np.vectorize
+    def project_mollweide(ra: Union[np.ndarray, float], dec: Union[np.ndarray, float]):
+        """
+        Mollweide projection of the co-ordinates, see https://en.wikipedia.org/wiki/Mollweide_projection
+
+        Parameters
+        ----------
+        ra
+            Longitudes (RA in degrees)
+        dec
+            Latitudes (Dec in degrees)
+
+        Returns
+        -------
+        x
+            Projected RA
+        y
+            Projected DEC
+        """
+        r = np.pi / 2 / np.sqrt(2)
+        theta = fnewton_solve(dec, dec)  # project
+        x = r * (2 * np.sqrt(2)) / np.pi * ra * np.cos(theta)
+        y = r * np.sqrt(2) * np.sin(theta)
+        x, y = np.rad2deg([x, y])  # back to degrees
+        return x, y
+
+    ravalues: np.ndarray = all_results_full.ra.values  # all ra values
+    decvalues: np.ndarray = all_results_full.dec.values  # all dec values
+    allcoords = SkyCoord(ravalues, decvalues, unit='deg', frame='icrs')  # make astropy skycoord object
+    ravalues = allcoords.galactic.l.value  # convert to galactic
+    decvalues = allcoords.galactic.b.value  # convert to galactic
+    ravalues -= 180  # shift position
+    ravalues = np.array([np.abs(180 - raval) if raval >= 0 else -np.abs(raval + 180) for raval in ravalues])
+    ravalues, decvalues = np.deg2rad([ravalues, decvalues])  # convert to radians
+    raproj, decproj = project_mollweide(ravalues, decvalues)  # project to Mollweide
+    return raproj, decproj
+
+
 # website pathing
 @app_simple.route('/')
 @app_simple.route('/index', methods=['GET', 'POST'])
@@ -345,6 +478,7 @@ def camdplot():
     plot
         JSON object for page to use
     """
+    # TODO: Add CAMD diagram when we have data to test this on (i.e. parallaxes + photometry for same object)
     db = SimpleDB(db_file, connection_arguments={'check_same_thread': False})  # open database
     query: str = curdoc().template_variables['query']  # get the query (on page)
     resultdict: dict = db.inventory(query)  # get everything about that object
@@ -352,7 +486,8 @@ def camdplot():
     bands = [band.split("_")[1] for band in all_bands]  # nice band names
     vals = [f'@{band}' for band in all_bands]  # the values in CDS
     tooltips = [('Target', '@target'), *zip(bands, vals), ('Ref', '@ref')]  # tooltips for hover tool
-    p = figure(title='CAMD', plot_width=800, plot_height=400, active_scroll='wheel_zoom', active_drag='box_zoom',
+    p = figure(title='Colour-Colour', plot_width=800, plot_height=400,
+               active_scroll='wheel_zoom', active_drag='box_zoom',
                tools='pan,wheel_zoom,box_zoom,hover,tap,reset', tooltips=tooltips,
                sizing_mode='stretch_width')  # bokeh figure
     cdsfull = ColumnDataSource(data=all_photo)  # bokeh cds object
@@ -393,11 +528,126 @@ def camdplot():
                                              args={'fullplot': fullplot, 'thisplot': thisplot,
                                                    'fulldata': cdsfull.data, 'ybut': buttonyflip,
                                                    'yaxis': p.yaxis[0], 'yrange': p.y_range}))
-    plot = jsonify(json_item(row(p, column(dropdownx,
-                                           dropdowny,
-                                           row(buttonxflip, buttonyflip, sizing_mode='scale_width'),
-                                           sizing_mode='fixed', width=200, height=200),
-                                 sizing_mode='scale_width'), 'camdplot'))  # bokeh object in json
+    plots = row(p, column(dropdownx,
+                          dropdowny,
+                          row(buttonxflip, buttonyflip, sizing_mode='scale_width'),
+                          sizing_mode='fixed', width=200, height=200),
+                sizing_mode='scale_width')
+    plot = jsonify(json_item(plots, 'camdplot'))  # bokeh object in json
+    return plot
+
+
+@app_simple.route('/multiplot')
+def multiplotpage():
+    """
+    The page for all the plots
+    """
+    return render_template('multiplot.html')
+
+
+@app_simple.route('/multiplot_bokeh')
+def multiplotbokeh():
+    # TODO: Different projections available or coordinate frames
+    # TODO: Add Toomre diagram when we have radial velocities and proper motions for same objects
+    raproj, decproj = coordinate_project()  # project coordinates to galactic
+    all_results_full['raproj'] = raproj  # ra
+    all_results_full['decproj'] = decproj  # dec
+    all_results_full_cut: pd.DataFrame = all_results_full[['source', 'raproj', 'decproj']]  # cut dataframe
+    all_results_mostfull: pd.DataFrame = pd.merge(all_results_full_cut, all_photo,
+                                                  left_on='source', right_on='target', how='left')
+    all_results_mostfull = pd.merge(all_results_mostfull, all_plx, on='source', how='left')
+    all_results_mostfull = absmags(all_results_mostfull)  # find the absolute mags
+    fullcds = ColumnDataSource(all_results_mostfull)  # convert to CDS
+    bands = [band.split("_")[1] for band in all_bands]  # nice band names
+    vals = [f'@{band}' for band in all_bands]  # the values in CDS
+    tooltips = [('Target', '@source'), *zip(bands, vals), ('Ref', '@ref')]  # tooltips for hover tool
+    # sky plot
+    thishover = HoverTool(names=['circle', ], tooltips=tooltips)  # hovertool
+    thistap = TapTool(names=['circle', ])  # taptool
+    psky = figure(title='Sky Plot', plot_width=1200, plot_height=600,
+                  active_scroll='wheel_zoom', active_drag='box_zoom',
+                  tools='pan,wheel_zoom,box_zoom,box_select,reset',
+                  sizing_mode='stretch_width', x_range=[-180, 180], y_range=[-90, 90])  # bokeh figure
+    psky.add_tools(thishover)  # add hover tool to plot
+    psky.add_tools(thistap)  # add tap tool to plot
+    psky.ellipse(x=0, y=0, width=360, height=180, color='lightgrey', name='background')  # background ellipse
+    psky.circle(source=fullcds, x='raproj', y='decproj', size=6, name='circle')
+    thistap.callback = OpenURL(url='/solo_result/@source')  # open new page on target when source tapped
+    # colour-colour
+    pcc = figure(title='Colour-Colour', plot_width=400, plot_height=400,
+                 active_scroll='wheel_zoom', active_drag='box_zoom',
+                 tools='pan,wheel_zoom,box_zoom,box_select,hover,tap,reset', tooltips=tooltips,
+                 sizing_mode='stretch_width')  # bokeh figure
+    fullplot = pcc.circle(x='WISE_W1_WISE_W2', y='WISE_W3_WISE_W4', source=fullcds, size=5)  # plot all objects
+    pcc.x_range = Range1d(all_photo.WISE_W1_WISE_W2.min(), all_photo.WISE_W1_WISE_W2.max())  # x limits
+    pcc.y_range = Range1d(all_photo.WISE_W3_WISE_W4.min(), all_photo.WISE_W3_WISE_W4.max())  # y limits
+    pcc.xaxis.axis_label = 'W1 - W2'  # x label
+    pcc.yaxis.axis_label = 'W3 - W4'  # y label
+    taptool = pcc.select(type=TapTool)  # tapping
+    taptool.callback = OpenURL(url='/solo_result/@source')  # open new page on target when source tapped
+    buttonxflip = Toggle(label='X Flip', width=200, height=50)
+    buttonxflip.js_on_click(CustomJS(code=jscallbacks.button_flip, args={'axrange': pcc.x_range}))
+    buttonyflip = Toggle(label='Y Flip', width=200, height=50)
+    buttonyflip.js_on_click(CustomJS(code=jscallbacks.button_flip, args={'axrange': pcc.y_range}))
+    just_colours: pd.DataFrame = all_photo.drop(columns=np.hstack([all_bands, ['ref', 'target']]))  # only the colours
+    axis_names = [f'{col.split("_")[1]} - {col.split("_")[3]}' for col in just_colours.columns]  # convert nicely
+    dropmenu = [*zip(just_colours.columns, axis_names), ]  # zip up into menu
+    dropdownx = Select(title='X Axis', options=dropmenu, value='WISE_W1_WISE_W2', width=200, height=50)  # x axis select
+    dropdownx.js_on_change('value', CustomJS(code=jscallbacks.dropdownx_js,
+                                             args={'fullplot': fullplot,
+                                                   'fulldata': fullcds.data, 'xbut': buttonxflip,
+                                                   'xaxis': pcc.xaxis[0], 'xrange': pcc.x_range}))
+    dropdowny = Select(title='Y Axis', options=dropmenu, value='WISE_W3_WISE_W4', width=200, height=50)  # y axis select
+    dropdowny.js_on_change('value', CustomJS(code=jscallbacks.dropdowny_js,
+                                             args={'fullplot': fullplot,
+                                                   'fulldata': fullcds.data, 'ybut': buttonyflip,
+                                                   'yaxis': pcc.yaxis[0], 'yrange': pcc.y_range}))
+    # colour absolute magnitude diagram
+    just_mags: pd.DataFrame = all_photo[all_bands]
+    magaxisnames = [col.split("_")[1] for col in just_mags.columns]
+    absmagnames = ["M_" + col for col in just_mags.columns]
+    dropmenumag = [*zip(absmagnames, magaxisnames)]
+    pcamd = figure(title='Colour-Absolute Magnitude Diagram', plot_width=400, plot_height=400,
+                   active_scroll='wheel_zoom', active_drag='box_zoom',
+                   tools='pan,wheel_zoom,box_zoom,box_select,hover,tap,reset', tooltips=tooltips,
+                   sizing_mode='stretch_width')  # bokeh figure
+    fullmagplot = pcamd.circle(x='WISE_W1_WISE_W2', y='M_WISE_W1', source=fullcds, size=5)  # plot all objects
+    pcamd.x_range = Range1d(all_photo.WISE_W1_WISE_W2.min(), all_photo.WISE_W1_WISE_W2.max())  # x limits
+    pcamd.y_range = Range1d(20, 5)  # y limits
+    pcamd.xaxis.axis_label = 'W1 - W2'  # x label
+    pcamd.yaxis.axis_label = 'W1'  # y label
+    taptoolmag = pcamd.select(type=TapTool)  # tapping
+    taptoolmag.callback = OpenURL(url='/solo_result/@source')  # open new page on target when source tapped
+    buttonmagxflip = Toggle(label='X Flip', width=200, height=50)
+    buttonmagxflip.js_on_click(CustomJS(code=jscallbacks.button_flip, args={'axrange': pcamd.x_range}))
+    buttonmagyflip = Toggle(label='Y Flip', width=200, height=50)
+    buttonmagyflip.js_on_click(CustomJS(code=jscallbacks.button_flip, args={'axrange': pcamd.y_range}))
+    dropdownmagx = Select(title='X Axis', options=dropmenu, value='WISE_W1_WISE_W2', width=200, height=50)  # x axis
+    dropdownmagx.js_on_change('value', CustomJS(code=jscallbacks.dropdownx_js,
+                                                args={'fullplot': fullmagplot,
+                                                      'fulldata': fullcds.data, 'xbut': buttonmagxflip,
+                                                      'xaxis': pcamd.xaxis[0], 'xrange': pcamd.x_range}))
+    dropdownmagy = Select(title='Y Axis', options=dropmenumag, value='M_WISE_W1', width=200, height=50)  # y axis
+    dropdownmagy.js_on_change('value', CustomJS(code=jscallbacks.dropdowny_js,
+                                                args={'fullplot': fullmagplot,
+                                                      'fulldata': fullcds.data, 'ybut': buttonmagyflip,
+                                                      'yaxis': pcamd.yaxis[0], 'yrange': pcamd.y_range}))
+    plots = column(psky,
+                   row(column(pcc,
+                              row(dropdownx, dropdowny,
+                                  sizing_mode='stretch_width'),
+                              row(buttonxflip, buttonyflip,
+                                  sizing_mode='stretch_width'),
+                              sizing_mode='scale_width'),
+                       column(pcamd,
+                              row(dropdownmagx, dropdownmagy,
+                                  sizing_mode='stretch_width'),
+                              row(buttonmagxflip, buttonmagyflip,
+                                  sizing_mode='stretch_width'),
+                              sizing_mode='scale_width'),
+                       sizing_mode='scale_width'),
+                   sizing_mode='fixed', width=1200, height=1100)
+    plot = jsonify(json_item(plots, 'multiplot'))  # pass to json
     return plot
 
 
@@ -429,6 +679,7 @@ if __name__ == '__main__':
     args = sysargs()  # get all system arguments
     db_file = f'sqlite:///{args.file}'  # the database file
     jscallbacks = JSCallbacks()
-    all_results = all_sources()  # find all the objects once
+    all_results, all_results_full = all_sources()  # find all the objects once
     all_photo, all_bands = all_photometry()  # get all the photometry
+    all_plx = all_parallaxes()
     app_simple.run(host=args.host, port=args.port, debug=args.debug)  # generate the application on server side
