@@ -183,8 +183,11 @@ def find_colours(photodf: pd.DataFrame, allbands: np.ndarray):
             if i + j == len(allbands):  # last band
                 break
             nextband: str = allbands[i + j]  # next band
-            photodf[f'{band}_{nextband}'] = photodf[band] - photodf[nextband]  # colour
             j += 1
+            try:
+                photodf[f'{band}_{nextband}'] = photodf[band] - photodf[nextband]  # colour
+            except KeyError:
+                continue
     return photodf
 
 
@@ -248,6 +251,14 @@ def parse_photometry(photodf: pd.DataFrame,  allbands: np.ndarray, multisource: 
                 except KeyError:  # if that key wasn't present for the object
                     newphoto[key].extend([None, ] * grplen)  # use None as filler
             newphoto['target'].extend(targetname)  # add target to table
+    newphotocp: dict = newphoto.copy()
+    for key in newphotocp:
+        key: str = key
+        if key in ('ref', 'target'):  # other than these columns
+            continue
+        newkey: str = key.replace('.', '_')  # swap dot for underscore
+        newphoto[newkey] = newphoto[key].copy()
+        del newphoto[key]
     return newphoto
 
 
@@ -266,6 +277,7 @@ def all_photometry():
     allphoto: pd.DataFrame = db.query(db.Photometry).pandas()  # get all photometry
     allbands: np.ndarray = allphoto.band.unique()  # the unique bands
     outphoto: dict = parse_photometry(allphoto, allbands, True)  # transpose photometric table
+    allbands = np.array([band.replace('.', '_') for band in allbands])
     allphoto = pd.DataFrame(outphoto)  # use rearranged dataframe
     allphoto = find_colours(allphoto, allbands)  # get the colours
     return allphoto, allbands
@@ -497,11 +509,15 @@ def camdplot():
         thisphoto: pd.DataFrame = everything.listconcat('Photometry', False)  # the photometry for this object
     except KeyError:  # no photometry for this object
         thisplot = None
-        pass
+        thisbands = all_bands
+        thisphoto = pd.DataFrame()
     else:
         newphoto: dict = parse_photometry(thisphoto, all_bands)  # transpose photometric table
-        newphoto['target'] = [query, ] * len(newphoto['ref'])
-        thisphoto: pd.DataFrame = find_colours(pd.DataFrame(newphoto), all_bands)  # get the colours
+        newphoto['target'] = [query, ] * len(newphoto['ref'])  # the targetname
+        thisphoto = pd.DataFrame(newphoto)  # turn into dataframe
+        thisbands: np.ndarray = np.unique(thisphoto.columns)  # the columns
+        thisbands = thisbands[np.isin(thisbands, all_bands)]  # the bands for this object
+        thisphoto: pd.DataFrame = find_colours(thisphoto, thisbands)  # get the colours
         thiscds = ColumnDataSource(data=thisphoto)  # this object cds
         thisplot = p.circle(x='WISE_W1_WISE_W2', y='WISE_W3_WISE_W4', source=thiscds,
                             color='blue', size=10)  # plot for this object
@@ -515,7 +531,11 @@ def camdplot():
     buttonxflip.js_on_click(CustomJS(code=jscallbacks.button_flip, args={'axrange': p.x_range}))
     buttonyflip = Toggle(label='Y Flip')
     buttonyflip.js_on_click(CustomJS(code=jscallbacks.button_flip, args={'axrange': p.y_range}))
-    just_colours: pd.DataFrame = all_photo.drop(columns=np.hstack([all_bands, ['ref', 'target']]))  # only the colours
+    if thisbands is all_bands:
+        whichdf = all_photo
+    else:
+        whichdf = thisphoto
+    just_colours: pd.DataFrame = whichdf.drop(columns=np.hstack([thisbands, ['ref', 'target']]))  # only the colours
     axis_names = [f'{col.split("_")[1]} - {col.split("_")[3]}' for col in just_colours.columns]  # convert nicely
     dropmenu = [*zip(just_colours.columns, axis_names), ]  # zip up into menu
     dropdownx = Select(title='X Axis', options=dropmenu, value='WISE_W1_WISE_W2', width=200, height=50)  # x axis select
@@ -579,8 +599,8 @@ def multiplotbokeh():
                  tools='pan,wheel_zoom,box_zoom,box_select,hover,tap,reset', tooltips=tooltips,
                  sizing_mode='stretch_width')  # bokeh figure
     fullplot = pcc.circle(x='WISE_W1_WISE_W2', y='WISE_W3_WISE_W4', source=fullcds, size=5)  # plot all objects
-    pcc.x_range = Range1d(all_photo.WISE_W1_WISE_W2.min(), all_photo.WISE_W1_WISE_W2.max())  # x limits
-    pcc.y_range = Range1d(all_photo.WISE_W3_WISE_W4.min(), all_photo.WISE_W3_WISE_W4.max())  # y limits
+    pcc.x_range = Range1d(all_results_mostfull.WISE_W1_WISE_W2.min(), all_results_mostfull.WISE_W1_WISE_W2.max())  # x
+    pcc.y_range = Range1d(all_results_mostfull.WISE_W3_WISE_W4.min(), all_results_mostfull.WISE_W3_WISE_W4.max())  # y
     pcc.xaxis.axis_label = 'W1 - W2'  # x label
     pcc.yaxis.axis_label = 'W3 - W4'  # y label
     taptool = pcc.select(type=TapTool)  # tapping
@@ -589,7 +609,7 @@ def multiplotbokeh():
     buttonxflip.js_on_click(CustomJS(code=jscallbacks.button_flip, args={'axrange': pcc.x_range}))
     buttonyflip = Toggle(label='Y Flip', width=200, height=50)
     buttonyflip.js_on_click(CustomJS(code=jscallbacks.button_flip, args={'axrange': pcc.y_range}))
-    just_colours: pd.DataFrame = all_photo.drop(columns=np.hstack([all_bands, ['ref', 'target']]))  # only the colours
+    just_colours: pd.DataFrame = all_photo.drop(columns=np.hstack([all_bands, ['ref', 'target']]))  # cols
     axis_names = [f'{col.split("_")[1]} - {col.split("_")[3]}' for col in just_colours.columns]  # convert nicely
     dropmenu = [*zip(just_colours.columns, axis_names), ]  # zip up into menu
     dropdownx = Select(title='X Axis', options=dropmenu, value='WISE_W1_WISE_W2', width=200, height=50)  # x axis select
@@ -612,8 +632,8 @@ def multiplotbokeh():
                    tools='pan,wheel_zoom,box_zoom,box_select,hover,tap,reset', tooltips=tooltips,
                    sizing_mode='stretch_width')  # bokeh figure
     fullmagplot = pcamd.circle(x='WISE_W1_WISE_W2', y='M_WISE_W1', source=fullcds, size=5)  # plot all objects
-    pcamd.x_range = Range1d(all_photo.WISE_W1_WISE_W2.min(), all_photo.WISE_W1_WISE_W2.max())  # x limits
-    pcamd.y_range = Range1d(20, 5)  # y limits
+    pcamd.x_range = Range1d(all_results_mostfull.WISE_W1_WISE_W2.min(), all_results_mostfull.WISE_W1_WISE_W2.max())  # x
+    pcamd.y_range = Range1d(all_results_mostfull.M_WISE_W1.max(), all_results_mostfull.M_WISE_W1.min())  # y limits
     pcamd.xaxis.axis_label = 'W1 - W2'  # x label
     pcamd.yaxis.axis_label = 'W1'  # y label
     taptoolmag = pcamd.select(type=TapTool)  # tapping
