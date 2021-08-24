@@ -4,7 +4,7 @@
 
 <div class="form-wrapper">
     <h2 class="title">Search for an object</h2>
-    <form method="post" action="{{ url_for('search') }}" target="_blank">
+    <form method="post" action="{{ url_for('search') }}">
         {{ form.csrf_token }}
         <fieldset class="form-field">
             {{ form.search.label }}
@@ -34,5 +34,9 @@ $(function() {
         });
     });
 </script>
+<div class='block'>
+    <h1>Results for: {{ query|safe }}</h1>
+    <p style="line-height:1.5em; font-size: x-large">{{ results|safe }}</p>
+</div>
 
 {% endblock %}

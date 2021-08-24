@@ -5,20 +5,18 @@ then connect to.
 # external packages
 from astrodbkit2.astrodb import Database, REFERENCE_TABLES  # used for pulling out database and querying
 from astropy.coordinates import SkyCoord
-from astropy.table import Table  # tabulating
 from bokeh.embed import json_item  # bokeh embedding
 from bokeh.layouts import row, column  # bokeh displaying nicely
 from bokeh.models import ColumnDataSource, Range1d, CustomJS,\
     Select, Toggle, TapTool, OpenURL, HoverTool  # bokeh models
 from bokeh.plotting import figure, curdoc  # bokeh plotting
-from flask import Flask, render_template, request, redirect, url_for, jsonify  # website functionality
+from flask import Flask, render_template, jsonify  # website functionality
 from flask_cors import CORS  # cross origin fix (aladin mostly)
 from flask_wtf import FlaskForm  # web forms
 from markdown2 import markdown  # using markdown formatting
 import numpy as np  # numerical python
 import pandas as pd  # running dataframes
 from wtforms import StringField, SubmitField  # web forms
-from wtforms.validators import DataRequired, StopValidation  # validating web forms
 # internal packages
 import argparse  # system arguments
 import os  # operating system
@@ -114,33 +112,11 @@ class Inventory:
         return df  # otherwise return dataframe as is
 
 
-class CheckResultsLength(object):
-    """
-    Validation class for use in the searchbar
-    """
-    def __call__(self, form, field):
-        """
-        Runs when class called
-
-        Parameters
-        ----------
-        form
-            The form object
-        field
-            Current values in the form
-        """
-        db = SimpleDB(db_file, connection_arguments={'check_same_thread': False})  # open database
-        results = db.search_object(field.data, fmt='astropy')  # search by what is currently in searchbar
-        if not len(results):  # if that search is empty
-            field.errors[:] = []  # clear existing errors
-            raise StopValidation(field.gettext('No results'))  # stop validating and return error
-
-
 class SearchForm(FlaskForm):
     """
     Searchbar class
     """
-    search = StringField('', [DataRequired(), CheckResultsLength()], id='autocomplete')  # searchbar
+    search = StringField('', id='autocomplete')  # searchbar
     submit = SubmitField('Query')  # clicker button to send request
 
 
@@ -428,27 +404,10 @@ def search():
     """
     form = SearchForm()  # searchbar
     query = form.search.data  # the content in searchbar
+    if query is None:
+        query = ''
     db = SimpleDB(db_file, connection_arguments={'check_same_thread': False})  # open database
     results = db.search_object(query, fmt='astropy')  # get the results for that object
-    if request.method == 'POST' and form.validate_on_submit():  # if everything okay with the search
-        if len(results) > 1:  # if more than one result
-            return redirect((url_for('search_results', query=query)))  # return table of all results
-        return redirect((url_for('solo_result', query=query)))  # otherwise return page for that one object
-    return render_template('search.html', form=form)  # if everything not okay, return existing page as is
-
-
-@app_simple.route('/search_results/<query>')
-def search_results(query: str):
-    """
-    The tabulated page for all the sources matching a given query string
-
-    Parameters
-    ----------
-    query: str
-        The query -- partial match of main IDs
-    """
-    db = SimpleDB(db_file, connection_arguments={'check_same_thread': False})  # open database
-    results: Table = db.search_object(query, fmt='astropy')  # get all results for that object
     results: pd.DataFrame = results.to_pandas()  # convert to pandas from astropy table
     sourcelinks: list = []  # empty list
     for src in results.source.values:  # over every source in table
@@ -458,7 +417,8 @@ def search_results(query: str):
     results['source'] = sourcelinks  # update dataframe with the linked ones
     query = query.upper()  # convert contents of search bar to all upper case
     results: str = markdown(results.to_html(index=False, escape=False))  # convert results into markdown
-    return render_template('search_results.html', query=query, results=results)
+    return render_template('search.html', form=form,
+                           results=results, query=query)  # if everything not okay, return existing page as is
 
 
 @app_simple.route('/solo_result/<query>')
