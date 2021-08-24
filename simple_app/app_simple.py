@@ -117,7 +117,7 @@ class SearchForm(FlaskForm):
     Searchbar class
     """
     search = StringField('', id='autocomplete')  # searchbar
-    submit = SubmitField('Query')  # clicker button to send request
+    submit = SubmitField('Query', id='querybutton')  # clicker button to send request
 
 
 def all_sources():
