@@ -5,20 +5,18 @@ then connect to.
 # external packages
 from astrodbkit2.astrodb import Database, REFERENCE_TABLES  # used for pulling out database and querying
 from astropy.coordinates import SkyCoord
-from astropy.table import Table  # tabulating
 from bokeh.embed import json_item  # bokeh embedding
 from bokeh.layouts import row, column  # bokeh displaying nicely
 from bokeh.models import ColumnDataSource, Range1d, CustomJS,\
     Select, Toggle, TapTool, OpenURL, HoverTool  # bokeh models
 from bokeh.plotting import figure, curdoc  # bokeh plotting
-from flask import Flask, render_template, request, redirect, url_for, jsonify  # website functionality
+from flask import Flask, render_template, jsonify  # website functionality
 from flask_cors import CORS  # cross origin fix (aladin mostly)
 from flask_wtf import FlaskForm  # web forms
 from markdown2 import markdown  # using markdown formatting
 import numpy as np  # numerical python
 import pandas as pd  # running dataframes
 from wtforms import StringField, SubmitField  # web forms
-from wtforms.validators import DataRequired, StopValidation  # validating web forms
 # internal packages
 import argparse  # system arguments
 import os  # operating system
@@ -114,34 +112,12 @@ class Inventory:
         return df  # otherwise return dataframe as is
 
 
-class CheckResultsLength(object):
-    """
-    Validation class for use in the searchbar
-    """
-    def __call__(self, form, field):
-        """
-        Runs when class called
-
-        Parameters
-        ----------
-        form
-            The form object
-        field
-            Current values in the form
-        """
-        db = SimpleDB(db_file, connection_arguments={'check_same_thread': False})  # open database
-        results = db.search_object(field.data, fmt='astropy')  # search by what is currently in searchbar
-        if not len(results):  # if that search is empty
-            field.errors[:] = []  # clear existing errors
-            raise StopValidation(field.gettext('No results'))  # stop validating and return error
-
-
 class SearchForm(FlaskForm):
     """
     Searchbar class
     """
-    search = StringField('', [DataRequired(), CheckResultsLength()], id='autocomplete')  # searchbar
-    submit = SubmitField('Query')  # clicker button to send request
+    search = StringField('', id='autocomplete')  # searchbar
+    submit = SubmitField('Query', id='querybutton')  # clicker button to send request
 
 
 def all_sources():
@@ -428,37 +404,24 @@ def search():
     """
     form = SearchForm()  # searchbar
     query = form.search.data  # the content in searchbar
+    if query is None:
+        query = ''
     db = SimpleDB(db_file, connection_arguments={'check_same_thread': False})  # open database
     results = db.search_object(query, fmt='astropy')  # get the results for that object
-    if request.method == 'POST' and form.validate_on_submit():  # if everything okay with the search
-        if len(results) > 1:  # if more than one result
-            return redirect((url_for('search_results', query=query)))  # return table of all results
-        return redirect((url_for('solo_result', query=query)))  # otherwise return page for that one object
-    return render_template('search.html', form=form)  # if everything not okay, return existing page as is
-
-
-@app_simple.route('/search_results/<query>')
-def search_results(query: str):
-    """
-    The tabulated page for all the sources matching a given query string
-
-    Parameters
-    ----------
-    query: str
-        The query -- partial match of main IDs
-    """
-    db = SimpleDB(db_file, connection_arguments={'check_same_thread': False})  # open database
-    results: Table = db.search_object(query, fmt='astropy')  # get all results for that object
-    results: pd.DataFrame = results.to_pandas()  # convert to pandas from astropy table
+    results: Union[pd.DataFrame, None] = results.to_pandas()  # convert to pandas from astropy table
     sourcelinks: list = []  # empty list
-    for src in results.source.values:  # over every source in table
-        urllnk = quote(src)  # convert object name to url safe
-        srclnk = f'<a href="/solo_result/{urllnk}" target="_blank">{src}</a>'  # construct hyperlink
-        sourcelinks.append(srclnk)  # add that to list
-    results['source'] = sourcelinks  # update dataframe with the linked ones
-    query = query.upper()  # convert contents of search bar to all upper case
-    results: str = markdown(results.to_html(index=False, escape=False))  # convert results into markdown
-    return render_template('search_results.html', query=query, results=results)
+    if len(results):
+        for src in results.source.values:  # over every source in table
+            urllnk = quote(src)  # convert object name to url safe
+            srclnk = f'<a href="/solo_result/{urllnk}" target="_blank">{src}</a>'  # construct hyperlink
+            sourcelinks.append(srclnk)  # add that to list
+        results['source'] = sourcelinks  # update dataframe with the linked ones
+        query = query.upper()  # convert contents of search bar to all upper case
+        results: str = markdown(results.to_html(index=False, escape=False))  # convert results into markdown
+    else:
+        results = None
+    return render_template('search.html', form=form,
+                           results=results, query=query)  # if everything not okay, return existing page as is
 
 
 @app_simple.route('/solo_result/<query>')
@@ -502,9 +465,10 @@ def camdplot():
                active_scroll='wheel_zoom', active_drag='box_zoom',
                tools='pan,wheel_zoom,box_zoom,hover,tap,reset', tooltips=tooltips,
                sizing_mode='stretch_width')  # bokeh figure
-    cdsfull = ColumnDataSource(data=all_photo)  # bokeh cds object
-    fullplot = p.circle_x(x='WISE_W1_WISE_W2', y='WISE_W3_WISE_W4', source=cdsfull,
-                          color='gray', alpha=0.5, size=5)  # plot all objects
+    xfullname = 'WISE_W1_WISE_W2'  # default x axis
+    yfullname = 'WISE_W3_WISE_W4'  # default y axis
+    xvisname = 'W1 - W2'
+    yvisname = 'W3 - W4'
     try:
         thisphoto: pd.DataFrame = everything.listconcat('Photometry', False)  # the photometry for this object
     except KeyError:  # no photometry for this object
@@ -518,13 +482,26 @@ def camdplot():
         thisbands: np.ndarray = np.unique(thisphoto.columns)  # the columns
         thisbands = thisbands[np.isin(thisbands, all_bands)]  # the bands for this object
         thisphoto: pd.DataFrame = find_colours(thisphoto, thisbands)  # get the colours
+        # FIXME: This'll break in the circumstance that there is only one band (shouldn't happen)
+        xfullname = '_'.join(thisbands[0:2])  # x axis colour
+        xvisname = thisbands[0].split('_')[-1] + ' - ' + thisbands[1].split('_')[-1]  # x axis name
+        try:
+            yfullname = '_'.join(thisbands[2:4])  # y axis colour
+            yvisname = thisbands[2].split('_')[-1] + ' - ' + thisbands[3].split('_')[-1]  # y axis name
+        except IndexError:
+            yfullname = '_'.join(thisbands[0:2])  # y axis name if only one colour
+            yvisname = thisbands[0].split('_')[-1] + ' - ' + thisbands[1].split('_')[-1]  # y axis name
         thiscds = ColumnDataSource(data=thisphoto)  # this object cds
-        thisplot = p.circle(x='WISE_W1_WISE_W2', y='WISE_W3_WISE_W4', source=thiscds,
+        thisplot = p.circle(x=xfullname, y=yfullname, source=thiscds,
                             color='blue', size=10)  # plot for this object
-    p.x_range = Range1d(all_photo.WISE_W1_WISE_W2.min(), all_photo.WISE_W1_WISE_W2.max())  # x limits
-    p.y_range = Range1d(all_photo.WISE_W3_WISE_W4.min(), all_photo.WISE_W3_WISE_W4.max())  # y limits
-    p.xaxis.axis_label = 'W1 - W2'  # x label
-    p.yaxis.axis_label = 'W3 - W4'  # y label
+    cdsfull = ColumnDataSource(data=all_photo)  # bokeh cds object
+    fullplot = p.circle_x(x=xfullname, y=yfullname, source=cdsfull,
+                          color='gray', alpha=0.5, size=5)  # plot all objects
+    fullplot.level = 'underlay'  # put full plot underneath this plot
+    p.x_range = Range1d(all_photo[xfullname].min(), all_photo[xfullname].max())  # x limits
+    p.y_range = Range1d(all_photo[yfullname].min(), all_photo[yfullname].max())  # y limits
+    p.xaxis.axis_label = xvisname  # x label
+    p.yaxis.axis_label = yvisname  # y label
     taptool = p.select(type=TapTool)  # tapping
     taptool.callback = OpenURL(url='/solo_result/@target')  # open new page on target when source tapped
     buttonxflip = Toggle(label='X Flip')
@@ -538,12 +515,12 @@ def camdplot():
     just_colours: pd.DataFrame = whichdf.drop(columns=np.hstack([thisbands, ['ref', 'target']]))  # only the colours
     axis_names = [f'{col.split("_")[1]} - {col.split("_")[3]}' for col in just_colours.columns]  # convert nicely
     dropmenu = [*zip(just_colours.columns, axis_names), ]  # zip up into menu
-    dropdownx = Select(title='X Axis', options=dropmenu, value='WISE_W1_WISE_W2', width=200, height=50)  # x axis select
+    dropdownx = Select(title='X Axis', options=dropmenu, value=xfullname, width=200, height=50)  # x axis select
     dropdownx.js_on_change('value', CustomJS(code=jscallbacks.dropdownx_js,
                                              args={'fullplot': fullplot, 'thisplot': thisplot,
                                                    'fulldata': cdsfull.data, 'xbut': buttonxflip,
                                                    'xaxis': p.xaxis[0], 'xrange': p.x_range}))
-    dropdowny = Select(title='Y Axis', options=dropmenu, value='WISE_W3_WISE_W4', width=200, height=50)  # y axis select
+    dropdowny = Select(title='Y Axis', options=dropmenu, value=yfullname, width=200, height=50)  # y axis select
     dropdowny.js_on_change('value', CustomJS(code=jscallbacks.dropdowny_js,
                                              args={'fullplot': fullplot, 'thisplot': thisplot,
                                                    'fulldata': cdsfull.data, 'ybut': buttonyflip,
