@@ -3,7 +3,7 @@
 
 {% block content %}
 
-    <div class="container-fluid">
+    <div class="container">
         <h2 class="display-3">Exploring the Database</h2>
         <form method="post" action="{{ url_for('search') }}" id="searchform">
             {{ form.csrf_token }}
