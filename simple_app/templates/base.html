@@ -36,7 +36,7 @@
             
 </head>
 
-<body class="container-fluid">
+<body class="container-fluid" style="padding-top: 75px">
     <div class="container-fluid">
         {% set navigation_bar = [
            ('/', 'home', 'Home'),
@@ -46,7 +46,7 @@
            ('/feedback', 'feedback', 'Feedback/ Questions')
         ] -%}
         {% set active_page = active_page|default('home') -%}
-        <nav class="navbar navbar-expand-lg navbar-dark bg-primary">
+        <nav class="navbar navbar-expand-lg navbar-dark bg-primary fixed-top">
             <div class="container-fluid">
                 <a class="navbar-brand" href="/">Simple</a>
                 <button class="navbar-toggler" type="button" data-bs-toggle="collapse"
@@ -67,22 +67,6 @@
                                 </a>
                             </li>
                         {% endfor %}
-
-{#                        <li class="nav-item">#}
-{#                            <a class="nav-link active" aria-current="page" href="/">Home</a>#}
-{#                        </li>#}
-{#                        <li class="nav-item">#}
-{#                            <a class="nav-link" href="/search">Query the Database</a>#}
-{#                        </li>#}
-{#                        <li class="nav-item">#}
-{#                            <a class="nav-link" href="/multiplot">View the Database</a>#}
-{#                        </li>#}
-{#                        <li class="nav-item">#}
-{#                            <a class="nav-link" href="/schema">About the Database</a>#}
-{#                        </li>#}
-{#                        <li class="nav-item">#}
-{#                            <a class="nav-link" href="/feedback">Feedback/ Questions</a>#}
-{#                        </li>#}
                     </ul>
                 </div>
             </div>
@@ -100,7 +84,7 @@
         <footer class="py-3 my-4">
             <ul class="nav justify-content-center border-bottom pb-3 mb-3">
                 <li class="nav-item">
-                    <a class="nav-link px-2 text-muted active" aria-current="page" href="/">Home</a>
+                    <a class="nav-link px-2 text-muted" href="/">Home</a>
                 </li>
                 <li class="nav-item">
                     <a class="nav-link px-2 text-muted" href="/search">Query the Database</a>
@@ -117,16 +101,5 @@
             </ul>
         </footer>
     </div>
-{#    <footer>#}
-{#        <div id="footer" style='border-top:1px black solid; padding:20px;'>#}
-{##}
-{#            <div style='float:left;'>#}
-{#                <p style='float:left; margin:0;'>Encountered an error or mistake? We'd love your#}
-{#                    <a href="/feedback">feedback</a>!</p>#}
-{#            </div>#}
-{##}
-{#            <div class='clearfix'></div>#}
-{#        </div>#}
-{#    </footer>#}
 </body>
 </html>

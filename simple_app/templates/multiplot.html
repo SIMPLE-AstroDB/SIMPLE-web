@@ -2,19 +2,18 @@
 {% set active_page = "view" %}
 {% block content %}
 
-<div class="block" style="height: 1200px">
-    <h2>Exploration of the full dataset</h2>
-    <p>The below plots are linked such that highlighting a number of points (see toolbar) will highlight
+<div class="container-fluid">
+    <h2 class="display-3">Exploration of the full dataset</h2>
+    <p class="display-6">The below plots are linked such that highlighting a number of points (see toolbar) will highlight
     the same points on the other plots (if the data is available). You can also tap on any point to view that particular
     object in another tab.
     </p>
-    <div class="block" id="multiplot">
-        </div>
-        <script>
+    <div class="block" id="multiplot"></div>
+    <script>
         fetch('/multiplot_bokeh')
             .then(function(response) { return response.json(); })
             .then(function(item) { return Bokeh.embed.embed_item(item); })
-        </script>
+    </script>
 </div>
 
 {% endblock %}
