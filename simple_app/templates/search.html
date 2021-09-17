@@ -3,24 +3,24 @@
 
 {% block content %}
 
-    <div class="form-wrapper">
-        <h2 class="display-3">Search for an object</h2>
+    <div class="container-fluid">
+        <h2 class="display-3">Exploring the Database</h2>
         <form method="post" action="{{ url_for('search') }}" id="searchform">
             {{ form.csrf_token }}
-            <fieldset class="form-field">
-                {{ form.search.label }}
-                {{ form.search(size=40) }}
+            <fieldset class="mb-3">
+                {{ form.search.label(class_="form-label") }}
+                {{ form.search(size=40, class_="form-control") }}
             </fieldset>
             {% if form.search.errors %}
-            <fieldset class="form-field">
+            <fieldset class="mb-4">
                 {% for error in form.search.errors %}
-                    <p id="footer" class="display-6" style="color: #5f6988">
+                    <p class="display-6" style="color: #5f6988">
                         {{ error }}
                     </p>
                 {% endfor %}
             </fieldset>
             {% endif %}
-            {{ form.submit }}
+            {{ form.submit(class_="btn btn-primary") }}
         </form>
     </div>
     <script>

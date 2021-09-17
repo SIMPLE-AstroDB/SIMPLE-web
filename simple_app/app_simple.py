@@ -108,7 +108,8 @@ class Inventory:
         df: pd.DataFrame = pd.concat([pd.DataFrame(objrow, index=[i])  # create dataframe from found dict
                                       for i, objrow in enumerate(obj)], ignore_index=True)  # every dict in the list
         if rtnmk:  # return markdown boolean
-            return markdown(df.to_html(index=False))  # wrap the dataframe into html then markdown
+            return markdown(df.to_html(index=False,
+                                       classes='table table-dark table-bordered table-striped'))  # html then markdown
         return df  # otherwise return dataframe as is
 
 
@@ -116,7 +117,7 @@ class SearchForm(FlaskForm):
     """
     Searchbar class
     """
-    search = StringField('', id='autocomplete')  # searchbar
+    search = StringField('Search for an object:', id='autocomplete')  # searchbar
     submit = SubmitField('Query', id='querybutton')  # clicker button to send request
 
 
@@ -417,7 +418,8 @@ def search():
             sourcelinks.append(srclnk)  # add that to list
         results['source'] = sourcelinks  # update dataframe with the linked ones
         query = query.upper()  # convert contents of search bar to all upper case
-        results: str = markdown(results.to_html(index=False, escape=False))  # convert results into markdown
+        results: str = markdown(results.to_html(index=False, escape=False, max_rows=10,
+                                                classes='table table-dark table-bordered table-striped'))
     else:
         results = None
     return render_template('search.html', form=form,

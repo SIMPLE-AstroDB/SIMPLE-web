@@ -1,7 +1,7 @@
 {% extends "base.html" %}
 {% set active_page = "search" %}
 {% block content %}
-    <div class="fixed-top bg-primary" style="top: 55px; width: fit-content; color: white; position: fixed; left: 0">
+    <div class="container">
         <h1 class="display-2">Full data for:<br> {{ query|safe }}</h1>
     </div>
     <div class="container flex-md-column">
@@ -12,23 +12,25 @@
                    else 'No Sources for ' + query|safe }}
             </p>
         </div>
-        <div style="right: 0; top: 50px; position: fixed">
-            <div id="aladin-lite-div"
-                 style="width: 400px; height:400px"></div>
-            <script type="text/javascript"
-                    src="{{ url_for('static', filename='js/aladin.min.js') }}" charset="utf-8"></script>
-            <script type="text/javascript">
-                let aladin = A.aladin('#aladin-lite-div',
-                    {survey: "P/2MASS/color", fov:1/120,
-                     target: "{{ everything.ra }} {{ everything.dec }}"});
-            </script>
-        </div>
         <div class="row">
-            <h2 class="display-3">Names</h2>
-            <p class="display-6">
-                {{ everything.names|safe if everything.names
-                   else 'No Names for ' + query|safe }}
-            </p>
+            <div class="col-md-4">
+                <h2 class="display-3">Names</h2>
+                <p class="display-6">
+                    {{ everything.names|safe if everything.names
+                       else 'No Names for ' + query|safe }}
+                </p>
+            </div>
+            <div class="col-md-8">
+                <div id="aladin-lite-div"
+                     style="width: 400px; height:400px; float: right"></div>
+                <script type="text/javascript"
+                        src="{{ url_for('static', filename='js/aladin.min.js') }}" charset="utf-8"></script>
+                <script type="text/javascript">
+                    let aladin = A.aladin('#aladin-lite-div',
+                        {survey: "P/2MASS/color", fov:1/120,
+                         target: "{{ everything.ra }} {{ everything.dec }}"});
+                </script>
+            </div>
         </div>
 
         <div class="row">
