@@ -31,6 +31,17 @@
     <!-- Aladin -->
     <link rel="stylesheet" href="{{ url_for('static', filename='css/aladin.min.css') }}">
     {{ script|safe }}
+
+    <!-- Overwriting Styles -->
+    <style>
+        thead,
+        tbody,
+        tfoot,
+        tr,
+        td,
+        th {text-align: left}
+        .display-6 {font-size: 1.5rem}
+    </style>
             
 </head>
 
