@@ -36,40 +36,97 @@
             
 </head>
 
-<body style="line-height:1.5em; width: fit-content; color: #5f6988">
-    <div id="header">
-        <div class='head'>
-            <a href='/'>
-                <div>
-                    <h1 style="padding-top:38px;" class="title">SIMPLE Database</h1>
+<body class="container-fluid">
+    <div class="container-fluid">
+        {% set navigation_bar = [
+           ('/', 'home', 'Home'),
+           ('/search', 'search', 'Query the Database'),
+           ('/multiplot', 'view', 'View the Database'),
+           ('/schema', 'schema', 'About the Database'),
+           ('/feedback', 'feedback', 'Feedback/ Questions')
+        ] -%}
+        {% set active_page = active_page|default('home') -%}
+        <nav class="navbar navbar-expand-lg navbar-dark bg-primary">
+            <div class="container-fluid">
+                <a class="navbar-brand" href="/">Simple</a>
+                <button class="navbar-toggler" type="button" data-bs-toggle="collapse"
+                        data-bs-target="#navbarSupportedContent"
+                        aria-controls="navbarSupportedContent" aria-expanded="false" aria-label="Toggle navigation">
+                    <span class="navbar-toggler-icon"></span>
+                </button>
+                <div class="collapse navbar-collapse" id="navbarSupportedContent">
+                    <ul class="navbar-nav me-auto mb-2 mb-lg-0">
+                        {% for href, activeid, caption in navigation_bar %}
+                            <li class="nav-item">
+                                <a
+                                    {% if activeid == active_page %}
+                                        class="nav-link active"
+                                    {% else %}
+                                        class="nav-link"
+                                    {% endif %} href="{{ href|e }}">{{ caption|e }}
+                                </a>
+                            </li>
+                        {% endfor %}
+
+{#                        <li class="nav-item">#}
+{#                            <a class="nav-link active" aria-current="page" href="/">Home</a>#}
+{#                        </li>#}
+{#                        <li class="nav-item">#}
+{#                            <a class="nav-link" href="/search">Query the Database</a>#}
+{#                        </li>#}
+{#                        <li class="nav-item">#}
+{#                            <a class="nav-link" href="/multiplot">View the Database</a>#}
+{#                        </li>#}
+{#                        <li class="nav-item">#}
+{#                            <a class="nav-link" href="/schema">About the Database</a>#}
+{#                        </li>#}
+{#                        <li class="nav-item">#}
+{#                            <a class="nav-link" href="/feedback">Feedback/ Questions</a>#}
+{#                        </li>#}
+                    </ul>
                 </div>
-            </a>
-        </div>
-        <div class='clearfix'>
-            <ul>
-                <li><a href="/search" class="title">Query the Database</a></li>
-                <li><a href="/multiplot" class="title">View the Database</a></li>
-                <li><a href="/schema" class="title">About the SIMPLE Database</a></li>
-                <li><a href="/feedback" class="title">Feedback/Questions</a></li>
-            </ul>
-        </div>
+            </div>
+        </nav>
     </div>
 
-    <div class=page>
+    <div class="divider"></div>
+    <div class="container-fluid">
         {% block content %}
         {% endblock %}
     </div>
 
-    <footer>
-        <div id="footer" style='border-top:1px black solid; padding:20px;'>
-
-            <div style='float:left;'>
-                <p style='float:left; margin:0;'>Encountered an error or mistake? We'd love your
-                    <a href="/feedback">feedback</a>!</p>
-            </div>
-
-            <div class='clearfix'></div>
-        </div>
-    </footer>
+    <div class="divider"></div>
+    <div class="container-fluid">
+        <footer class="py-3 my-4">
+            <ul class="nav justify-content-center border-bottom pb-3 mb-3">
+                <li class="nav-item">
+                    <a class="nav-link px-2 text-muted active" aria-current="page" href="/">Home</a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link px-2 text-muted" href="/search">Query the Database</a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link px-2 text-muted" href="/multiplot">View the Database</a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link px-2 text-muted" href="/schema">About the Database</a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link px-2 text-muted" href="/feedback">Feedback/ Questions</a>
+                </li>
+            </ul>
+        </footer>
+    </div>
+{#    <footer>#}
+{#        <div id="footer" style='border-top:1px black solid; padding:20px;'>#}
+{##}
+{#            <div style='float:left;'>#}
+{#                <p style='float:left; margin:0;'>Encountered an error or mistake? We'd love your#}
+{#                    <a href="/feedback">feedback</a>!</p>#}
+{#            </div>#}
+{##}
+{#            <div class='clearfix'></div>#}
+{#        </div>#}
+{#    </footer>#}
 </body>
 </html>

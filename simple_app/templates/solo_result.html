@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-<!-- TODO: for a solo object, split up the page and show everything, including aladin -->
+{% set active_page = "search" %}
 {% block content %}
     <h1>Full data for: {{ query|safe }}</h1>
 
