@@ -1,11 +1,13 @@
 {% extends "base.html" %}
+{% set active_page = "home" %}
 
 {% block content %}
 
-<div class='block'>
-    <h1>Welcome!</h1>
-    <p style="line-height:1.5em;">The SIMPLE Database is a cross-matched and curated collection of<br>
-        astrometry, photometry, spectra, and image data for {{source_count|safe}} sources from the literature.
+<div class='container'>
+    <h1 class="display-2">Welcome!</h1>
+    <p class="display-6">The SIMPLE Database is a cross-matched and curated collection of
+        astrometry, photometry, spectra, and image data for <strong>{{ source_count|safe }}</strong>
+        sources from the literature.
         You can search the database, find out more about the database, or leave website feedback
         using the menu above.
     </p>

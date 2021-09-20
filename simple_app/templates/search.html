@@ -1,74 +1,75 @@
 {% extends "base.html" %}
+{% set active_page = "search" %}
 
 {% block content %}
 
-    <div class="form-wrapper">
-        <h2 class="title">Search for an object</h2>
+    <div class="container">
+        <h2 class="display-3">Exploring the Database</h2>
         <form method="post" action="{{ url_for('search') }}" id="searchform">
             {{ form.csrf_token }}
-            <fieldset class="form-field">
-                {{ form.search.label }}
-                {{ form.search(size=40) }}
+            <fieldset class="mb-3">
+                {{ form.search.label(class_="form-label") }}
+                {{ form.search(size=40, class_="form-control") }}
             </fieldset>
             {% if form.search.errors %}
-            <fieldset class="form-field">
+            <fieldset class="mb-4">
                 {% for error in form.search.errors %}
-                    <p id="footer" style="color: #5f6988">
+                    <p class="display-6" style="color: #5f6988">
                         {{ error }}
                     </p>
                 {% endfor %}
             </fieldset>
             {% endif %}
-            {{ form.submit }}
+            {{ form.submit(class_="btn btn-primary") }}
         </form>
     </div>
     <script>
-    $(function() {
-        $.ajax({
-            url: '{{ url_for("autocomplete") }}'
-            }).done(function (data) {
-                $('#autocomplete').autocomplete({
-                    source: data.alljsonlist,
-                    minLength: 2
+        $(function() {
+            $.ajax({
+                url: '{{ url_for("autocomplete") }}'
+                }).done(function (data) {
+                    $('#autocomplete').autocomplete({
+                        source: data.alljsonlist,
+                        minLength: 2
+                    });
                 });
             });
-        });
     </script>
     <script>
-    function delay(callback, ms) {
-      let timer = 0;
-      return function() {
-        let context = this, args = arguments;
-        clearTimeout(timer);
-        timer = setTimeout(function () {
-          callback.apply(context, args);
-        }, ms || 0);
-      };
-    }
-    $('#autocomplete').keyup(
-        delay(
-            function () {
-                $('#querybutton').trigger("click");},
-            2000)
-    )
-    </script>
-    <script>
-    function setCaretPosition(ctrl, pos) {
-        if (ctrl.setSelectionRange) {
-            ctrl.focus();
-            ctrl.setSelectionRange(pos, pos);
-        } else {
+        function delay(callback, ms) {
+          let timer = 0;
+          return function() {
+            let context = this, args = arguments;
+            clearTimeout(timer);
+            timer = setTimeout(function () {
+              callback.apply(context, args);
+            }, ms || 0);
+          };
         }
-    }
-    window.onload = function () {
-      let searchvalue = document.getElementById('autocomplete');
-      searchvalue.focus();
-      setCaretPosition(searchvalue, searchvalue.value.length);
-    };
+        $('#autocomplete').keyup(
+            delay(
+                function () {
+                    $('#querybutton').trigger("click");},
+                2000)
+        )
     </script>
-    <div class='block'>
-        <h1>Results for: {{ query|safe }}</h1>
-        <p style="line-height:1.5em; font-size: x-large">{{ results|safe }}</p>
+    <script>
+        function setCaretPosition(ctrl, pos) {
+            if (ctrl.setSelectionRange) {
+                ctrl.focus();
+                ctrl.setSelectionRange(pos, pos);
+            } else {
+            }
+        }
+        window.onload = function () {
+          let searchvalue = document.getElementById('autocomplete');
+          searchvalue.focus();
+          setCaretPosition(searchvalue, searchvalue.value.length);
+        };
+    </script>
+    <div class="container-fluid">
+        <h2 class="display-3">Results for: {{ query|safe }}</h2>
+        <p class="display-6">{{ results|safe }}</p>
     </div>
 
 {% endblock %}

@@ -13,123 +13,91 @@
     <meta name="viewport" content="width=device-width">
 
     <!-- general css -->
-    <link rel=stylesheet type=text/css href="{{ url_for('static', filename='css/style.css') }}">
-    <link rel="stylesheet" type="text/css" href="{{ url_for('static', filename='css/forms.css') }}">
-
-    <!-- JS AND CSS NOT IN USE YET, WILL BE USEFUL LATER WITH ADDED FUNCTIONALITY -->
-    <!-- TODO: download local versions of scripts when they are to be used -->
-
+    <link rel="stylesheet" type="text/css" href="{{ url_for('static', filename='css/bootstrap.css') }}">
+    <link rel="stylesheet" type="text/css" href="{{ url_for('static', filename='css/jquery-ui.css') }}">
+    <link rel="shortcut icon" href="{{ url_for('static', filename='favicon.ico') }}">
 
     <!--Javascript/jquery-->
-<!--    <script type="text/javascript" async src="//cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-MML-AM_CHTML"></script>-->
-        <link href="//code.jquery.com/ui/1.10.2/themes/smoothness/jquery-ui.css" rel="Stylesheet"></link>
-        <script src="//code.jquery.com/jquery-2.2.0.min.js"></script>
-        <script src="//code.jquery.com/ui/1.10.2/jquery-ui.js" ></script>
-<!--    <script src="{{ url_for('static', filename='js/query-builder.standalone.min.js') }}"></script>-->
+    <script type="text/javascript" src="{{ url_for('static', filename='js/jquery-2.2.0.min.js') }}"></script>
+    <script type="text/javascript" src="{{ url_for('static', filename='js/jquery-ui.js') }}" ></script>
+    <script type="text/javascript" src="{{ url_for('static', filename='js/bootstrap.js') }}"></script>
 
     <!--Bokeh -->
-{#    <link rel="stylesheet" href="//cdn.pydata.org/bokeh/release/bokeh-2.3.2.min.css" type="text/css" />#}
-{#    <link rel="stylesheet" href="//cdn.pydata.org/bokeh/release/bokeh-widgets-2.3.2.min.css" type="text/css" />#}
-    <script type="text/javascript" src="//cdn.pydata.org/bokeh/release/bokeh-2.3.2.min.js"></script>
-    <script type="text/javascript" src="//cdn.pydata.org/bokeh/release/bokeh-widgets-2.3.2.min.js"></script>
+    <script type="text/javascript" src="{{ url_for('static', filename='js/bokeh-2.3.2.min.js') }}"></script>
+    <script type="text/javascript" src="{{ url_for('static', filename='js/bokeh-widgets-2.3.2.min.js') }}"></script>
     <script type="text/javascript">Bokeh.set_log_level("info");</script>
 
-    <!-- DataTables -->
-<!--    <script type="text/javascript" charset="utf8" src="//cdn.datatables.net/1.10.16/js/jquery.dataTables.min.js"></script>-->
-<!--    <link rel=stylesheet type=text/css href="//cdn.datatables.net/1.10.16/css/jquery.dataTables.min.css">-->
-<!--    <script>-->
-<!--        $(document).ready( function () {-->
-
-<!--            // // Toggle columns-->
-<!--            // $('#tableselector').change(function(){-->
-<!--            //     $('.columns').hide();-->
-<!--            //     $('#' + $(this).val()).show();-->
-<!--            // });-->
-
-<!--            // $('.dataframe').DataTable( {-->
-<!--            //     "pageLength": 20,-->
-<!--            //     "paging": true,-->
-<!--            //     // "columnDefs": [ {-->
-<!--            //     //     "visible": true,-->
-<!--            //     //     "targets": [4]-->
-<!--            //     // } ]-->
-<!--            // });-->
-
-<!--            var table = $('.display').DataTable( {-->
-<!--                "scrollY": "500px",-->
-<!--                // "scrollX": "500px",-->
-<!--                "scrollCollapse": true,-->
-<!--                "paging": false-->
-<!--            } );-->
-
-<!--            // $('a.toggle-vis').on( 'click', function (e) {-->
-<!--            //     e.preventDefault();-->
-<!--            //-->
-<!--            //     // Get the column API object-->
-<!--            //     var column = table.column( $(this).attr('data-column') );-->
-<!--            //-->
-<!--            //     // Toggle the visibility-->
-<!--            //     column.visible( ! column.visible() );-->
-<!--            // } );-->
-
-<!--            $('#select-all').click(function(event) {-->
-<!--                if(this.checked) {-->
-<!--                    // Iterate each checkbox-->
-<!--                    $(':checkbox').each(function() {-->
-<!--                        this.checked = true;-->
-<!--                    });-->
-<!--                }-->
-<!--                else {-->
-<!--                    // Iterate each checkbox-->
-<!--                    $(":checkbox").each(function() {-->
-<!--                        this.checked = false;-->
-<!--                    });-->
-<!--                }-->
-<!--            } );-->
-
-<!--        });-->
-<!--    </script>-->
 
     <!-- Aladin -->
-    <link rel="stylesheet" href="//aladin.u-strasbg.fr/AladinLite/api/v2/latest/aladin.min.css" />
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/aladin.min.css') }}">
     {{ script|safe }}
+
+    <!-- Overwriting Styles -->
+    <style>
+        thead,
+        tbody,
+        tfoot,
+        tr,
+        td,
+        th {text-align: left}
+        .display-6 {font-size: 1.5rem}
+    </style>
             
 </head>
 
-<body style="line-height:1.5em; width: fit-content; color: #5f6988">
-    <div id="header">
-        <div class='head'>
-            <a href='/'>
-                <div>
-                    <h1 style="padding-top:38px;" class="title">SIMPLE Database</h1>
+<body class="container-fluid" style="padding-top: 75px">
+    <div class="container-fluid">
+        {% set navigation_bar = [
+           ('/', 'home', 'Home'),
+           ('/search', 'search', 'Query the Database'),
+           ('/multiplot', 'view', 'View the Database'),
+           ('/schema', 'schema', 'About the Database'),
+           ('/feedback', 'feedback', 'Feedback/ Questions')
+        ] -%}
+        {% set active_page = active_page|default('home') -%}
+        <nav class="navbar navbar-expand-lg navbar-dark bg-primary fixed-top">
+            <div class="container">
+                <a class="navbar-brand" href="/">Simple</a>
+                <button class="navbar-toggler" type="button" data-bs-toggle="collapse"
+                        data-bs-target="#navbarSupportedContent"
+                        aria-controls="navbarSupportedContent" aria-expanded="false" aria-label="Toggle navigation">
+                    <span class="navbar-toggler-icon"></span>
+                </button>
+                <div class="collapse navbar-collapse" id="navbarSupportedContent">
+                    <ul class="navbar-nav me-auto mb-2 mb-lg-0">
+                        {% for href, activeid, caption in navigation_bar %}
+                            <li class="nav-item">
+                                <a
+                                    {% if activeid == active_page %}
+                                        class="nav-link active"
+                                    {% else %}
+                                        class="nav-link"
+                                    {% endif %} href="{{ href|e }}">{{ caption|e }}
+                                </a>
+                            </li>
+                        {% endfor %}
+                    </ul>
                 </div>
-            </a>
-        </div>
-        <div class='clearfix'>
-            <ul>
-                <li><a href="/search" class="title">Query the Database</a></li>
-                <li><a href="/multiplot" class="title">View the Database</a></li>
-                <li><a href="/schema" class="title">About the SIMPLE Database</a></li>
-                <li><a href="/feedback" class="title">Feedback/Questions</a></li>
-            </ul>
-        </div>
+            </div>
+        </nav>
     </div>
 
-    <div class=page>
+    <div class="divider"></div>
+    <div class="container-fluid">
         {% block content %}
         {% endblock %}
     </div>
 
-    <footer>
-        <div id="footer" style='border-top:1px black solid; padding:20px;'>
-
-            <div style='float:left;'>
-                <p style='float:left; margin:0;'>Encountered an error or mistake? We'd love your
-                    <a href="/feedback">feedback</a>!</p>
-            </div>
-
-            <div class='clearfix'></div>
-        </div>
-    </footer>
+    <div class="divider"></div>
+    <div class="container">
+        <footer class="border-top py-3 my-4">
+            <p class="text-muted">
+                Head to our GitHub repositories learn more about
+                <a href="https://github.com/SIMPLE-AstroDB/SIMPLE-db/" target="_blank">SIMPLE</a>
+                and leave <a href="/feedback">feedback</a> on the
+                <a href="https://github.com/SIMPLE-AstroDB/SIMPLE-web/" target="_blank">website!</a>
+            </p>
+        </footer>
+    </div>
 </body>
 </html>
