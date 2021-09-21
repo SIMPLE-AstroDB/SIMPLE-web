@@ -5,6 +5,7 @@ then connect to.
 # external packages
 from astrodbkit2.astrodb import Database, REFERENCE_TABLES  # used for pulling out database and querying
 from astropy.coordinates import SkyCoord
+from astropy.table import Table
 from bokeh.embed import json_item  # bokeh embedding
 from bokeh.layouts import row, column  # bokeh displaying nicely
 from bokeh.models import ColumnDataSource, Range1d, CustomJS,\
@@ -16,6 +17,7 @@ from flask_wtf import FlaskForm  # web forms
 from markdown2 import markdown  # using markdown formatting
 import numpy as np  # numerical python
 import pandas as pd  # running dataframes
+from specutils import Spectrum1D
 from wtforms import StringField, SubmitField  # web forms
 # internal packages
 import argparse  # system arguments
@@ -59,6 +61,7 @@ class SimpleDB(Database):  # this keeps pycharm happy about unresolved reference
     Sources = None  # initialise class attribute
     Photometry = None
     Parallaxes = None
+    Spectra = None
 
 
 class Inventory:
@@ -107,6 +110,8 @@ class Inventory:
         obj: List[dict] = self.results[key]  # the value for the given key
         df: pd.DataFrame = pd.concat([pd.DataFrame(objrow, index=[i])  # create dataframe from found dict
                                       for i, objrow in enumerate(obj)], ignore_index=True)  # every dict in the list
+        if rtnmk and key == 'Spectra':
+            df = df.loc[:, 'regime':].copy()
         if rtnmk:  # return markdown boolean
             return markdown(df.to_html(index=False,
                                        classes='table table-dark table-bordered table-striped'))  # html then markdown
@@ -533,6 +538,37 @@ def camdplot():
                           sizing_mode='fixed', width=200, height=200),
                 sizing_mode='scale_width')
     plot = jsonify(json_item(plots, 'camdplot'))  # bokeh object in json
+    return plot
+
+
+@app_simple.route('/specplot')
+def specplot():
+    """
+    Creates the bokeh representation of the plot
+
+    Returns
+    -------
+    plot
+        jsonified bokeh plot for the spectra
+    """
+    db = SimpleDB(db_file, connection_arguments={'check_same_thread': False})  # open database
+    query: str = curdoc().template_variables['query']  # get the query (on page)
+    resultdict: dict = db.inventory(query)  # get everything about that object
+    everything = Inventory(resultdict)  # parsing the inventory
+    dfspecinfo: pd.DataFrame = everything.listconcat('Spectra', False)
+    print(dfspecinfo)
+    tooltips = []  # to appear on hover
+    p = figure(title=query, plot_width=800, plot_height=400,
+               active_scroll='wheel_zoom', active_drag='box_zoom',
+               tools='pan,wheel_zoom,box_zoom,hover,tap,reset', tooltips=tooltips,
+               sizing_mode='stretch_width')
+    tspec: Table = db.query(db.Spectra.c.spectrum).\
+        filter(db.Spectra.c.source == query).\
+        table(spectra=['spectrum'])
+    for i, spec in enumerate(tspec):
+        spec: Spectrum1D = spec[0]
+        p.line(x=spec.spectral_axis.value, y=spec.flux.value)
+    plot = jsonify(json_item(p, 'specplot'))
     return plot
 
 

@@ -50,7 +50,11 @@
 
         <div class="row">
             <h2 class="display-3">Spectra</h2>
-            <div class="row" id="spectra">
+            <p class="display-6">
+                {{ everything.spectra|safe if everything.photometry
+                   else 'No Spectra for ' + query|safe }}
+            </p>
+            <div class="row" id="specplot">
                 <script>
                     fetch('/specplot')
                         .then(function(response) { return response.json(); })
