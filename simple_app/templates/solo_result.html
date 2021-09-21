@@ -2,7 +2,7 @@
 {% set active_page = "search" %}
 {% block content %}
     <div class="container">
-        <h1 class="display-2">Full data for:<br> {{ query|safe }}</h1>
+        <h1 class="display-2">{{ query|safe }}</h1>
     </div>
     <div class="container flex-md-column">
         <div class="row">
@@ -40,26 +40,18 @@
                    else 'No Photometry for ' + query|safe }}
             </p>
             <div class="row" id="camdplot">
-                <script>
-                    fetch('/camdplot')
-                        .then(function(response) { return response.json(); })
-                        .then(function(item) { return Bokeh.embed.embed_item(item); })
-                </script>
+                {{ divcmd|safe if divcmd is not none }}
             </div>
         </div>
 
         <div class="row">
             <h2 class="display-3">Spectra</h2>
             <p class="display-6">
-                {{ everything.spectra|safe if everything.photometry
+                {{ everything.spectra|safe if everything.spectra
                    else 'No Spectra for ' + query|safe }}
             </p>
             <div class="row" id="specplot">
-                <script>
-                    fetch('/specplot')
-                        .then(function(response) { return response.json(); })
-                        .then(function(item) { return Bokeh.embed.embed_item(item); })
-                </script>
+                {{ divspectra|safe if divspectra is not none }}
             </div>
         </div>
 

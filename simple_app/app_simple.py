@@ -6,11 +6,12 @@ then connect to.
 from astrodbkit2.astrodb import Database, REFERENCE_TABLES  # used for pulling out database and querying
 from astropy.coordinates import SkyCoord
 from astropy.table import Table
-from bokeh.embed import json_item  # bokeh embedding
+from bokeh.embed import components
 from bokeh.layouts import row, column  # bokeh displaying nicely
 from bokeh.models import ColumnDataSource, Range1d, CustomJS,\
     Select, Toggle, TapTool, OpenURL, HoverTool  # bokeh models
 from bokeh.plotting import figure, curdoc  # bokeh plotting
+from bokeh.resources import CDN
 from flask import Flask, render_template, jsonify  # website functionality
 from flask_cors import CORS  # cross origin fix (aladin mostly)
 from flask_wtf import FlaskForm  # web forms
@@ -447,25 +448,25 @@ def solo_result(query: str):
     resultdict: dict = db.inventory(query)  # get everything about that object
     query = query.upper()  # convert query to all upper case
     everything = Inventory(resultdict)  # parsing the inventory into markdown
-    return render_template('solo_result.html',
+    scriptcmd, divcmd = camdplot(query, everything)
+    scriptspectra, divspectra = specplot(query, everything)
+    return render_template('solo_result.html', resources=CDN.render(), scriptcmd=scriptcmd, divcmd=divcmd,
+                           scriptspectra=scriptspectra, divspectra=divspectra,
                            query=query, resultdict=resultdict, everything=everything)
 
 
-@app_simple.route('/camdplot')
-def camdplot():
+def camdplot(query: str, everything: Inventory):
     """
     Creates CAMD plot as JSON object
 
     Returns
     -------
-    plot
-        JSON object for page to use
+    script
+        script for creating the bokeh plot
+    div
+        the html to be inserted in dom
     """
     # TODO: Add CAMD diagram when we have data to test this on (i.e. parallaxes + photometry for same object)
-    db = SimpleDB(db_file, connection_arguments={'check_same_thread': False})  # open database
-    query: str = curdoc().template_variables['query']  # get the query (on page)
-    resultdict: dict = db.inventory(query)  # get everything about that object
-    everything = Inventory(resultdict)  # parsing the inventory
     bands = [band.split("_")[1] for band in all_bands]  # nice band names
     vals = [f'@{band}' for band in all_bands]  # the values in CDS
     tooltips = [('Target', '@target'), *zip(bands, vals), ('Ref', '@ref')]  # tooltips for hover tool
@@ -539,19 +540,20 @@ def camdplot():
                           buttonyflip,
                           sizing_mode='scale_width'),
                    sizing_mode='scale_width')
-    plot = jsonify(json_item(plots, 'camdplot'))  # bokeh object in json
-    return plot
+    script, div = components(plots)
+    return script, div
 
 
-@app_simple.route('/specplot')
-def specplot():
+def specplot(query: str, everything: Inventory):
     """
     Creates the bokeh representation of the plot
 
     Returns
     -------
-    plot
-        jsonified bokeh plot for the spectra
+    script
+        script for creating the bokeh plot
+    div
+        the html to be inserted in dom
     """
     def normalise(wmin: float, wmax: float, wavearr: np.ndarray, fluxarr: np.ndarray):
         if wmin > wmax:
@@ -562,19 +564,17 @@ def specplot():
         fluxarr /= medflux
         return fluxarr
 
-    # TODO: Handle different wavelength regimes
-    # TODO: Overplotting standards
-    db = SimpleDB(db_file, connection_arguments={'check_same_thread': False})  # open database
-    query: str = curdoc().template_variables['query']  # get the query (on page)
-    resultdict: dict = db.inventory(query)  # get everything about that object
-    everything = Inventory(resultdict)  # parsing the inventory
     try:
         dfspecinfo: pd.DataFrame = everything.listconcat('Spectra', False)
     except KeyError:  # Spectra not in database
-        return jsonify(None)
+        return None, None
+    db = SimpleDB(db_file, connection_arguments={'check_same_thread': False})  # open database
+    # TODO: make this return the whole table at once and I would prefer pandas to astropy table
     tspec: Table = db.query(db.Spectra.c.spectrum).\
         filter(db.Spectra.c.source == query).\
         table(spectra=['spectrum'])
+    # TODO: Handle different wavelength regimes
+    # TODO: Overplotting standards
     p = figure(title='Spectra', plot_height=500,
                active_scroll='wheel_zoom', active_drag='box_zoom',
                tools='pan,wheel_zoom,box_zoom,reset', toolbar_location='left',
@@ -591,8 +591,8 @@ def specplot():
         flux: np.ndarray = spec.flux.value
         flux = normalise(1, 1.2, wave, flux)
         p.line(x=wave, y=flux)
-    plot = jsonify(json_item(p, 'specplot'))
-    return plot
+    script, div = components(p)
+    return script, div
 
 
 @app_simple.route('/multiplot')
@@ -600,13 +600,21 @@ def multiplotpage():
     """
     The page for all the plots
     """
-    return render_template('multiplot.html')
+    scriptmulti, divmulti = multiplotbokeh()
+    return render_template('multiplot.html', scriptmulti=scriptmulti, divmulti=divmulti, resources=CDN.render())
 
 
-@app_simple.route('/multiplot_bokeh')
 def multiplotbokeh():
-    # TODO: Different projections available or coordinate frames
-    # TODO: Add Toomre diagram when we have radial velocities and proper motions for same objects
+    """
+    The workhorse generating the multiple plots view page
+
+    Returns
+    -------
+    script
+        script for creating the bokeh plot
+    div
+        the html to be inserted in dom
+    """
     raproj, decproj = coordinate_project()  # project coordinates to galactic
     all_results_full['raproj'] = raproj  # ra
     all_results_full['decproj'] = decproj  # dec
@@ -705,8 +713,8 @@ def multiplotbokeh():
                               sizing_mode='scale_width'),
                        sizing_mode='scale_width'),
                    sizing_mode='scale_width')
-    plot = jsonify(json_item(plots, 'multiplot'))  # pass to json
-    return plot
+    script, div = components(plots)
+    return script, div
 
 
 @app_simple.route('/autocomplete', methods=['GET'])

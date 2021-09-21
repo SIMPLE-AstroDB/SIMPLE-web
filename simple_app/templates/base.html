@@ -42,7 +42,12 @@
         th {text-align: left}
         .display-6 {font-size: 1.5rem}
     </style>
-            
+
+    {{ resources|safe }}
+    {{ scriptcmd|safe if scriptcmd is not none }}
+    {{ scriptspectra|safe if scriptspectra is not none }}
+    {{ scriptmulti|safe if scriptmulti is not none }}
+
 </head>
 
 <body class="container-fluid" style="padding-top: 75px">
