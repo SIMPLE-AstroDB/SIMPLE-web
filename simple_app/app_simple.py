@@ -449,7 +449,7 @@ def solo_result(query: str):
     query = query.upper()  # convert query to all upper case
     everything = Inventory(resultdict)  # parsing the inventory into markdown
     scriptcmd, divcmd = camdplot(query, everything)
-    scriptspectra, divspectra = specplot(query, everything)
+    scriptspectra, divspectra = specplot(query)
     return render_template('solo_result.html', resources=CDN.render(), scriptcmd=scriptcmd, divcmd=divcmd,
                            scriptspectra=scriptspectra, divspectra=divspectra,
                            query=query, resultdict=resultdict, everything=everything)
@@ -458,6 +458,13 @@ def solo_result(query: str):
 def camdplot(query: str, everything: Inventory):
     """
     Creates CAMD plot as JSON object
+
+    Parameters
+    ----------
+    query: str
+        The object that has been searched for
+    everything: Inventory
+        The class representation wrapping db.inventory
 
     Returns
     -------
@@ -544,9 +551,14 @@ def camdplot(query: str, everything: Inventory):
     return script, div
 
 
-def specplot(query: str, everything: Inventory):
+def specplot(query: str):
     """
     Creates the bokeh representation of the plot
+
+    Parameters
+    ----------
+    query: str
+        The object that has been searched for
 
     Returns
     -------
@@ -560,35 +572,31 @@ def specplot(query: str, everything: Inventory):
         fluxarr *= fluxnorm
         return fluxarr
 
-    try:
-        dfspecinfo: pd.DataFrame = everything.listconcat('Spectra', False)
-    except KeyError:  # Spectra not in database
-        return None, None
     db = SimpleDB(db_file, connection_arguments={'check_same_thread': False})  # open database
     tspec: Table = db.query(db.Spectra).\
         filter(db.Spectra.c.source == query).\
-        table(spectra=['spectrum'])
-    # TODO: Handle different wavelength regimes
+        table(spectra=['spectrum'])  # query the database for the spectra
+    if not len(tspec):  # if there aren't any spectra, return nothing
+        return None, None
     # TODO: Overplotting standards
     p = figure(title='Spectra', plot_height=500,
                active_scroll='wheel_zoom', active_drag='box_zoom',
                tools='pan,wheel_zoom,box_zoom,reset', toolbar_location='left',
-               sizing_mode='stretch_width')
+               sizing_mode='stretch_width')  # init figure
     p.xaxis.axis_label = 'Wavelength'
     p.yaxis.axis_label = 'Normalised Flux'
-    for i, spec in enumerate(tspec):
-        if not i:  # first
-            p.xaxis.axis_label += f' [{spec["wavelength_units"]}]'
-            p.yaxis.axis_label += f' [{spec["flux_units"]}]'
-        spectrum: Spectrum1D = spec['spectrum']
-        wave: np.ndarray = spectrum.spectral_axis.value
-        flux: np.ndarray = spectrum.flux.value
-        flux = normalise(flux)
-        label = f'{spec["telescope"]}-{spec["instrument"]}: {spec["observation_date"].date()}'
-        p.line(x=wave, y=flux, legend_label=label)
-    p.legend.location = 'top_left'
-    p.legend.click_policy = 'hide'
-    script, div = components(p)
+    for i, spec in enumerate(tspec):  # over all spectra
+        if not i:  # first spectra
+            p.xaxis.axis_label += f' [{spec["wavelength_units"]}]'  # units for wavelength on x axis
+            p.yaxis.axis_label += f' [{spec["flux_units"]}]'  # units for wavelength on y axis
+        spectrum: Spectrum1D = spec['spectrum']  # spectrum as an object
+        wave: np.ndarray = spectrum.spectral_axis.value  # unpack wavelengths
+        flux: np.ndarray = spectrum.flux.value  # unpack fluxes
+        flux = normalise(flux)  # normalise the flux by the sum
+        label = f'{spec["telescope"]}-{spec["instrument"]}: {spec["observation_date"].date()}'  # legend label
+        p.line(x=wave, y=flux, legend_label=label)  # create line plot
+    p.legend.click_policy = 'hide'  # hide the graph if clicked on
+    script, div = components(p)  # convert bokeh plot into script and div for html use
     return script, div
 
 
