@@ -551,23 +551,44 @@ def specplot():
     plot
         jsonified bokeh plot for the spectra
     """
+    def normalise(wmin: float, wmax: float, wavearr: np.ndarray, fluxarr: np.ndarray):
+        if wmin > wmax:
+            _wmin, _wmax = wmin, wmax
+            wmin, wmax = _wmax, _wmin
+        boolcut: np.ndarray = np.logical_and(wavearr > wmin, wavearr < wmax)
+        medflux: Union[np.ndarray, float] = np.nanmedian(fluxarr[boolcut])
+        fluxarr /= medflux
+        return fluxarr
+
+    # TODO: Handle different wavelength regimes
+    # TODO: Overplotting standards
     db = SimpleDB(db_file, connection_arguments={'check_same_thread': False})  # open database
     query: str = curdoc().template_variables['query']  # get the query (on page)
     resultdict: dict = db.inventory(query)  # get everything about that object
     everything = Inventory(resultdict)  # parsing the inventory
-    dfspecinfo: pd.DataFrame = everything.listconcat('Spectra', False)
-    print(dfspecinfo)
-    tooltips = []  # to appear on hover
-    p = figure(title=query, plot_width=800, plot_height=400,
-               active_scroll='wheel_zoom', active_drag='box_zoom',
-               tools='pan,wheel_zoom,box_zoom,hover,tap,reset', tooltips=tooltips,
-               sizing_mode='stretch_width')
+    try:
+        dfspecinfo: pd.DataFrame = everything.listconcat('Spectra', False)
+    except KeyError:  # Spectra not in database
+        return jsonify(None)
     tspec: Table = db.query(db.Spectra.c.spectrum).\
         filter(db.Spectra.c.source == query).\
         table(spectra=['spectrum'])
+    p = figure(title=query,
+               active_scroll='wheel_zoom', active_drag='box_zoom',
+               tools='pan,wheel_zoom,box_zoom,reset', toolbar_location='above',
+               sizing_mode='stretch_width')
+    p.xaxis.axis_label = 'Wavelength'
+    p.yaxis.axis_label = 'Normalised Flux'
     for i, spec in enumerate(tspec):
+        specdf: pd.Series = dfspecinfo.iloc[i]
+        if not i:  # first
+            p.xaxis.axis_label += f' [{specdf.wavelength_units}]'
+            p.yaxis.axis_label += f' [{specdf.flux_units}]'
         spec: Spectrum1D = spec[0]
-        p.line(x=spec.spectral_axis.value, y=spec.flux.value)
+        wave: np.ndarray = spec.spectral_axis.value
+        flux: np.ndarray = spec.flux.value
+        flux = normalise(1, 1.2, wave, flux)
+        p.line(x=wave, y=flux)
     plot = jsonify(json_item(p, 'specplot'))
     return plot
 
