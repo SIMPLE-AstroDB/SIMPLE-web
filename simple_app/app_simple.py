@@ -113,6 +113,7 @@ class Inventory:
         if rtnmk and key == 'Spectra':
             df = df.loc[:, 'regime':].copy()
         if rtnmk:  # return markdown boolean
+            df.rename(columns={s: s.replace('_', ' ') for s in df.columns}, inplace=True)  # renaming columns
             return markdown(df.to_html(index=False,
                                        classes='table table-dark table-bordered table-striped'))  # html then markdown
         return df  # otherwise return dataframe as is
@@ -468,7 +469,7 @@ def camdplot():
     bands = [band.split("_")[1] for band in all_bands]  # nice band names
     vals = [f'@{band}' for band in all_bands]  # the values in CDS
     tooltips = [('Target', '@target'), *zip(bands, vals), ('Ref', '@ref')]  # tooltips for hover tool
-    p = figure(title='Colour-Colour', plot_width=800, plot_height=400,
+    p = figure(title='Colour-Colour', plot_height=500,
                active_scroll='wheel_zoom', active_drag='box_zoom',
                tools='pan,wheel_zoom,box_zoom,hover,tap,reset', tooltips=tooltips,
                sizing_mode='stretch_width')  # bokeh figure
@@ -522,21 +523,22 @@ def camdplot():
     just_colours: pd.DataFrame = whichdf.drop(columns=np.hstack([thisbands, ['ref', 'target']]))  # only the colours
     axis_names = [f'{col.split("_")[1]} - {col.split("_")[3]}' for col in just_colours.columns]  # convert nicely
     dropmenu = [*zip(just_colours.columns, axis_names), ]  # zip up into menu
-    dropdownx = Select(title='X Axis', options=dropmenu, value=xfullname, width=200, height=50)  # x axis select
+    dropdownx = Select(title='X Axis', options=dropmenu, value=xfullname)  # x axis select
     dropdownx.js_on_change('value', CustomJS(code=jscallbacks.dropdownx_js,
                                              args={'fullplot': fullplot, 'thisplot': thisplot,
                                                    'fulldata': cdsfull.data, 'xbut': buttonxflip,
                                                    'xaxis': p.xaxis[0], 'xrange': p.x_range}))
-    dropdowny = Select(title='Y Axis', options=dropmenu, value=yfullname, width=200, height=50)  # y axis select
+    dropdowny = Select(title='Y Axis', options=dropmenu, value=yfullname)  # y axis select
     dropdowny.js_on_change('value', CustomJS(code=jscallbacks.dropdowny_js,
                                              args={'fullplot': fullplot, 'thisplot': thisplot,
                                                    'fulldata': cdsfull.data, 'ybut': buttonyflip,
                                                    'yaxis': p.yaxis[0], 'yrange': p.y_range}))
-    plots = row(p, column(dropdownx,
+    plots = column(p, row(dropdownx,
                           dropdowny,
-                          row(buttonxflip, buttonyflip, sizing_mode='scale_width'),
-                          sizing_mode='fixed', width=200, height=200),
-                sizing_mode='scale_width')
+                          buttonxflip,
+                          buttonyflip,
+                          sizing_mode='scale_width'),
+                   sizing_mode='scale_width')
     plot = jsonify(json_item(plots, 'camdplot'))  # bokeh object in json
     return plot
 
@@ -573,9 +575,9 @@ def specplot():
     tspec: Table = db.query(db.Spectra.c.spectrum).\
         filter(db.Spectra.c.source == query).\
         table(spectra=['spectrum'])
-    p = figure(title=query,
+    p = figure(title='Spectra', plot_height=500,
                active_scroll='wheel_zoom', active_drag='box_zoom',
-               tools='pan,wheel_zoom,box_zoom,reset', toolbar_location='above',
+               tools='pan,wheel_zoom,box_zoom,reset', toolbar_location='left',
                sizing_mode='stretch_width')
     p.xaxis.axis_label = 'Wavelength'
     p.yaxis.axis_label = 'Normalised Flux'
@@ -620,7 +622,7 @@ def multiplotbokeh():
     # sky plot
     thishover = HoverTool(names=['circle', ], tooltips=tooltips)  # hovertool
     thistap = TapTool(names=['circle', ])  # taptool
-    psky = figure(title='Sky Plot', plot_width=1200, plot_height=600,
+    psky = figure(title='Sky Plot', plot_height=500,
                   active_scroll='wheel_zoom', active_drag='box_zoom',
                   tools='pan,wheel_zoom,box_zoom,box_select,reset',
                   sizing_mode='stretch_width', x_range=[-180, 180], y_range=[-90, 90])  # bokeh figure
@@ -630,7 +632,7 @@ def multiplotbokeh():
     psky.circle(source=fullcds, x='raproj', y='decproj', size=6, name='circle')
     thistap.callback = OpenURL(url='/solo_result/@source')  # open new page on target when source tapped
     # colour-colour
-    pcc = figure(title='Colour-Colour', plot_width=400, plot_height=400,
+    pcc = figure(title='Colour-Colour', plot_height=500,
                  active_scroll='wheel_zoom', active_drag='box_zoom',
                  tools='pan,wheel_zoom,box_zoom,box_select,hover,tap,reset', tooltips=tooltips,
                  sizing_mode='stretch_width')  # bokeh figure
@@ -641,19 +643,19 @@ def multiplotbokeh():
     pcc.yaxis.axis_label = 'W3 - W4'  # y label
     taptool = pcc.select(type=TapTool)  # tapping
     taptool.callback = OpenURL(url='/solo_result/@source')  # open new page on target when source tapped
-    buttonxflip = Toggle(label='X Flip', width=200, height=50)
+    buttonxflip = Toggle(label='X Flip')
     buttonxflip.js_on_click(CustomJS(code=jscallbacks.button_flip, args={'axrange': pcc.x_range}))
-    buttonyflip = Toggle(label='Y Flip', width=200, height=50)
+    buttonyflip = Toggle(label='Y Flip')
     buttonyflip.js_on_click(CustomJS(code=jscallbacks.button_flip, args={'axrange': pcc.y_range}))
     just_colours: pd.DataFrame = all_photo.drop(columns=np.hstack([all_bands, ['ref', 'target']]))  # cols
     axis_names = [f'{col.split("_")[1]} - {col.split("_")[3]}' for col in just_colours.columns]  # convert nicely
     dropmenu = [*zip(just_colours.columns, axis_names), ]  # zip up into menu
-    dropdownx = Select(title='X Axis', options=dropmenu, value='WISE_W1_WISE_W2', width=200, height=50)  # x axis select
+    dropdownx = Select(title='X Axis', options=dropmenu, value='WISE_W1_WISE_W2')  # x axis select
     dropdownx.js_on_change('value', CustomJS(code=jscallbacks.dropdownx_js,
                                              args={'fullplot': fullplot,
                                                    'fulldata': fullcds.data, 'xbut': buttonxflip,
                                                    'xaxis': pcc.xaxis[0], 'xrange': pcc.x_range}))
-    dropdowny = Select(title='Y Axis', options=dropmenu, value='WISE_W3_WISE_W4', width=200, height=50)  # y axis select
+    dropdowny = Select(title='Y Axis', options=dropmenu, value='WISE_W3_WISE_W4')  # y axis select
     dropdowny.js_on_change('value', CustomJS(code=jscallbacks.dropdowny_js,
                                              args={'fullplot': fullplot,
                                                    'fulldata': fullcds.data, 'ybut': buttonyflip,
@@ -663,7 +665,7 @@ def multiplotbokeh():
     magaxisnames = [col.split("_")[1] for col in just_mags.columns]
     absmagnames = ["M_" + col for col in just_mags.columns]
     dropmenumag = [*zip(absmagnames, magaxisnames)]
-    pcamd = figure(title='Colour-Absolute Magnitude Diagram', plot_width=400, plot_height=400,
+    pcamd = figure(title='Colour-Absolute Magnitude Diagram', plot_height=500,
                    active_scroll='wheel_zoom', active_drag='box_zoom',
                    tools='pan,wheel_zoom,box_zoom,box_select,hover,tap,reset', tooltips=tooltips,
                    sizing_mode='stretch_width')  # bokeh figure
@@ -674,16 +676,16 @@ def multiplotbokeh():
     pcamd.yaxis.axis_label = 'W1'  # y label
     taptoolmag = pcamd.select(type=TapTool)  # tapping
     taptoolmag.callback = OpenURL(url='/solo_result/@source')  # open new page on target when source tapped
-    buttonmagxflip = Toggle(label='X Flip', width=200, height=50)
+    buttonmagxflip = Toggle(label='X Flip')
     buttonmagxflip.js_on_click(CustomJS(code=jscallbacks.button_flip, args={'axrange': pcamd.x_range}))
-    buttonmagyflip = Toggle(label='Y Flip', width=200, height=50)
+    buttonmagyflip = Toggle(label='Y Flip')
     buttonmagyflip.js_on_click(CustomJS(code=jscallbacks.button_flip, args={'axrange': pcamd.y_range}))
-    dropdownmagx = Select(title='X Axis', options=dropmenu, value='WISE_W1_WISE_W2', width=200, height=50)  # x axis
+    dropdownmagx = Select(title='X Axis', options=dropmenu, value='WISE_W1_WISE_W2')  # x axis
     dropdownmagx.js_on_change('value', CustomJS(code=jscallbacks.dropdownx_js,
                                                 args={'fullplot': fullmagplot,
                                                       'fulldata': fullcds.data, 'xbut': buttonmagxflip,
                                                       'xaxis': pcamd.xaxis[0], 'xrange': pcamd.x_range}))
-    dropdownmagy = Select(title='Y Axis', options=dropmenumag, value='M_WISE_W1', width=200, height=50)  # y axis
+    dropdownmagy = Select(title='Y Axis', options=dropmenumag, value='M_WISE_W1')  # y axis
     dropdownmagy.js_on_change('value', CustomJS(code=jscallbacks.dropdowny_js,
                                                 args={'fullplot': fullmagplot,
                                                       'fulldata': fullcds.data, 'ybut': buttonmagyflip,
@@ -702,7 +704,7 @@ def multiplotbokeh():
                                   sizing_mode='stretch_width'),
                               sizing_mode='scale_width'),
                        sizing_mode='scale_width'),
-                   sizing_mode='fixed', width=1200, height=1100)
+                   sizing_mode='scale_width')
     plot = jsonify(json_item(plots, 'multiplot'))  # pass to json
     return plot
 
