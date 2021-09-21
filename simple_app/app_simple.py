@@ -555,13 +555,9 @@ def specplot(query: str, everything: Inventory):
     div
         the html to be inserted in dom
     """
-    def normalise(wmin: float, wmax: float, wavearr: np.ndarray, fluxarr: np.ndarray):
-        if wmin > wmax:
-            _wmin, _wmax = wmin, wmax
-            wmin, wmax = _wmax, _wmin
-        boolcut: np.ndarray = np.logical_and(wavearr > wmin, wavearr < wmax)
-        medflux: Union[np.ndarray, float] = np.nanmedian(fluxarr[boolcut])
-        fluxarr /= medflux
+    def normalise(fluxarr: np.ndarray):
+        fluxnorm = 1 / np.sum(fluxarr)
+        fluxarr *= fluxnorm
         return fluxarr
 
     try:
@@ -569,8 +565,7 @@ def specplot(query: str, everything: Inventory):
     except KeyError:  # Spectra not in database
         return None, None
     db = SimpleDB(db_file, connection_arguments={'check_same_thread': False})  # open database
-    # TODO: make this return the whole table at once and I would prefer pandas to astropy table
-    tspec: Table = db.query(db.Spectra.c.spectrum).\
+    tspec: Table = db.query(db.Spectra).\
         filter(db.Spectra.c.source == query).\
         table(spectra=['spectrum'])
     # TODO: Handle different wavelength regimes
@@ -582,15 +577,17 @@ def specplot(query: str, everything: Inventory):
     p.xaxis.axis_label = 'Wavelength'
     p.yaxis.axis_label = 'Normalised Flux'
     for i, spec in enumerate(tspec):
-        specdf: pd.Series = dfspecinfo.iloc[i]
         if not i:  # first
-            p.xaxis.axis_label += f' [{specdf.wavelength_units}]'
-            p.yaxis.axis_label += f' [{specdf.flux_units}]'
-        spec: Spectrum1D = spec[0]
-        wave: np.ndarray = spec.spectral_axis.value
-        flux: np.ndarray = spec.flux.value
-        flux = normalise(1, 1.2, wave, flux)
-        p.line(x=wave, y=flux)
+            p.xaxis.axis_label += f' [{spec["wavelength_units"]}]'
+            p.yaxis.axis_label += f' [{spec["flux_units"]}]'
+        spectrum: Spectrum1D = spec['spectrum']
+        wave: np.ndarray = spectrum.spectral_axis.value
+        flux: np.ndarray = spectrum.flux.value
+        flux = normalise(flux)
+        label = f'{spec["telescope"]}-{spec["instrument"]}: {spec["observation_date"].date()}'
+        p.line(x=wave, y=flux, legend_label=label)
+    p.legend.location = 'top_left'
+    p.legend.click_policy = 'hide'
     script, div = components(p)
     return script, div
 
