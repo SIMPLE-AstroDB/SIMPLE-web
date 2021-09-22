@@ -10,7 +10,7 @@ from bokeh.palettes import Colorblind8
 from bokeh.embed import components
 from bokeh.layouts import row, column  # bokeh displaying nicely
 from bokeh.models import ColumnDataSource, Range1d, CustomJS,\
-    Select, Toggle, TapTool, OpenURL, HoverTool, NumeralTickFormatter  # bokeh models
+    Select, Toggle, TapTool, OpenURL, HoverTool  # bokeh models
 from bokeh.plotting import figure, curdoc  # bokeh plotting
 from bokeh.resources import CDN
 from bokeh.themes import built_in_themes
@@ -575,11 +575,10 @@ def specplot(query: str):
     div
         the html to be inserted in dom
     """
-    def normalise(fluxarr: np.ndarray, fluxnorm: float = None):
-        if fluxnorm is None:
-            fluxnorm = np.sum(fluxarr)
-        fluxarr /= fluxnorm
-        return fluxarr, fluxnorm
+    def normalise(fluxarr: np.ndarray) -> np.ndarray:
+        fluxarr = (fluxarr - np.nanmin(fluxarr)) /\
+                  (np.nanmax(fluxarr) - np.nanmin(fluxarr))
+        return fluxarr
 
     db = SimpleDB(db_file, connection_arguments={'check_same_thread': False})  # open database
     tspec: Table = db.query(db.Spectra).\
@@ -592,7 +591,6 @@ def specplot(query: str):
                active_scroll='wheel_zoom', active_drag='box_zoom',
                tools='pan,wheel_zoom,box_zoom,reset', toolbar_location='left',
                sizing_mode='stretch_width')  # init figure
-    p.yaxis.formatter = NumeralTickFormatter(format=".000")
     p.xaxis.axis_label_text_font_size = '1.5em'
     p.yaxis.axis_label_text_font_size = '1.5em'
     p.xaxis.major_label_text_font_size = '1.5em'
@@ -607,9 +605,7 @@ def specplot(query: str):
         if not i:  # first spectra
             p.xaxis.axis_label = 'Wavelength [μm]'  # units for wavelength on x axis
             p.yaxis.axis_label = 'Normalised Flux'  # units for wavelength on y axis
-            flux, normfact = normalise(flux)  # normalise the flux by the sum
-        else:
-            flux = normalise(flux, normfact)[0]  # divide all other spectra by the sum in the first one
+            flux = normalise(flux)  # normalise the flux by the sum
         if j := i > len(Colorblind8):  # loop around colours if we have more than 8 spectra, and start line dashing
             j = 0
             ld = 'dashed'
