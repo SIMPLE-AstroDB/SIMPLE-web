@@ -9,9 +9,10 @@ from astropy.table import Table
 from bokeh.embed import components
 from bokeh.layouts import row, column  # bokeh displaying nicely
 from bokeh.models import ColumnDataSource, Range1d, CustomJS,\
-    Select, Toggle, TapTool, OpenURL, HoverTool  # bokeh models
+    Select, Toggle, TapTool, OpenURL, HoverTool, NumeralTickFormatter  # bokeh models
 from bokeh.plotting import figure, curdoc  # bokeh plotting
 from bokeh.resources import CDN
+from bokeh.themes import built_in_themes
 from flask import Flask, render_template, jsonify  # website functionality
 from flask_cors import CORS  # cross origin fix (aladin mostly)
 from flask_wtf import FlaskForm  # web forms
@@ -32,6 +33,7 @@ from simple_callbacks import JSCallbacks
 app_simple = Flask(__name__)  # start flask app
 app_simple.config['SECRET_KEY'] = os.urandom(32)  # need to generate csrf token as basic security for Flask
 CORS(app_simple)  # makes CORS work (aladin notably)
+nightskytheme = built_in_themes['night_sky']  # nicer looking bokeh
 
 
 def sysargs():
@@ -518,6 +520,11 @@ def camdplot(query: str, everything: Inventory):
     p.y_range = Range1d(all_photo[yfullname].min(), all_photo[yfullname].max())  # y limits
     p.xaxis.axis_label = xvisname  # x label
     p.yaxis.axis_label = yvisname  # y label
+    p.xaxis.axis_label_text_font_size = '1.5em'
+    p.yaxis.axis_label_text_font_size = '1.5em'
+    p.xaxis.major_label_text_font_size = '1.5em'
+    p.yaxis.major_label_text_font_size = '1.5em'
+    p.title.text_font_size = '2em'
     taptool = p.select(type=TapTool)  # tapping
     taptool.callback = OpenURL(url='/solo_result/@target')  # open new page on target when source tapped
     buttonxflip = Toggle(label='X Flip')
@@ -547,7 +554,7 @@ def camdplot(query: str, everything: Inventory):
                           buttonyflip,
                           sizing_mode='scale_width'),
                    sizing_mode='scale_width')
-    script, div = components(plots)
+    script, div = components(plots, theme=nightskytheme)
     return script, div
 
 
@@ -568,8 +575,7 @@ def specplot(query: str):
         the html to be inserted in dom
     """
     def normalise(fluxarr: np.ndarray):
-        fluxnorm = 1 / np.sum(fluxarr)
-        fluxarr *= fluxnorm
+        fluxarr *= 1 / np.sum(fluxarr)
         return fluxarr
 
     db = SimpleDB(db_file, connection_arguments={'check_same_thread': False})  # open database
@@ -583,12 +589,16 @@ def specplot(query: str):
                active_scroll='wheel_zoom', active_drag='box_zoom',
                tools='pan,wheel_zoom,box_zoom,reset', toolbar_location='left',
                sizing_mode='stretch_width')  # init figure
-    p.xaxis.axis_label = 'Wavelength'
-    p.yaxis.axis_label = 'Normalised Flux'
+    p.yaxis.formatter = NumeralTickFormatter(format=".000")
+    p.xaxis.axis_label_text_font_size = '1.5em'
+    p.yaxis.axis_label_text_font_size = '1.5em'
+    p.xaxis.major_label_text_font_size = '1.5em'
+    p.yaxis.major_label_text_font_size = '1.5em'
+    p.title.text_font_size = '2em'
     for i, spec in enumerate(tspec):  # over all spectra
         if not i:  # first spectra
-            p.xaxis.axis_label += f' [{spec["wavelength_units"]}]'  # units for wavelength on x axis
-            p.yaxis.axis_label += f' [{spec["flux_units"]}]'  # units for wavelength on y axis
+            p.xaxis.axis_label = 'Wavelength [μm]'  # units for wavelength on x axis
+            p.yaxis.axis_label = 'Normalised Flux'  # units for wavelength on y axis
         spectrum: Spectrum1D = spec['spectrum']  # spectrum as an object
         wave: np.ndarray = spectrum.spectral_axis.value  # unpack wavelengths
         flux: np.ndarray = spectrum.flux.value  # unpack fluxes
@@ -596,7 +606,8 @@ def specplot(query: str):
         label = f'{spec["telescope"]}-{spec["instrument"]}: {spec["observation_date"].date()}'  # legend label
         p.line(x=wave, y=flux, legend_label=label)  # create line plot
     p.legend.click_policy = 'hide'  # hide the graph if clicked on
-    script, div = components(p)  # convert bokeh plot into script and div for html use
+    p.legend.label_text_font_size = '1.5em'
+    script, div = components(p, theme=nightskytheme)  # convert bokeh plot into script and div for html us
     return script, div
 
 
@@ -643,6 +654,9 @@ def multiplotbokeh():
     psky.add_tools(thistap)  # add tap tool to plot
     psky.ellipse(x=0, y=0, width=360, height=180, color='lightgrey', name='background')  # background ellipse
     psky.circle(source=fullcds, x='raproj', y='decproj', size=6, name='circle')
+    psky.xaxis.axis_label_text_font_size = '1.5em'
+    psky.yaxis.axis_label_text_font_size = '1.5em'
+    psky.title.text_font_size = '2em'
     thistap.callback = OpenURL(url='/solo_result/@source')  # open new page on target when source tapped
     # colour-colour
     pcc = figure(title='Colour-Colour', plot_height=500,
@@ -718,7 +732,7 @@ def multiplotbokeh():
                               sizing_mode='scale_width'),
                        sizing_mode='scale_width'),
                    sizing_mode='scale_width')
-    script, div = components(plots)
+    script, div = components(plots, theme=nightskytheme)
     return script, div
 
 
