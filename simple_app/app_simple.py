@@ -484,35 +484,28 @@ def camdplot(query: str, everything: Inventory):
                active_scroll='wheel_zoom', active_drag='box_zoom',
                tools='pan,wheel_zoom,box_zoom,hover,tap,reset', tooltips=tooltips,
                sizing_mode='stretch_width')  # bokeh figure
-    xfullname = 'WISE_W1_WISE_W2'  # default x axis
-    yfullname = 'WISE_W3_WISE_W4'  # default y axis
-    xvisname = 'W1 - W2'
-    yvisname = 'W3 - W4'
     try:
         thisphoto: pd.DataFrame = everything.listconcat('Photometry', False)  # the photometry for this object
     except KeyError:  # no photometry for this object
-        thisplot = None
-        thisbands = all_bands
-        thisphoto = pd.DataFrame()
-    else:
-        newphoto: dict = parse_photometry(thisphoto, all_bands)  # transpose photometric table
-        newphoto['target'] = [query, ] * len(newphoto['ref'])  # the targetname
-        thisphoto = pd.DataFrame(newphoto)  # turn into dataframe
-        thisbands: np.ndarray = np.unique(thisphoto.columns)  # the columns
-        thisbands = thisbands[np.isin(thisbands, all_bands)]  # the bands for this object
-        thisphoto: pd.DataFrame = find_colours(thisphoto, thisbands)  # get the colours
-        # FIXME: This'll break in the circumstance that there is only one band (shouldn't happen)
-        xfullname = '_'.join(thisbands[0:2])  # x axis colour
-        xvisname = thisbands[0].split('_')[-1] + ' - ' + thisbands[1].split('_')[-1]  # x axis name
-        try:
-            yfullname = '_'.join(thisbands[2:4])  # y axis colour
-            yvisname = thisbands[2].split('_')[-1] + ' - ' + thisbands[3].split('_')[-1]  # y axis name
-        except IndexError:
-            yfullname = '_'.join(thisbands[0:2])  # y axis name if only one colour
-            yvisname = thisbands[0].split('_')[-1] + ' - ' + thisbands[1].split('_')[-1]  # y axis name
-        thiscds = ColumnDataSource(data=thisphoto)  # this object cds
-        thisplot = p.circle(x=xfullname, y=yfullname, source=thiscds,
-                            color='blue', size=10)  # plot for this object
+        return None, None
+    newphoto: dict = parse_photometry(thisphoto, all_bands)  # transpose photometric table
+    newphoto['target'] = [query, ] * len(newphoto['ref'])  # the targetname
+    thisphoto = pd.DataFrame(newphoto)  # turn into dataframe
+    thisbands: np.ndarray = np.unique(thisphoto.columns)  # the columns
+    thisbands = thisbands[np.isin(thisbands, all_bands)]  # the bands for this object
+    thisphoto: pd.DataFrame = find_colours(thisphoto, thisbands)  # get the colours
+    # FIXME: This'll break in the circumstance that there is only one band (shouldn't happen)
+    xfullname = '_'.join(thisbands[0:2])  # x axis colour
+    xvisname = thisbands[0].split('_')[-1] + ' - ' + thisbands[1].split('_')[-1]  # x axis name
+    try:
+        yfullname = '_'.join(thisbands[2:4])  # y axis colour
+        yvisname = thisbands[2].split('_')[-1] + ' - ' + thisbands[3].split('_')[-1]  # y axis name
+    except IndexError:
+        yfullname = '_'.join(thisbands[0:2])  # y axis name if only one colour
+        yvisname = thisbands[0].split('_')[-1] + ' - ' + thisbands[1].split('_')[-1]  # y axis name
+    thiscds = ColumnDataSource(data=thisphoto)  # this object cds
+    thisplot = p.circle(x=xfullname, y=yfullname, source=thiscds,
+                        color='blue', size=10)  # plot for this object
     cdsfull = ColumnDataSource(data=all_photo)  # bokeh cds object
     fullplot = p.circle_x(x=xfullname, y=yfullname, source=cdsfull,
                           color='gray', alpha=0.5, size=5)  # plot all objects
