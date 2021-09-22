@@ -115,7 +115,9 @@ class Inventory:
         df: pd.DataFrame = pd.concat([pd.DataFrame(objrow, index=[i])  # create dataframe from found dict
                                       for i, objrow in enumerate(obj)], ignore_index=True)  # every dict in the list
         if rtnmk and key == 'Spectra':
-            df = df.loc[:, 'regime':].copy()
+            df.drop(columns=[col for col in df.columns if any([substr in col for substr in ('wave', 'flux')])],
+                    inplace=True)
+            df = df.loc[:, 'telescope':].copy()
         if rtnmk:  # return markdown boolean
             df.rename(columns={s: s.replace('_', ' ') for s in df.columns}, inplace=True)  # renaming columns
             return markdown(df.to_html(index=False,
