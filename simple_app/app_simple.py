@@ -114,13 +114,19 @@ class Inventory:
         obj: List[dict] = self.results[key]  # the value for the given key
         df: pd.DataFrame = pd.concat([pd.DataFrame(objrow, index=[i])  # create dataframe from found dict
                                       for i, objrow in enumerate(obj)], ignore_index=True)  # every dict in the list
+        urlinks = []
         if rtnmk and key == 'Spectra':
+            for src in df.spectrum.values:  # over every source in table
+                urllnk = src  # convert object name to url safe
+                srclnk = f'<a href="{urllnk}" target="_blank">Link</a>'  # construct hyperlink
+                urlinks.append(srclnk)  # add that to list
             df.drop(columns=[col for col in df.columns if any([substr in col for substr in ('wave', 'flux')])],
                     inplace=True)
             df = df.loc[:, 'telescope':].copy()
+            df['download'] = urlinks
         if rtnmk:  # return markdown boolean
             df.rename(columns={s: s.replace('_', ' ') for s in df.columns}, inplace=True)  # renaming columns
-            return markdown(df.to_html(index=False,
+            return markdown(df.to_html(index=False, escape=False,
                                        classes='table table-dark table-bordered table-striped'))  # html then markdown
         return df  # otherwise return dataframe as is
 
@@ -420,6 +426,7 @@ def search():
     if query is None:
         query = ''
     db = SimpleDB(db_file, connection_arguments={'check_same_thread': False})  # open database
+    # FIXME: FYI David, doing the to_pandas method because giving fmt='pandas' produces df without col names
     results = db.search_object(query, fmt='astropy')  # get the results for that object
     results: Union[pd.DataFrame, None] = results.to_pandas()  # convert to pandas from astropy table
     sourcelinks: list = []  # empty list

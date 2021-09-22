@@ -69,7 +69,7 @@
     </script>
     <div class="container-fluid">
         <h2 class="display-3">Results for: {{ query|safe }}</h2>
-        <p class="display-6">{{ results|safe }}</p>
+        <p class="display-6">{{ results|safe if results is not none }}</p>
     </div>
 
 {% endblock %}
