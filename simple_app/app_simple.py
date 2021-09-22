@@ -539,12 +539,12 @@ def camdplot(query: str, everything: Inventory):
     just_colours: pd.DataFrame = whichdf.drop(columns=np.hstack([thisbands, ['ref', 'target']]))  # only the colours
     axis_names = [f'{col.split("_")[1]} - {col.split("_")[3]}' for col in just_colours.columns]  # convert nicely
     dropmenu = [*zip(just_colours.columns, axis_names), ]  # zip up into menu
-    dropdownx = Select(title='X Axis', options=dropmenu, value=xfullname)  # x axis select
+    dropdownx = Select(options=dropmenu, value=xfullname)  # x axis select
     dropdownx.js_on_change('value', CustomJS(code=jscallbacks.dropdownx_js,
                                              args={'fullplot': fullplot, 'thisplot': thisplot,
                                                    'fulldata': cdsfull.data, 'xbut': buttonxflip,
                                                    'xaxis': p.xaxis[0], 'xrange': p.x_range}))
-    dropdowny = Select(title='Y Axis', options=dropmenu, value=yfullname)  # y axis select
+    dropdowny = Select(options=dropmenu, value=yfullname)  # y axis select
     dropdowny.js_on_change('value', CustomJS(code=jscallbacks.dropdowny_js,
                                              args={'fullplot': fullplot, 'thisplot': thisplot,
                                                    'fulldata': cdsfull.data, 'ybut': buttonyflip,
@@ -661,6 +661,8 @@ def multiplotbokeh():
     psky.circle(source=fullcds, x='raproj', y='decproj', size=6, name='circle')
     psky.xaxis.axis_label_text_font_size = '1.5em'
     psky.yaxis.axis_label_text_font_size = '1.5em'
+    psky.xaxis.major_label_text_font_size = '1.5em'
+    psky.yaxis.major_label_text_font_size = '1.5em'
     psky.title.text_font_size = '2em'
     thistap.callback = OpenURL(url='/solo_result/@source')  # open new page on target when source tapped
     # colour-colour
@@ -673,6 +675,11 @@ def multiplotbokeh():
     pcc.y_range = Range1d(all_results_mostfull.WISE_W3_WISE_W4.min(), all_results_mostfull.WISE_W3_WISE_W4.max())  # y
     pcc.xaxis.axis_label = 'W1 - W2'  # x label
     pcc.yaxis.axis_label = 'W3 - W4'  # y label
+    pcc.xaxis.axis_label_text_font_size = '1.5em'
+    pcc.yaxis.axis_label_text_font_size = '1.5em'
+    pcc.xaxis.major_label_text_font_size = '1.5em'
+    pcc.yaxis.major_label_text_font_size = '1.5em'
+    pcc.title.text_font_size = '2em'
     taptool = pcc.select(type=TapTool)  # tapping
     taptool.callback = OpenURL(url='/solo_result/@source')  # open new page on target when source tapped
     buttonxflip = Toggle(label='X Flip')
@@ -682,12 +689,12 @@ def multiplotbokeh():
     just_colours: pd.DataFrame = all_photo.drop(columns=np.hstack([all_bands, ['ref', 'target']]))  # cols
     axis_names = [f'{col.split("_")[1]} - {col.split("_")[3]}' for col in just_colours.columns]  # convert nicely
     dropmenu = [*zip(just_colours.columns, axis_names), ]  # zip up into menu
-    dropdownx = Select(title='X Axis', options=dropmenu, value='WISE_W1_WISE_W2')  # x axis select
+    dropdownx = Select(options=dropmenu, value='WISE_W1_WISE_W2')  # x axis select
     dropdownx.js_on_change('value', CustomJS(code=jscallbacks.dropdownx_js,
                                              args={'fullplot': fullplot,
                                                    'fulldata': fullcds.data, 'xbut': buttonxflip,
                                                    'xaxis': pcc.xaxis[0], 'xrange': pcc.x_range}))
-    dropdowny = Select(title='Y Axis', options=dropmenu, value='WISE_W3_WISE_W4')  # y axis select
+    dropdowny = Select(options=dropmenu, value='WISE_W3_WISE_W4')  # y axis select
     dropdowny.js_on_change('value', CustomJS(code=jscallbacks.dropdowny_js,
                                              args={'fullplot': fullplot,
                                                    'fulldata': fullcds.data, 'ybut': buttonyflip,
@@ -706,18 +713,23 @@ def multiplotbokeh():
     pcamd.y_range = Range1d(all_results_mostfull.M_WISE_W1.max(), all_results_mostfull.M_WISE_W1.min())  # y limits
     pcamd.xaxis.axis_label = 'W1 - W2'  # x label
     pcamd.yaxis.axis_label = 'W1'  # y label
+    pcamd.xaxis.axis_label_text_font_size = '1.5em'
+    pcamd.yaxis.axis_label_text_font_size = '1.5em'
+    pcamd.xaxis.major_label_text_font_size = '1.5em'
+    pcamd.yaxis.major_label_text_font_size = '1.5em'
+    pcamd.title.text_font_size = '2em'
     taptoolmag = pcamd.select(type=TapTool)  # tapping
     taptoolmag.callback = OpenURL(url='/solo_result/@source')  # open new page on target when source tapped
     buttonmagxflip = Toggle(label='X Flip')
     buttonmagxflip.js_on_click(CustomJS(code=jscallbacks.button_flip, args={'axrange': pcamd.x_range}))
     buttonmagyflip = Toggle(label='Y Flip')
     buttonmagyflip.js_on_click(CustomJS(code=jscallbacks.button_flip, args={'axrange': pcamd.y_range}))
-    dropdownmagx = Select(title='X Axis', options=dropmenu, value='WISE_W1_WISE_W2')  # x axis
+    dropdownmagx = Select(options=dropmenu, value='WISE_W1_WISE_W2')  # x axis
     dropdownmagx.js_on_change('value', CustomJS(code=jscallbacks.dropdownx_js,
                                                 args={'fullplot': fullmagplot,
                                                       'fulldata': fullcds.data, 'xbut': buttonmagxflip,
                                                       'xaxis': pcamd.xaxis[0], 'xrange': pcamd.x_range}))
-    dropdownmagy = Select(title='Y Axis', options=dropmenumag, value='M_WISE_W1')  # y axis
+    dropdownmagy = Select(options=dropmenumag, value='M_WISE_W1')  # y axis
     dropdownmagy.js_on_change('value', CustomJS(code=jscallbacks.dropdowny_js,
                                                 args={'fullplot': fullmagplot,
                                                       'fulldata': fullcds.data, 'ybut': buttonmagyflip,
