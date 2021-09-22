@@ -6,6 +6,7 @@ then connect to.
 from astrodbkit2.astrodb import Database, REFERENCE_TABLES  # used for pulling out database and querying
 from astropy.coordinates import SkyCoord
 from astropy.table import Table
+from bokeh.palettes import Colorblind8
 from bokeh.embed import components
 from bokeh.layouts import row, column  # bokeh displaying nicely
 from bokeh.models import ColumnDataSource, Range1d, CustomJS,\
@@ -574,9 +575,11 @@ def specplot(query: str):
     div
         the html to be inserted in dom
     """
-    def normalise(fluxarr: np.ndarray):
-        fluxarr *= 1 / np.sum(fluxarr)
-        return fluxarr
+    def normalise(fluxarr: np.ndarray, fluxnorm: float = None):
+        if fluxnorm is None:
+            fluxnorm = np.sum(fluxarr)
+        fluxarr /= fluxnorm
+        return fluxarr, fluxnorm
 
     db = SimpleDB(db_file, connection_arguments={'check_same_thread': False})  # open database
     tspec: Table = db.query(db.Spectra).\
@@ -595,16 +598,22 @@ def specplot(query: str):
     p.xaxis.major_label_text_font_size = '1.5em'
     p.yaxis.major_label_text_font_size = '1.5em'
     p.title.text_font_size = '2em'
+    normfact, ld = None, 'solid'
     for i, spec in enumerate(tspec):  # over all spectra
-        if not i:  # first spectra
-            p.xaxis.axis_label = 'Wavelength [μm]'  # units for wavelength on x axis
-            p.yaxis.axis_label = 'Normalised Flux'  # units for wavelength on y axis
         spectrum: Spectrum1D = spec['spectrum']  # spectrum as an object
         wave: np.ndarray = spectrum.spectral_axis.value  # unpack wavelengths
         flux: np.ndarray = spectrum.flux.value  # unpack fluxes
-        flux = normalise(flux)  # normalise the flux by the sum
         label = f'{spec["telescope"]}-{spec["instrument"]}: {spec["observation_date"].date()}'  # legend label
-        p.line(x=wave, y=flux, legend_label=label)  # create line plot
+        if not i:  # first spectra
+            p.xaxis.axis_label = 'Wavelength [μm]'  # units for wavelength on x axis
+            p.yaxis.axis_label = 'Normalised Flux'  # units for wavelength on y axis
+            flux, normfact = normalise(flux)  # normalise the flux by the sum
+        else:
+            flux = normalise(flux, normfact)[0]  # divide all other spectra by the sum in the first one
+        if j := i > len(Colorblind8):  # loop around colours if we have more than 8 spectra, and start line dashing
+            j = 0
+            ld = 'dashed'
+        p.line(x=wave, y=flux, legend_label=label, line_color=Colorblind8[j], line_dash=ld)  # create line plot
     p.legend.click_policy = 'hide'  # hide the graph if clicked on
     p.legend.label_text_font_size = '1.5em'
     script, div = components(p, theme=nightskytheme)  # convert bokeh plot into script and div for html us
