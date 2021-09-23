@@ -1,5 +1,6 @@
 name: simple
 channels:
+  - bokeh
   - http://ssb.stsci.edu/astroconda
   - defaults
 dependencies:
@@ -7,7 +8,6 @@ dependencies:
   - astropy=4.2=py38h27cfd23_0
   - backcall=0.2.0=pyhd3eb1b0_0
   - blas=1.0=mkl
-  - bokeh=2.3.2=py38h06a4308_0
   - ca-certificates=2021.5.25=h06a4308_1
   - certifi=2021.5.30=py38h06a4308_0
   - decorator=5.0.5=pyhd3eb1b0_0
@@ -70,6 +70,7 @@ dependencies:
     - astroquery==0.4.1
     - attrs==20.3.0
     - beautifulsoup4==4.9.3
+    - bokeh==2.4.0
     - cffi==1.14.5
     - chardet==4.0.0
     - click==7.1.2

@@ -23,8 +23,8 @@
     <script type="text/javascript" src="{{ url_for('static', filename='js/bootstrap.js') }}"></script>
 
     <!--Bokeh -->
-    <script type="text/javascript" src="{{ url_for('static', filename='js/bokeh-2.3.2.min.js') }}"></script>
-    <script type="text/javascript" src="{{ url_for('static', filename='js/bokeh-widgets-2.3.2.min.js') }}"></script>
+    <script type="text/javascript" src="{{ url_for('static', filename='js/bokeh-2.4.0.min.js') }}"></script>
+    <script type="text/javascript" src="{{ url_for('static', filename='js/bokeh-widgets-2.4.0.min.js') }}"></script>
     <script type="text/javascript">Bokeh.set_log_level("info");</script>
 
 
@@ -41,8 +41,15 @@
         td,
         th {text-align: left}
         .display-6 {font-size: 1.5rem}
+        .bk-btn,
+        .bk-input-group {font-size: 1.5rem !important; height: 30px !important; padding: 0 !important;}
     </style>
-            
+
+    {{ resources|safe }}
+    {{ scriptcmd|safe if scriptcmd is not none }}
+    {{ scriptspectra|safe if scriptspectra is not none }}
+    {{ scriptmulti|safe if scriptmulti is not none }}
+
 </head>
 
 <body class="container-fluid" style="padding-top: 75px">
@@ -57,7 +64,7 @@
         {% set active_page = active_page|default('home') -%}
         <nav class="navbar navbar-expand-lg navbar-dark bg-primary fixed-top">
             <div class="container">
-                <a class="navbar-brand" href="/">Simple</a>
+                <a class="navbar-brand" href="/">SIMPLE</a>
                 <button class="navbar-toggler" type="button" data-bs-toggle="collapse"
                         data-bs-target="#navbarSupportedContent"
                         aria-controls="navbarSupportedContent" aria-expanded="false" aria-label="Toggle navigation">
