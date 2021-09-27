@@ -12,9 +12,12 @@ from bokeh.palettes import Colorblind8
 from bokeh.plotting import figure  # bokeh plotting
 from bokeh.themes import built_in_themes, Theme
 from specutils import Spectrum1D
+# internal packages
+import sys
 # local packages
-from utils import *
-from simple_callbacks import JSCallbacks
+sys.path.append('.')
+from simple_app.utils import *
+from simple_app.simple_callbacks import JSCallbacks
 
 
 def specplot(query: str, db_file: str, nightskytheme: Theme):
