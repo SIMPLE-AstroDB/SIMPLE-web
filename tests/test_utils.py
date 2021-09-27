@@ -8,14 +8,12 @@ absmags -- called by results_concat
 coordinate_project -- called by results_concat
 """
 # external packages
-import pandas as pd
 import pytest
 # internal packages
 import os
 from shutil import copy
 # local packages
 from simple_app.utils import *
-
 
 db_name = 'temp.db'
 db_cs = 'sqlite:///temp.db'
@@ -62,6 +60,20 @@ def test_all_parallaxes(db):
     assert len(allplx)
     assert type(allplx) == pd.DataFrame
     return allplx
+
+
+def test_inventory(db):
+    assert db
+    args = argparse.ArgumentParser()
+    args = args.parse_args([])
+    args.debug = False
+    good_query = '2MASS J00192626+4614078'
+    resultdict: dict = db.inventory(good_query)
+    assert len(resultdict)
+    everything = Inventory(resultdict, args)
+    assert all([hasattr(everything, s) for s in
+                ('photometry', 'sources', 'names', 'spectra', 'ra', 'dec', 'propermotions')])
+    return
 
 
 def test_find_colours(db, test_all_photometry):
