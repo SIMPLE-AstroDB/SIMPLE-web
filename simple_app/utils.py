@@ -12,8 +12,6 @@ from wtforms import StringField, SubmitField  # web forms
 # internal packages
 import argparse  # system arguments
 from typing import Union, List  # type hinting
-# local packages
-from simple_callbacks import *
 
 
 def sysargs():
@@ -385,7 +383,6 @@ def coordinate_project():
 
 args = sysargs()  # get all system arguments
 db_file = f'sqlite:///{args.file}'  # the database file
-jscallbacks = JSCallbacks()
 all_results, all_results_full = all_sources()  # find all the objects once
 all_photo, all_bands = all_photometry()  # get all the photometry
 all_plx = all_parallaxes()

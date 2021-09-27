@@ -13,6 +13,7 @@ from bokeh.themes import built_in_themes
 from specutils import Spectrum1D
 # local packages
 from utils import *
+from simple_callbacks import JSCallbacks
 
 
 def specplot(query: str):
@@ -295,3 +296,4 @@ def camdplot(query: str, everything: Inventory):
 
 
 nightskytheme = built_in_themes['night_sky']  # nicer looking bokeh
+jscallbacks = JSCallbacks()
