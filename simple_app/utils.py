@@ -162,7 +162,7 @@ def find_colours(photodf: pd.DataFrame, allbands: np.ndarray):
     return photodf
 
 
-def parse_photometry(photodf: pd.DataFrame,  allbands: np.ndarray, multisource: bool = False) -> dict:
+def parse_photometry(photodf: pd.DataFrame, allbands: np.ndarray, multisource: bool = False) -> dict:
     """
     Parses the photometry dataframe handling multiple references for same magnitude
 
@@ -233,7 +233,7 @@ def parse_photometry(photodf: pd.DataFrame,  allbands: np.ndarray, multisource: 
     return newphoto
 
 
-def all_photometry(db_file):
+def all_photometry(db_file: str):
     """
     Get all the photometric data from the database to be used in later CMD as background
 
@@ -254,7 +254,7 @@ def all_photometry(db_file):
     return allphoto, allbands
 
 
-def all_parallaxes(db_file):
+def all_parallaxes(db_file: str):
     """
     Get the parallaxes from the database for every object
 
@@ -269,18 +269,20 @@ def all_parallaxes(db_file):
     return allplx
 
 
-def absmags(df: pd.DataFrame, all_bands) -> pd.DataFrame:
+def absmags(df: pd.DataFrame, all_bands: np.ndarray) -> pd.DataFrame:
     """
     Calculate all the absolute magnitudes in a given dataframe
 
     Parameters
     ----------
-    df
+    df: pd.DataFrame
         The input dataframe
-    all_bands
+    all_bands: np.ndarray
+        The photometric bands
+
     Returns
     -------
-    df
+    df: pd.DataFrame
         The output dataframe with absolute mags calculated
     """
     def pogsonlaw(m: Union[float, np.ndarray], dist: Union[float, np.ndarray]) -> Union[float, np.ndarray]:
@@ -307,7 +309,38 @@ def absmags(df: pd.DataFrame, all_bands) -> pd.DataFrame:
     return df
 
 
-def coordinate_project(all_results_full):
+def results_concat(all_results_full: pd.DataFrame, all_photo: pd.DataFrame,
+                   all_plx: pd.DataFrame, all_bands: np.ndarray) -> pd.DataFrame:
+    """
+    Gets parallax, photometry and projected positions into one dataframe
+    Parameters
+    ----------
+    all_results_full
+        Basic data for all the objects
+    all_photo
+        All the photometry
+    all_plx
+        All the parallaxes
+    all_bands
+        All the photometric bands
+
+    Returns
+    -------
+    all_results_mostfull: pd.DataFrame
+        Concatenated data for all the objects
+    """
+    raproj, decproj = coordinate_project(all_results_full)  # project coordinates to galactic
+    all_results_full['raproj'] = raproj  # ra
+    all_results_full['decproj'] = decproj  # dec
+    all_results_full_cut: pd.DataFrame = all_results_full[['source', 'raproj', 'decproj']]  # cut dataframe
+    all_results_mostfull: pd.DataFrame = pd.merge(all_results_full_cut, all_photo,
+                                                  left_on='source', right_on='target', how='left')
+    all_results_mostfull = pd.merge(all_results_mostfull, all_plx, on='source', how='left')
+    all_results_mostfull = absmags(all_results_mostfull, all_bands)  # find the absolute mags
+    return all_results_mostfull
+
+
+def coordinate_project(all_results_full: pd.DataFrame):
     """
     Projects RA and Dec coordinates onto Mollweide grid
 
@@ -318,22 +351,22 @@ def coordinate_project(all_results_full):
     decproj: np.ndarray
         The projected DEC coordinates
     """
-    def fnewton_solve(thetan: float, phi: float, acc: float = 1e-4):
+    def fnewton_solve(thetan: float, phi: float, acc: float = 1e-4) -> float:
         """
         Solves the numerical transformation to project coordinate
 
         Parameters
         ----------
-        thetan
+        thetan: float
             theta in radians
-        phi
+        phi: float
             phi in raidans
-        acc
+        acc: float
             Accuracy of calculation
 
         Returns
         -------
-        thetan
+        thetan: float
             theta in radians
         """
         thetanp1 = thetan - (2 * thetan + np.sin(2 * thetan) - np.pi * np.sin(phi)) / (2 + 2 * np.cos(2 * thetan))
@@ -387,7 +420,7 @@ def mainutils():
     _db_file = f'sqlite:///{_args.file}'  # the database file
     _all_results, _all_results_full = all_sources(_db_file)  # find all the objects once
     _all_photo, _all_bands = all_photometry(_db_file)  # get all the photometry
-    _all_plx = all_parallaxes(_db_file)
+    _all_plx = all_parallaxes(_db_file)  # get all the parallaxes
     return _args, _db_file, _all_results, _all_results_full, _all_photo, _all_bands, _all_plx
 
 

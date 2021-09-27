@@ -2,6 +2,7 @@
 File containing the 'workhorse' functions generating the various plots seen on the website
 """
 # external packages
+import pandas as pd
 from astropy.table import Table
 from bokeh.embed import components
 from bokeh.layouts import row, column  # bokeh displaying nicely
@@ -9,14 +10,14 @@ from bokeh.models import ColumnDataSource, Range1d, CustomJS,\
     Select, Toggle, TapTool, OpenURL, HoverTool  # bokeh models
 from bokeh.palettes import Colorblind8
 from bokeh.plotting import figure  # bokeh plotting
-from bokeh.themes import built_in_themes
+from bokeh.themes import built_in_themes, Theme
 from specutils import Spectrum1D
 # local packages
 from utils import *
 from simple_callbacks import JSCallbacks
 
 
-def specplot(query: str, db_file, nightskytheme):
+def specplot(query: str, db_file: str, nightskytheme: Theme):
     """
     Creates the bokeh representation of the plot
 
@@ -26,14 +27,14 @@ def specplot(query: str, db_file, nightskytheme):
         The object that has been searched for
     db_file: str
         The connection string of the database
-    nightskytheme
+    nightskytheme: Theme
         The bokeh theme
 
     Returns
     -------
-    script
+    script: str
         script for creating the bokeh plot
-    div
+    div: str
         the html to be inserted in dom
     """
     def normalise(fluxarr: np.ndarray) -> np.ndarray:
@@ -77,40 +78,34 @@ def specplot(query: str, db_file, nightskytheme):
     return script, div
 
 
-def multiplotbokeh(all_results_full, all_bands, all_photo, all_plx, jscallbacks, nightskytheme):
+def multiplotbokeh(all_results_full: pd.DataFrame, all_bands: np.ndarray,
+                   all_photo: pd.DataFrame, all_plx: pd.DataFrame, jscallbacks: JSCallbacks, nightskytheme: Theme):
     """
     The workhorse generating the multiple plots view page
 
     Parameters
     ----------
-    all_results_full
+    all_results_full: pd.DataFrame
         Every object and its basic information
-    all_bands
+    all_bands: np.ndarray
         All the photometric bands for colour-colour
-    all_photo
+    all_photo: pd.DataFrame
         All the photometry
-    all_plx
+    all_plx: pd.DataFrame
         All the parallaxes
-    jscallbacks
+    jscallbacks: JSCallbacks
         The javascript callbacks for bokeh
-    nightskytheme
+    nightskytheme: Theme
         The bokeh theme
 
     Returns
     -------
-    script
+    script: str
         script for creating the bokeh plot
-    div
+    div: str
         the html to be inserted in dom
     """
-    raproj, decproj = coordinate_project(all_results_full)  # project coordinates to galactic
-    all_results_full['raproj'] = raproj  # ra
-    all_results_full['decproj'] = decproj  # dec
-    all_results_full_cut: pd.DataFrame = all_results_full[['source', 'raproj', 'decproj']]  # cut dataframe
-    all_results_mostfull: pd.DataFrame = pd.merge(all_results_full_cut, all_photo,
-                                                  left_on='source', right_on='target', how='left')
-    all_results_mostfull = pd.merge(all_results_mostfull, all_plx, on='source', how='left')
-    all_results_mostfull = absmags(all_results_mostfull, all_bands)  # find the absolute mags
+    all_results_mostfull = results_concat(all_results_full, all_photo, all_plx, all_bands)
     fullcds = ColumnDataSource(all_results_mostfull)  # convert to CDS
     bands = [band.split("_")[1] for band in all_bands]  # nice band names
     vals = [f'@{band}' for band in all_bands]  # the values in CDS
@@ -220,7 +215,8 @@ def multiplotbokeh(all_results_full, all_bands, all_photo, all_plx, jscallbacks,
     return script, div
 
 
-def camdplot(query: str, everything: Inventory, all_bands, all_photo, jscallbacks, nightskytheme):
+def camdplot(query: str, everything: Inventory, all_bands: np.ndarray,
+             all_photo: pd.DataFrame, jscallbacks: JSCallbacks, nightskytheme: Theme):
     """
     Creates CAMD plot as JSON object
 
@@ -230,20 +226,20 @@ def camdplot(query: str, everything: Inventory, all_bands, all_photo, jscallback
         The object that has been searched for
     everything: Inventory
         The class representation wrapping db.inventory
-    all_bands
+    all_bands: np.ndarray
         All of the photometric bands for colour-colour
-    all_photo
+    all_photo: pd.DataFrame
         All of the photometry
-    jscallbacks
+    jscallbacks: JSCallbacks
         The javascript callbacks for bokeh
-    nightskytheme
+    nightskytheme: Theme
         The theme for bokeh
 
     Returns
     -------
-    script
+    script: str
         script for creating the bokeh plot
-    div
+    div: str
         the html to be inserted in dom
     """
     # TODO: Add CAMD diagram when we have data to test this on (i.e. parallaxes + photometry for same object)
@@ -323,8 +319,8 @@ def camdplot(query: str, everything: Inventory, all_bands, all_photo, jscallback
 
 
 def mainplots():
-    _nightskytheme = built_in_themes['night_sky']
-    _jscallbacks = JSCallbacks()
+    _nightskytheme = built_in_themes['night_sky']  # darker theme for bokeh
+    _jscallbacks = JSCallbacks()  # grab the callbacks for bokeh interactivity
     return _nightskytheme, _jscallbacks
 
 
