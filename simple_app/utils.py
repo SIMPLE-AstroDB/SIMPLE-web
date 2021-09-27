@@ -96,8 +96,7 @@ class Inventory:
         urlinks = []
         if rtnmk and key == 'Spectra':
             for src in df.spectrum.values:  # over every source in table
-                urllnk = src  # convert object name to url safe
-                srclnk = f'<a href="{urllnk}" target="_blank">Link</a>'  # construct hyperlink
+                srclnk = f'<a href="{src}" target="_blank">Link</a>'  # construct hyperlink
                 urlinks.append(srclnk)  # add that to list
             df.drop(columns=[col for col in df.columns if any([substr in col for substr in ('wave', 'flux')])],
                     inplace=True)
