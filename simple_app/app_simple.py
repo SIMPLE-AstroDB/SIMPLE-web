@@ -74,9 +74,9 @@ def solo_result(query: str):
     db = SimpleDB(db_file, connection_arguments={'check_same_thread': False})  # open database
     resultdict: dict = db.inventory(query)  # get everything about that object
     query = query.upper()  # convert query to all upper case
-    everything = Inventory(resultdict)  # parsing the inventory into markdown
-    scriptcmd, divcmd = camdplot(query, everything)
-    scriptspectra, divspectra = specplot(query)
+    everything = Inventory(resultdict, args)  # parsing the inventory into markdown
+    scriptcmd, divcmd = camdplot(query, everything, all_bands, all_photo, jscallbacks, nightskytheme)
+    scriptspectra, divspectra = specplot(query, db_file, nightskytheme)
     return render_template('solo_result.html', resources=CDN.render(), scriptcmd=scriptcmd, divcmd=divcmd,
                            scriptspectra=scriptspectra, divspectra=divspectra,
                            query=query, resultdict=resultdict, everything=everything)
@@ -87,7 +87,7 @@ def multiplotpage():
     """
     The page for all the plots
     """
-    scriptmulti, divmulti = multiplotbokeh()
+    scriptmulti, divmulti = multiplotbokeh(all_results_full, all_bands, all_photo, all_plx, jscallbacks, nightskytheme)
     return render_template('multiplot.html', scriptmulti=scriptmulti, divmulti=divmulti, resources=CDN.render())
 
 
@@ -116,4 +116,6 @@ def schema_page():
 
 
 if __name__ == '__main__':
+    args, db_file, all_results, all_results_full, all_photo, all_bands, all_plx = mainutils()
+    nightskytheme, jscallbacks = mainplots()
     app_simple.run(host=args.host, port=args.port, debug=args.debug)  # generate the application on server side

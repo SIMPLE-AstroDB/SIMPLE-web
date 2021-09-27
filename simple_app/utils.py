@@ -52,7 +52,7 @@ class Inventory:
     ra: float = 0
     dec: float = 0
 
-    def __init__(self, resultdict: dict):
+    def __init__(self, resultdict: dict, args):
         """
         Constructor method for Inventory
 
@@ -115,7 +115,7 @@ class SearchForm(FlaskForm):
     submit = SubmitField('Query', id='querybutton')  # clicker button to send request
 
 
-def all_sources():
+def all_sources(db_file):
     """
     Queries the full table to get all the sources
 
@@ -233,7 +233,7 @@ def parse_photometry(photodf: pd.DataFrame,  allbands: np.ndarray, multisource: 
     return newphoto
 
 
-def all_photometry():
+def all_photometry(db_file):
     """
     Get all the photometric data from the database to be used in later CMD as background
 
@@ -254,7 +254,7 @@ def all_photometry():
     return allphoto, allbands
 
 
-def all_parallaxes():
+def all_parallaxes(db_file):
     """
     Get the parallaxes from the database for every object
 
@@ -269,7 +269,7 @@ def all_parallaxes():
     return allplx
 
 
-def absmags(df: pd.DataFrame) -> pd.DataFrame:
+def absmags(df: pd.DataFrame, all_bands) -> pd.DataFrame:
     """
     Calculate all the absolute magnitudes in a given dataframe
 
@@ -277,6 +277,7 @@ def absmags(df: pd.DataFrame) -> pd.DataFrame:
     ----------
     df
         The input dataframe
+    all_bands
     Returns
     -------
     df
@@ -306,7 +307,7 @@ def absmags(df: pd.DataFrame) -> pd.DataFrame:
     return df
 
 
-def coordinate_project():
+def coordinate_project(all_results_full):
     """
     Projects RA and Dec coordinates onto Mollweide grid
 
@@ -381,8 +382,14 @@ def coordinate_project():
     return raproj, decproj
 
 
-args = sysargs()  # get all system arguments
-db_file = f'sqlite:///{args.file}'  # the database file
-all_results, all_results_full = all_sources()  # find all the objects once
-all_photo, all_bands = all_photometry()  # get all the photometry
-all_plx = all_parallaxes()
+def mainutils():
+    _args = sysargs()  # get all system arguments
+    _db_file = f'sqlite:///{_args.file}'  # the database file
+    _all_results, _all_results_full = all_sources(_db_file)  # find all the objects once
+    _all_photo, _all_bands = all_photometry(_db_file)  # get all the photometry
+    _all_plx = all_parallaxes(_db_file)
+    return _args, _db_file, _all_results, _all_results_full, _all_photo, _all_bands, _all_plx
+
+
+if __name__ == '__main__':
+    ARGS, DB_FILE, ALL_RESULTS, ALL_RESULTS_FULL, ALL_PHOTO, ALL_BANDS, ALL_PLX = mainutils()

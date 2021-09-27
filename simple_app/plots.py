@@ -16,7 +16,7 @@ from utils import *
 from simple_callbacks import JSCallbacks
 
 
-def specplot(query: str):
+def specplot(query: str, db_file, nightskytheme):
     """
     Creates the bokeh representation of the plot
 
@@ -24,6 +24,10 @@ def specplot(query: str):
     ----------
     query: str
         The object that has been searched for
+    db_file: str
+        The connection string of the database
+    nightskytheme
+        The bokeh theme
 
     Returns
     -------
@@ -73,9 +77,24 @@ def specplot(query: str):
     return script, div
 
 
-def multiplotbokeh():
+def multiplotbokeh(all_results_full, all_bands, all_photo, all_plx, jscallbacks, nightskytheme):
     """
     The workhorse generating the multiple plots view page
+
+    Parameters
+    ----------
+    all_results_full
+        Every object and its basic information
+    all_bands
+        All the photometric bands for colour-colour
+    all_photo
+        All the photometry
+    all_plx
+        All the parallaxes
+    jscallbacks
+        The javascript callbacks for bokeh
+    nightskytheme
+        The bokeh theme
 
     Returns
     -------
@@ -84,14 +103,14 @@ def multiplotbokeh():
     div
         the html to be inserted in dom
     """
-    raproj, decproj = coordinate_project()  # project coordinates to galactic
+    raproj, decproj = coordinate_project(all_results_full)  # project coordinates to galactic
     all_results_full['raproj'] = raproj  # ra
     all_results_full['decproj'] = decproj  # dec
     all_results_full_cut: pd.DataFrame = all_results_full[['source', 'raproj', 'decproj']]  # cut dataframe
     all_results_mostfull: pd.DataFrame = pd.merge(all_results_full_cut, all_photo,
                                                   left_on='source', right_on='target', how='left')
     all_results_mostfull = pd.merge(all_results_mostfull, all_plx, on='source', how='left')
-    all_results_mostfull = absmags(all_results_mostfull)  # find the absolute mags
+    all_results_mostfull = absmags(all_results_mostfull, all_bands)  # find the absolute mags
     fullcds = ColumnDataSource(all_results_mostfull)  # convert to CDS
     bands = [band.split("_")[1] for band in all_bands]  # nice band names
     vals = [f'@{band}' for band in all_bands]  # the values in CDS
@@ -201,7 +220,7 @@ def multiplotbokeh():
     return script, div
 
 
-def camdplot(query: str, everything: Inventory):
+def camdplot(query: str, everything: Inventory, all_bands, all_photo, jscallbacks, nightskytheme):
     """
     Creates CAMD plot as JSON object
 
@@ -211,6 +230,14 @@ def camdplot(query: str, everything: Inventory):
         The object that has been searched for
     everything: Inventory
         The class representation wrapping db.inventory
+    all_bands
+        All of the photometric bands for colour-colour
+    all_photo
+        All of the photometry
+    jscallbacks
+        The javascript callbacks for bokeh
+    nightskytheme
+        The theme for bokeh
 
     Returns
     -------
@@ -295,5 +322,12 @@ def camdplot(query: str, everything: Inventory):
     return script, div
 
 
-nightskytheme = built_in_themes['night_sky']  # nicer looking bokeh
-jscallbacks = JSCallbacks()
+def mainplots():
+    _nightskytheme = built_in_themes['night_sky']
+    _jscallbacks = JSCallbacks()
+    return _nightskytheme, _jscallbacks
+
+
+if __name__ == '__main__':
+    ARGS, DB_FILE, ALL_RESULTS, ALL_RESULTS_FULL, ALL_PHOTO, ALL_BANDS, ALL_PLX = mainutils()
+    NIGHTSKYTHEME, JSCALLBACKS = mainplots()
