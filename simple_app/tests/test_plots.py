@@ -27,12 +27,7 @@ def test_multiplotbokeh(db, test_all_sources, test_all_photometry, test_all_para
 
 def test_specplot(db, test_mainplots):
     assert db
-    # args = argparse.ArgumentParser()
-    # args = args.parse_args(dict(debug=False))
     nightskytheme = test_mainplots[0]
-    # resultdict: dict = db.inventory('2MASS J00192626+4614078')
-    # assert len(resultdict)
-    # everything = Inventory(resultdict, args)
     good_query = '2MASS J00192626+4614078'
     bad_query = 'thisisabadquery'
     goodscript, gooddiv = specplot(good_query, db_cs, nightskytheme)
