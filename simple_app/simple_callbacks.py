@@ -11,7 +11,11 @@ class JSCallbacks:
             break;
         }
     }
-    var newx = fulldata[this.value];
+    var fullvalue = this.value;
+    if (fullvalue.includes('(')) {
+        fullvalue = fullvalue.substr(0, fullvalue.indexOf('('));
+    }
+    var newx = fulldata[fullvalue];
     var newnewx = [];
     for (let i = 0; i < newx.length; i++) {
         var val = newx[i];
@@ -35,7 +39,7 @@ class JSCallbacks:
         thisplot.glyph.x.field = this.value;
         thisplot.glyph.change.emit();
     } catch ( error ) {}
-    fullplot.glyph.x.field = this.value;
+    fullplot.glyph.x.field = fullvalue;
     xaxis.axis_label = this.label;
     fullplot.glyph.change.emit();
     """
@@ -47,7 +51,11 @@ class JSCallbacks:
             break;
         }
     }
-    var newy = fulldata[this.value];
+    var fullvalue = this.value;
+    if (fullvalue.includes('(')) {
+        fullvalue = fullvalue.substr(0, fullvalue.indexOf('('));
+    }
+    var newy = fulldata[fullvalue];
     var newnewy = [];
     for (let i = 0; i < newy.length; i++) {
         var val = newy[i];
@@ -71,7 +79,7 @@ class JSCallbacks:
         thisplot.glyph.y.field = this.value;
         thisplot.glyph.change.emit();
     } catch ( error ) {}
-    fullplot.glyph.y.field = this.value;
+    fullplot.glyph.y.field = fullvalue;
     yaxis.axis_label = this.label;
     fullplot.glyph.change.emit();
     """

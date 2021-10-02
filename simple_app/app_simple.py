@@ -75,7 +75,8 @@ def solo_result(query: str):
     resultdict: dict = db.inventory(query)  # get everything about that object
     query = query.upper()  # convert query to all upper case
     everything = Inventory(resultdict, args)  # parsing the inventory into markdown
-    scriptcmd, divcmd = camdplot(query, everything, all_bands, all_photo, jscallbacks, nightskytheme)
+    scriptcmd, divcmd = camdplot(query, everything, all_bands, all_results_full, all_plx,
+                                 all_photo, jscallbacks, nightskytheme)
     scriptspectra, divspectra = specplot(query, db_file, nightskytheme)
     return render_template('solo_result.html', resources=CDN.render(), scriptcmd=scriptcmd, divcmd=divcmd,
                            scriptspectra=scriptspectra, divspectra=divspectra,

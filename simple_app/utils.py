@@ -169,7 +169,10 @@ def find_colours(photodf: pd.DataFrame, allbands: np.ndarray):
                 raise KeyError(f'{nextbandtrue} not yet a supported filter')
             if PHOTOMETRIC_FILTERS[bandtrue] >= PHOTOMETRIC_FILTERS[nextbandtrue]:  # if not blue-red
                 continue
-            photodf[f'{band}-{nextband}'] = photodf[band] - photodf[nextband]  # colour
+            try:
+                photodf[f'{band}-{nextband}'] = photodf[band] - photodf[nextband]  # colour
+            except KeyError:
+                photodf[f'{band}-{nextband}'] = photodf[bandtrue] - photodf[nextband]
     return photodf
 
 
@@ -306,7 +309,10 @@ def absmags(df: pd.DataFrame, all_bands: np.ndarray) -> pd.DataFrame:
     df['dist'] = np.divide(1000, df['parallax'])
     for mag in all_bands:
         abs_mag = "M_" + mag
-        df[abs_mag] = pogsonlaw(df[mag], df['dist'])
+        try:
+            df[abs_mag] = pogsonlaw(df[mag], df['dist'])
+        except KeyError:
+            df[abs_mag] = pogsonlaw(df[mag[:mag.find('(')]], df['dist'])
     return df
 
 

@@ -52,7 +52,6 @@ def specplot(query: str, db_file: str, nightskytheme: Theme):
         table(spectra=['spectrum'])  # query the database for the spectra
     if not len(tspec):  # if there aren't any spectra, return nothing
         return None, None
-    # TODO: Overplotting standards
     p = figure(title='Spectra', plot_height=500,
                active_scroll='wheel_zoom', active_drag='box_zoom',
                tools='pan,wheel_zoom,box_zoom,reset', toolbar_location='left',
@@ -224,6 +223,7 @@ def multiplotbokeh(all_results_full: pd.DataFrame, all_bands: np.ndarray,
 
 
 def camdplot(query: str, everything: Inventory, all_bands: np.ndarray,
+             all_results_full: pd.DataFrame, all_plx: pd.DataFrame,
              all_photo: pd.DataFrame, jscallbacks: JSCallbacks, nightskytheme: Theme):
     """
     Creates CAMD plot as JSON object
@@ -236,6 +236,10 @@ def camdplot(query: str, everything: Inventory, all_bands: np.ndarray,
         The class representation wrapping db.inventory
     all_bands: np.ndarray
         All of the photometric bands for colour-colour
+    all_results_full: pd.DataFrame
+        Every object and its basic information
+    all_plx: pd.DataFrame
+        All of the parallaxes
     all_photo: pd.DataFrame
         All of the photometry
     jscallbacks: JSCallbacks
@@ -250,9 +254,8 @@ def camdplot(query: str, everything: Inventory, all_bands: np.ndarray,
     div: str
         the html to be inserted in dom
     """
-    # TODO: Add CAMD diagram when we have data to test this on (i.e. parallaxes + photometry for same object)
     tooltips = [('Target', '@target')]
-    p = figure(title='Colour-Colour', plot_height=500,
+    p = figure(plot_height=500,
                active_scroll='wheel_zoom', active_drag='box_zoom',
                tools='pan,wheel_zoom,box_zoom,hover,tap,reset', tooltips=tooltips,
                sizing_mode='stretch_width')  # bokeh figure
@@ -264,28 +267,37 @@ def camdplot(query: str, everything: Inventory, all_bands: np.ndarray,
     thisbands: np.ndarray = np.unique(thisphoto.columns)  # the columns
     thisphoto: pd.DataFrame = find_colours(thisphoto, thisbands)  # get the colours
     thisphoto['target'] = query
-    colbands = [col for col in thisphoto.columns if '-' in col]
+    try:
+        thisplx: pd.DataFrame = everything.listconcat('Parallaxes', False)
+    except KeyError:
+        pass
+    else:
+        thisphoto['parallax'] = thisplx['parallax'].iloc[0]
+        thisphoto = absmags(thisphoto, thisbands)
+    thisphoto.dropna(axis=1, how='all', inplace=True)
+    colbands = [col for col in thisphoto.columns if any([colcheck in col for colcheck in ('-', 'M_')])]
     just_colours = thisphoto.loc[:, colbands].copy()
     xfullname = just_colours.columns[0]
-    yfullname = just_colours.columns[-1]
+    yfullname = just_colours.columns[1]
     xvisname = xfullname.replace('-', ' - ')
     yvisname = yfullname.replace('-', ' - ')
     thiscds = ColumnDataSource(data=thisphoto)  # this object cds
     thisplot = p.circle(x=xfullname, y=yfullname, source=thiscds,
                         color='blue', size=10)  # plot for this object
-    cdsfull = ColumnDataSource(data=all_photo)  # bokeh cds object
+    all_results_mostfull = results_concat(all_results_full, all_photo, all_plx, thisbands)
+    all_results_mostfull.dropna(axis=1, how='all', inplace=True)
+    cdsfull = ColumnDataSource(data=all_results_mostfull)  # bokeh cds object
     fullplot = p.circle_x(x=xfullname, y=yfullname, source=cdsfull,
                           color='gray', alpha=0.5, size=5)  # plot all objects
     fullplot.level = 'underlay'  # put full plot underneath this plot
-    p.x_range = Range1d(all_photo[xfullname].min(), all_photo[xfullname].max())  # x limits
-    p.y_range = Range1d(all_photo[yfullname].min(), all_photo[yfullname].max())  # y limits
+    p.x_range = Range1d(all_results_mostfull[xfullname].min(), all_results_mostfull[xfullname].max())  # x limits
+    p.y_range = Range1d(all_results_mostfull[yfullname].min(), all_results_mostfull[yfullname].max())  # y limits
     p.xaxis.axis_label = xvisname  # x label
     p.yaxis.axis_label = yvisname  # y label
     p.xaxis.axis_label_text_font_size = '1.5em'
     p.yaxis.axis_label_text_font_size = '1.5em'
     p.xaxis.major_label_text_font_size = '1.5em'
     p.yaxis.major_label_text_font_size = '1.5em'
-    p.title.text_font_size = '2em'
     taptool = p.select(type=TapTool)  # tapping
     taptool.callback = OpenURL(url='/solo_result/@target')  # open new page on target when source tapped
     buttonxflip = Toggle(label='X Flip')
