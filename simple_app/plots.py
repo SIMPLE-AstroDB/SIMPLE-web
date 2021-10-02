@@ -247,20 +247,16 @@ def camdplot(query: str, everything: Inventory, all_bands: np.ndarray,
         the html to be inserted in dom
     """
     # TODO: Add CAMD diagram when we have data to test this on (i.e. parallaxes + photometry for same object)
-    tooltips = [('Target', '@target'), ('Ref', '@ref')]  # tooltips for hover tool
     p = figure(title='Colour-Colour', plot_height=500,
                active_scroll='wheel_zoom', active_drag='box_zoom',
-               tools='pan,wheel_zoom,box_zoom,hover,tap,reset', tooltips=tooltips,
+               tools='pan,wheel_zoom,box_zoom,tap,reset',
                sizing_mode='stretch_width')  # bokeh figure
     try:
         thisphoto: pd.DataFrame = everything.listconcat('Photometry', False)  # the photometry for this object
     except KeyError:  # no photometry for this object
         return None, None
-    newphoto: dict = parse_photometry(thisphoto, all_bands)  # transpose photometric table
-    newphoto['target'] = [query, ] * len(newphoto['ref'])  # the targetname
-    thisphoto = pd.DataFrame(newphoto)  # turn into dataframe
+    thisphoto = parse_photometry(thisphoto, all_bands)
     thisbands: np.ndarray = np.unique(thisphoto.columns)  # the columns
-    thisbands = thisbands[np.isin(thisbands, all_bands)]  # the bands for this object
     thisphoto: pd.DataFrame = find_colours(thisphoto, thisbands)  # get the colours
     thisphoto.dropna(axis=1, inplace=True, how='all')
     colbands = [col for col in thisphoto.columns if '-' in col]

@@ -14,6 +14,13 @@ import argparse  # system arguments
 from typing import Union, List  # type hinting
 
 
+PHOTOMETRIC_FILTERS = {'WISE.W1': 33526.00, 'WISE.W2': 46028.00, 'WISE.W3': 115608.00, 'WISE.W4': 220883.00,
+                       '2MASS.J': 12350.00, '2MASS.H': 16620.00, '2MASS.Ks': 21590.00,
+                       'GAIA2.G': 6230.00, 'GAIA2.Grp': 7730.00,
+                       'GAIA3.G': 6217.59, 'GAIA3.Grp': 7769.02,
+                       'IRAC.I1': 35378.41, 'IRAC.I2': 44780.49, 'IRAC.I3': 56961.77, 'IRAC.I4': 77978.39}
+
+
 def sysargs():
     """
     These are the system arguments given after calling this python script
@@ -148,21 +155,25 @@ def find_colours(photodf: pd.DataFrame, allbands: np.ndarray):
     photodf: pd.DataFrame
         The dataframe with all photometry and colours in
     """
-    for i, band in enumerate(allbands):  # loop over all bands TODO: sort by wavelength?
-        j = 1  # start count
-        while j < 20:
-            if i + j == len(allbands):  # last band
-                break
-            nextband: str = allbands[i + j]  # next band
-            j += 1
-            try:
-                photodf[f'{band}-{nextband}'] = photodf[band] - photodf[nextband]  # colour
-            except KeyError:
+    for band in allbands:  # loop over all bands
+        bandtrue = band
+        if '(' in band:
+            bandtrue = band[:band.find('(')]
+        if bandtrue not in PHOTOMETRIC_FILTERS:
+            raise KeyError(f'{bandtrue} not yet a supported filter')
+        for nextband in allbands:
+            nextbandtrue = nextband
+            if '(' in nextband:
+                nextbandtrue = nextband[:nextband.find('(')]
+            if nextbandtrue not in PHOTOMETRIC_FILTERS:
+                raise KeyError(f'{nextbandtrue} not yet a supported filter')
+            if PHOTOMETRIC_FILTERS[bandtrue] >= PHOTOMETRIC_FILTERS[nextbandtrue]:  # if not blue-red
                 continue
+            photodf[f'{band}-{nextband}'] = photodf[band] - photodf[nextband]  # colour
     return photodf
 
 
-def parse_photometry(photodf: pd.DataFrame, allbands: np.ndarray, multisource: bool = False) -> dict:
+def parse_photometry(photodf: pd.DataFrame, allbands: np.ndarray, multisource: bool = False) -> pd.DataFrame:
     """
     Parses the photometry dataframe handling multiple references for same magnitude
 
@@ -177,8 +188,8 @@ def parse_photometry(photodf: pd.DataFrame, allbands: np.ndarray, multisource: b
 
     Returns
     -------
-    newphoto: dict
-        Dictionary of effectively transposed photometry
+    newphoto: pd.DataFrame
+        DataFrame of effectively transposed photometry
     """
     def one_source_iter(onephotodf: pd.DataFrame):
         """
@@ -191,37 +202,38 @@ def parse_photometry(photodf: pd.DataFrame, allbands: np.ndarray, multisource: b
 
         Returns
         -------
-        thisnewphot: dict
-            Dictionary of transposed photometry
-        arrsize: int
-            The number of rows in the dictionary
+        thisnewphot: pd.DataFrame
+            DataFrame of transposed photometry
         """
-        refgrp = onephotodf.groupby('reference')  # all references grouped
-        arrsize: int = len(refgrp)  # the number of rows
-        thisnewphot = {band: [None, ] * arrsize for band in onephotodf.band.unique()}  # initial dictionary
-        thisnewphot['ref'] = [None, ] * arrsize  # references
-        for i, (ref, refval) in enumerate(refgrp):  # over all references
-            for band, bandval in refval.groupby('band'):  # over all bands
-                thisnewphot[band][i] = bandval.iloc[0].magnitude  # given magnitude (0 index of length 1 dataframe)
-            thisnewphot['ref'][i] = ref  # reference for these mags
-        return thisnewphot, arrsize
+        newd = {}
+        for band in onephotodf.band:
+            bandorig = band
+            i = 0
+            while band in newd:
+                i += 1
+                band = f'{band}({i})'
+            thisobj: pd.Series = onephotodf.loc[onephotodf.band == bandorig].iloc[i]
+            newd[band] = thisobj.magnitude
+        thisnewphot: pd.DataFrame = pd.DataFrame(data=newd, index=['value'])
+        return thisnewphot
 
     if not multisource:
-        newphoto = one_source_iter(photodf)[0]
+        newphoto = one_source_iter(photodf)
     else:
-        newphoto: dict = {band: [] for band in np.hstack([allbands, ['ref', 'target']])}  # empty dict
+        newdict = {col: [] for col in np.hstack([allbands, ['target']])}  # empty dict
         for target, targetdf in photodf.groupby('source'):
-            specificphoto, grplen = one_source_iter(targetdf)  # get the dictionary for this object photometry
-            targetname = [target, ] * grplen  # list of the target name
-            for key in newphoto.keys():  # over all keys
+            specificphoto = one_source_iter(targetdf)  # get the dictionary for this object photometry
+            for key in newdict.keys():  # over all keys
                 key: str = key
                 if key == 'target':
                     continue
                 try:
-                    newphoto[key].extend(specificphoto[key])  # extend the list for given key
+                    newdict[key].append(specificphoto.at['value', key])  # append the list for given key
                 except KeyError:  # if that key wasn't present for the object
-                    newphoto[key].extend([None, ] * grplen)  # use None as filler
-            newphoto['target'].extend(targetname)  # add target to table
+                    newdict[key].append(None)  # use None as filler
+            newdict['target'].append(target)  # add target to table
+        newphoto: pd.DataFrame = pd.DataFrame(data=newdict)
+        newphoto.set_index('target', inplace=True)
     return newphoto
 
 
@@ -239,9 +251,7 @@ def all_photometry(db_file: str):
     db = SimpleDB(db_file, connection_arguments={'check_same_thread': False})  # open database
     allphoto: pd.DataFrame = db.query(db.Photometry).pandas()  # get all photometry
     allbands: np.ndarray = allphoto.band.unique()  # the unique bands
-    outphoto: dict = parse_photometry(allphoto, allbands, True)  # transpose photometric table
-    # allbands = np.array([band.replace('.', '_') for band in allbands])
-    allphoto = pd.DataFrame(outphoto)  # use rearranged dataframe
+    allphoto: pd.DataFrame = parse_photometry(allphoto, allbands, True)  # transpose photometric table
     allphoto = find_colours(allphoto, allbands)  # get the colours
     return allphoto, allbands
 
