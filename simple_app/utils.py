@@ -8,6 +8,7 @@ from flask_wtf import FlaskForm  # web forms
 from markdown2 import markdown  # using markdown formatting
 import numpy as np  # numerical python
 import pandas as pd  # running dataframes
+from tqdm import tqdm
 from wtforms import StringField, SubmitField  # web forms
 # internal packages
 import argparse  # system arguments
@@ -157,22 +158,24 @@ def find_colours(photodf: pd.DataFrame, allbands: np.ndarray):
     """
     for band in allbands:  # loop over all bands
         bandtrue = band
-        if '(' in band:
+        if '(' in band:  # duplicate bands
             bandtrue = band[:band.find('(')]
-        if bandtrue not in PHOTOMETRIC_FILTERS:
+        if bandtrue not in PHOTOMETRIC_FILTERS:  # check if we have this in the dictionary
             raise KeyError(f'{bandtrue} not yet a supported filter')
-        for nextband in allbands:
+        for nextband in allbands:  # over all bands
+            if band == nextband:  # don't make a colour of same band (0)
+                continue
             nextbandtrue = nextband
-            if '(' in nextband:
+            if '(' in nextband:  # duplicate bands
                 nextbandtrue = nextband[:nextband.find('(')]
-            if nextbandtrue not in PHOTOMETRIC_FILTERS:
+            if nextbandtrue not in PHOTOMETRIC_FILTERS:  # check if we have this in dictionary
                 raise KeyError(f'{nextbandtrue} not yet a supported filter')
             if PHOTOMETRIC_FILTERS[bandtrue] >= PHOTOMETRIC_FILTERS[nextbandtrue]:  # if not blue-red
                 continue
             try:
                 photodf[f'{band}-{nextband}'] = photodf[band] - photodf[nextband]  # colour
             except KeyError:
-                photodf[f'{band}-{nextband}'] = photodf[bandtrue] - photodf[nextband]
+                photodf[f'{band}-{nextband}'] = photodf[bandtrue] - photodf[nextband]  # colour for full sample
     return photodf
 
 
@@ -194,6 +197,12 @@ def parse_photometry(photodf: pd.DataFrame, allbands: np.ndarray, multisource: b
     newphoto: pd.DataFrame
         DataFrame of effectively transposed photometry
     """
+
+    def replacer(val: int):
+        if not val:
+            return ''
+        return f'({val})'
+
     def one_source_iter(onephotodf: pd.DataFrame):
         """
         Parses the photometry dataframe handling multiple references for same magnitude for one object
@@ -208,34 +217,30 @@ def parse_photometry(photodf: pd.DataFrame, allbands: np.ndarray, multisource: b
         thisnewphot: pd.DataFrame
             DataFrame of transposed photometry
         """
-        newd = {}
-        for band in onephotodf.band:
-            bandorig = band
-            i = 0
-            while band in newd:
-                i += 1
-                band = f'{band}({i})'
-            thisobj: pd.Series = onephotodf.loc[onephotodf.band == bandorig].iloc[i]
-            newd[band] = thisobj.magnitude
-        thisnewphot: pd.DataFrame = pd.DataFrame(data=newd, index=['value'])
+        onephotodf.set_index('band', inplace=True)  # set the band as the index
+        thisnewphot: pd.DataFrame = onephotodf.loc[:, ['magnitude']].T  # flip the dataframe and keep only mags
+        s = pd.Series(thisnewphot.columns)  # the columns as series
+        scc = s.groupby(s).cumcount()  # number of duplicate bands
+        thisnewphot.columns += scc.map(replacer)  # fill the duplicate values as (N)
         return thisnewphot
 
     if not multisource:
         newphoto = one_source_iter(photodf)
     else:
-        newdict = {col: [] for col in np.hstack([allbands, ['target']])}  # empty dict
-        for target, targetdf in photodf.groupby('source'):
+        photodfgrp = photodf.groupby('source')
+        newdict = {col: np.empty(len(photodfgrp)) for col in allbands}  # empty dict
+        newdict['target'] = np.empty(len(photodfgrp), dtype=str)
+        newphoto = pd.DataFrame(newdict)
+        for i, (target, targetdf) in tqdm(enumerate(photodfgrp), total=len(photodfgrp), desc='Photometry'):
             specificphoto = one_source_iter(targetdf)  # get the dictionary for this object photometry
-            for key in newdict.keys():  # over all keys
-                key: str = key
+            for key in newphoto.columns:  # over all keys
                 if key == 'target':
-                    continue
-                try:
-                    newdict[key].append(specificphoto.at['value', key])  # append the list for given key
-                except KeyError:  # if that key wasn't present for the object
-                    newdict[key].append(None)  # use None as filler
-            newdict['target'].append(target)  # add target to table
-        newphoto: pd.DataFrame = pd.DataFrame(data=newdict)
+                    newphoto.at[i, key] = target
+                else:
+                    try:
+                        newphoto.at[i, key] = specificphoto.at['magnitude', key]  # append the list for given key
+                    except KeyError:  # if that key wasn't present for the object
+                        newphoto.at[i, key] = None  # use None as filler
     return newphoto
 
 

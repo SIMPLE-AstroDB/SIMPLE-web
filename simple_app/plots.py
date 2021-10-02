@@ -264,19 +264,20 @@ def camdplot(query: str, everything: Inventory, all_bands: np.ndarray,
     except KeyError:  # no photometry for this object
         return None, None
     thisphoto = parse_photometry(thisphoto, all_bands)
+    print(thisphoto)
     thisbands: np.ndarray = np.unique(thisphoto.columns)  # the columns
     thisphoto: pd.DataFrame = find_colours(thisphoto, thisbands)  # get the colours
     thisphoto['target'] = query
     try:
-        thisplx: pd.DataFrame = everything.listconcat('Parallaxes', False)
-    except KeyError:
+        thisplx: pd.DataFrame = everything.listconcat('Parallaxes', False)  # try to grab parallaxes
+    except KeyError:  # don't worry if they're not there
         pass
-    else:
-        thisphoto['parallax'] = thisplx['parallax'].iloc[0]
-        thisphoto = absmags(thisphoto, thisbands)
+    else:  # if they are though...
+        thisphoto['parallax'] = thisplx['parallax'].iloc[0]  # grab the first parallax (adopted might be better if key)
+        thisphoto = absmags(thisphoto, thisbands)  # get abs mags
     thisphoto.dropna(axis=1, how='all', inplace=True)
     colbands = [col for col in thisphoto.columns if any([colcheck in col for colcheck in ('-', 'M_')])]
-    just_colours = thisphoto.loc[:, colbands].copy()
+    just_colours = thisphoto.loc[:, colbands].copy()  # cut dataframe to just colour and abs mags
     xfullname = just_colours.columns[0]
     yfullname = just_colours.columns[1]
     xvisname = xfullname.replace('-', ' - ')
