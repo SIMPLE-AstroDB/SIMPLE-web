@@ -156,7 +156,7 @@ def find_colours(photodf: pd.DataFrame, allbands: np.ndarray):
             nextband: str = allbands[i + j]  # next band
             j += 1
             try:
-                photodf[f'{band}_{nextband}'] = photodf[band] - photodf[nextband]  # colour
+                photodf[f'{band}-{nextband}'] = photodf[band] - photodf[nextband]  # colour
             except KeyError:
                 continue
     return photodf
@@ -222,14 +222,6 @@ def parse_photometry(photodf: pd.DataFrame, allbands: np.ndarray, multisource: b
                 except KeyError:  # if that key wasn't present for the object
                     newphoto[key].extend([None, ] * grplen)  # use None as filler
             newphoto['target'].extend(targetname)  # add target to table
-    newphotocp: dict = newphoto.copy()
-    for key in newphotocp:
-        key: str = key
-        if key in ('ref', 'target'):  # other than these columns
-            continue
-        newkey: str = key.replace('.', '_')  # swap dot for underscore
-        newphoto[newkey] = newphoto[key].copy()
-        del newphoto[key]
     return newphoto
 
 
@@ -248,7 +240,7 @@ def all_photometry(db_file: str):
     allphoto: pd.DataFrame = db.query(db.Photometry).pandas()  # get all photometry
     allbands: np.ndarray = allphoto.band.unique()  # the unique bands
     outphoto: dict = parse_photometry(allphoto, allbands, True)  # transpose photometric table
-    allbands = np.array([band.replace('.', '_') for band in allbands])
+    # allbands = np.array([band.replace('.', '_') for band in allbands])
     allphoto = pd.DataFrame(outphoto)  # use rearranged dataframe
     allphoto = find_colours(allphoto, allbands)  # get the colours
     return allphoto, allbands

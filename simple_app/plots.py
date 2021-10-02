@@ -2,6 +2,7 @@
 File containing the 'workhorse' functions generating the various plots seen on the website
 """
 # external packages
+import numpy as np
 import pandas as pd
 from astropy.table import Table
 from bokeh.embed import components
@@ -246,9 +247,7 @@ def camdplot(query: str, everything: Inventory, all_bands: np.ndarray,
         the html to be inserted in dom
     """
     # TODO: Add CAMD diagram when we have data to test this on (i.e. parallaxes + photometry for same object)
-    bands = [band.split("_")[1] for band in all_bands]  # nice band names
-    vals = [f'@{band}' for band in all_bands]  # the values in CDS
-    tooltips = [('Target', '@target'), *zip(bands, vals), ('Ref', '@ref')]  # tooltips for hover tool
+    tooltips = [('Target', '@target'), ('Ref', '@ref')]  # tooltips for hover tool
     p = figure(title='Colour-Colour', plot_height=500,
                active_scroll='wheel_zoom', active_drag='box_zoom',
                tools='pan,wheel_zoom,box_zoom,hover,tap,reset', tooltips=tooltips,
@@ -263,15 +262,13 @@ def camdplot(query: str, everything: Inventory, all_bands: np.ndarray,
     thisbands: np.ndarray = np.unique(thisphoto.columns)  # the columns
     thisbands = thisbands[np.isin(thisbands, all_bands)]  # the bands for this object
     thisphoto: pd.DataFrame = find_colours(thisphoto, thisbands)  # get the colours
-    # FIXME: This'll break in the circumstance that there is only one band (shouldn't happen)
-    xfullname = '_'.join(thisbands[0:2])  # x axis colour
-    xvisname = thisbands[0].split('_')[-1] + ' - ' + thisbands[1].split('_')[-1]  # x axis name
-    try:
-        yfullname = '_'.join(thisbands[2:4])  # y axis colour
-        yvisname = thisbands[2].split('_')[-1] + ' - ' + thisbands[3].split('_')[-1]  # y axis name
-    except IndexError:
-        yfullname = '_'.join(thisbands[0:2])  # y axis name if only one colour
-        yvisname = thisbands[0].split('_')[-1] + ' - ' + thisbands[1].split('_')[-1]  # y axis name
+    thisphoto.dropna(axis=1, inplace=True, how='all')
+    colbands = [col for col in thisphoto.columns if '-' in col]
+    just_colours = thisphoto.loc[:, colbands].copy()
+    xfullname = just_colours.columns[0]
+    yfullname = just_colours.columns[0]
+    xvisname = xfullname.replace('-', ' - ')
+    yvisname = yfullname.replace('-', ' - ')
     thiscds = ColumnDataSource(data=thisphoto)  # this object cds
     thisplot = p.circle(x=xfullname, y=yfullname, source=thiscds,
                         color='blue', size=10)  # plot for this object
@@ -294,12 +291,7 @@ def camdplot(query: str, everything: Inventory, all_bands: np.ndarray,
     buttonxflip.js_on_click(CustomJS(code=jscallbacks.button_flip, args={'axrange': p.x_range}))
     buttonyflip = Toggle(label='Y Flip')
     buttonyflip.js_on_click(CustomJS(code=jscallbacks.button_flip, args={'axrange': p.y_range}))
-    if thisbands is all_bands:
-        whichdf = all_photo
-    else:
-        whichdf = thisphoto
-    just_colours: pd.DataFrame = whichdf.drop(columns=np.hstack([thisbands, ['ref', 'target']]))  # only the colours
-    axis_names = [f'{col.split("_")[1]} - {col.split("_")[3]}' for col in just_colours.columns]  # convert nicely
+    axis_names = [col.replace('-', ' - ') for col in just_colours.columns]  # convert nicely
     dropmenu = [*zip(just_colours.columns, axis_names), ]  # zip up into menu
     dropdownx = Select(options=dropmenu, value=xfullname)  # x axis select
     dropdownx.js_on_change('value', CustomJS(code=jscallbacks.dropdownx_js,
