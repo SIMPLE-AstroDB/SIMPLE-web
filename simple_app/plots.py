@@ -110,10 +110,9 @@ def multiplotbokeh(all_results_full: pd.DataFrame, all_bands: np.ndarray,
         the html to be inserted in dom
     """
     all_results_mostfull = results_concat(all_results_full, all_photo, all_plx, all_bands)
+    all_results_mostfull.dropna(axis=1, how='all', inplace=True)
     fullcds = ColumnDataSource(all_results_mostfull)  # convert to CDS
-    bands = [band.split("_")[1] for band in all_bands]  # nice band names
-    vals = [f'@{band}' for band in all_bands]  # the values in CDS
-    tooltips = [('Target', '@source'), *zip(bands, vals), ('Ref', '@ref')]  # tooltips for hover tool
+    tooltips = [('Target', '@source')]  # tooltips for hover tool
     # sky plot
     thishover = HoverTool(names=['circle', ], tooltips=tooltips)  # hovertool
     thistap = TapTool(names=['circle', ])  # taptool
@@ -136,11 +135,17 @@ def multiplotbokeh(all_results_full: pd.DataFrame, all_bands: np.ndarray,
                  active_scroll='wheel_zoom', active_drag='box_zoom',
                  tools='pan,wheel_zoom,box_zoom,box_select,hover,tap,reset', tooltips=tooltips,
                  sizing_mode='stretch_width')  # bokeh figure
-    fullplot = pcc.circle(x='WISE_W1_WISE_W2', y='WISE_W3_WISE_W4', source=fullcds, size=5)  # plot all objects
-    pcc.x_range = Range1d(all_results_mostfull.WISE_W1_WISE_W2.min(), all_results_mostfull.WISE_W1_WISE_W2.max())  # x
-    pcc.y_range = Range1d(all_results_mostfull.WISE_W3_WISE_W4.min(), all_results_mostfull.WISE_W3_WISE_W4.max())  # y
-    pcc.xaxis.axis_label = 'W1 - W2'  # x label
-    pcc.yaxis.axis_label = 'W3 - W4'  # y label
+    colbands = [col for col in all_results_mostfull.columns if '-' in col]
+    just_colours = all_results_mostfull.loc[:, colbands].copy()
+    xfullname = just_colours.columns[0]
+    yfullname = just_colours.columns[1]
+    xvisname = xfullname.replace('-', ' - ')
+    yvisname = yfullname.replace('-', ' - ')
+    fullplot = pcc.circle(x=xfullname, y=yfullname, source=fullcds, size=5)  # plot all objects
+    pcc.x_range = Range1d(all_results_mostfull[xfullname].min(), all_results_mostfull[xfullname].max())  # x
+    pcc.y_range = Range1d(all_results_mostfull[yfullname].min(), all_results_mostfull[yfullname].max())  # y
+    pcc.xaxis.axis_label = xvisname  # x label
+    pcc.yaxis.axis_label = yvisname  # y label
     pcc.xaxis.axis_label_text_font_size = '1.5em'
     pcc.yaxis.axis_label_text_font_size = '1.5em'
     pcc.xaxis.major_label_text_font_size = '1.5em'
@@ -152,33 +157,32 @@ def multiplotbokeh(all_results_full: pd.DataFrame, all_bands: np.ndarray,
     buttonxflip.js_on_click(CustomJS(code=jscallbacks.button_flip, args={'axrange': pcc.x_range}))
     buttonyflip = Toggle(label='Y Flip')
     buttonyflip.js_on_click(CustomJS(code=jscallbacks.button_flip, args={'axrange': pcc.y_range}))
-    just_colours: pd.DataFrame = all_photo.drop(columns=np.hstack([all_bands, ['ref', 'target']]))  # cols
-    axis_names = [f'{col.split("_")[1]} - {col.split("_")[3]}' for col in just_colours.columns]  # convert nicely
+    axis_names = [col.replace('-', ' - ') for col in just_colours.columns]  # convert nicely
     dropmenu = [*zip(just_colours.columns, axis_names), ]  # zip up into menu
-    dropdownx = Select(options=dropmenu, value='WISE_W1_WISE_W2')  # x axis select
+    dropdownx = Select(options=dropmenu, value=xfullname)  # x axis select
     dropdownx.js_on_change('value', CustomJS(code=jscallbacks.dropdownx_js,
                                              args={'fullplot': fullplot,
                                                    'fulldata': fullcds.data, 'xbut': buttonxflip,
                                                    'xaxis': pcc.xaxis[0], 'xrange': pcc.x_range}))
-    dropdowny = Select(options=dropmenu, value='WISE_W3_WISE_W4')  # y axis select
+    dropdowny = Select(options=dropmenu, value=yfullname)  # y axis select
     dropdowny.js_on_change('value', CustomJS(code=jscallbacks.dropdowny_js,
                                              args={'fullplot': fullplot,
                                                    'fulldata': fullcds.data, 'ybut': buttonyflip,
                                                    'yaxis': pcc.yaxis[0], 'yrange': pcc.y_range}))
     # colour absolute magnitude diagram
-    just_mags: pd.DataFrame = all_photo[all_bands]
-    magaxisnames = [col.split("_")[1] for col in just_mags.columns]
+    just_mags: pd.DataFrame = all_results_mostfull[all_bands]
     absmagnames = ["M_" + col for col in just_mags.columns]
-    dropmenumag = [*zip(absmagnames, magaxisnames)]
+    dropmenumag = [*zip(absmagnames, absmagnames)]
     pcamd = figure(title='Colour-Absolute Magnitude Diagram', plot_height=500,
                    active_scroll='wheel_zoom', active_drag='box_zoom',
                    tools='pan,wheel_zoom,box_zoom,box_select,hover,tap,reset', tooltips=tooltips,
                    sizing_mode='stretch_width')  # bokeh figure
-    fullmagplot = pcamd.circle(x='WISE_W1_WISE_W2', y='M_WISE_W1', source=fullcds, size=5)  # plot all objects
-    pcamd.x_range = Range1d(all_results_mostfull.WISE_W1_WISE_W2.min(), all_results_mostfull.WISE_W1_WISE_W2.max())  # x
-    pcamd.y_range = Range1d(all_results_mostfull.M_WISE_W1.max(), all_results_mostfull.M_WISE_W1.min())  # y limits
-    pcamd.xaxis.axis_label = 'W1 - W2'  # x label
-    pcamd.yaxis.axis_label = 'W1'  # y label
+    yfullname = absmagnames[0]
+    fullmagplot = pcamd.circle(x=xfullname, y=yfullname, source=fullcds, size=5)  # plot all objects
+    pcamd.x_range = Range1d(all_results_mostfull[xfullname].min(), all_results_mostfull[xfullname].max())  # x
+    pcamd.y_range = Range1d(all_results_mostfull[yfullname].max(), all_results_mostfull[yfullname].min())  # y limits
+    pcamd.xaxis.axis_label = xvisname  # x label
+    pcamd.yaxis.axis_label = yfullname  # y label
     pcamd.xaxis.axis_label_text_font_size = '1.5em'
     pcamd.yaxis.axis_label_text_font_size = '1.5em'
     pcamd.xaxis.major_label_text_font_size = '1.5em'
@@ -190,12 +194,12 @@ def multiplotbokeh(all_results_full: pd.DataFrame, all_bands: np.ndarray,
     buttonmagxflip.js_on_click(CustomJS(code=jscallbacks.button_flip, args={'axrange': pcamd.x_range}))
     buttonmagyflip = Toggle(label='Y Flip')
     buttonmagyflip.js_on_click(CustomJS(code=jscallbacks.button_flip, args={'axrange': pcamd.y_range}))
-    dropdownmagx = Select(options=dropmenu, value='WISE_W1_WISE_W2')  # x axis
+    dropdownmagx = Select(options=dropmenu, value=xfullname)  # x axis
     dropdownmagx.js_on_change('value', CustomJS(code=jscallbacks.dropdownx_js,
                                                 args={'fullplot': fullmagplot,
                                                       'fulldata': fullcds.data, 'xbut': buttonmagxflip,
                                                       'xaxis': pcamd.xaxis[0], 'xrange': pcamd.x_range}))
-    dropdownmagy = Select(options=dropmenumag, value='M_WISE_W1')  # y axis
+    dropdownmagy = Select(options=dropmenumag, value=yfullname)  # y axis
     dropdownmagy.js_on_change('value', CustomJS(code=jscallbacks.dropdowny_js,
                                                 args={'fullplot': fullmagplot,
                                                       'fulldata': fullcds.data, 'ybut': buttonmagyflip,
@@ -247,9 +251,10 @@ def camdplot(query: str, everything: Inventory, all_bands: np.ndarray,
         the html to be inserted in dom
     """
     # TODO: Add CAMD diagram when we have data to test this on (i.e. parallaxes + photometry for same object)
+    tooltips = [('Target', '@target')]
     p = figure(title='Colour-Colour', plot_height=500,
                active_scroll='wheel_zoom', active_drag='box_zoom',
-               tools='pan,wheel_zoom,box_zoom,tap,reset',
+               tools='pan,wheel_zoom,box_zoom,hover,tap,reset', tooltips=tooltips,
                sizing_mode='stretch_width')  # bokeh figure
     try:
         thisphoto: pd.DataFrame = everything.listconcat('Photometry', False)  # the photometry for this object
@@ -258,11 +263,11 @@ def camdplot(query: str, everything: Inventory, all_bands: np.ndarray,
     thisphoto = parse_photometry(thisphoto, all_bands)
     thisbands: np.ndarray = np.unique(thisphoto.columns)  # the columns
     thisphoto: pd.DataFrame = find_colours(thisphoto, thisbands)  # get the colours
-    thisphoto.dropna(axis=1, inplace=True, how='all')
+    thisphoto['target'] = query
     colbands = [col for col in thisphoto.columns if '-' in col]
     just_colours = thisphoto.loc[:, colbands].copy()
     xfullname = just_colours.columns[0]
-    yfullname = just_colours.columns[0]
+    yfullname = just_colours.columns[-1]
     xvisname = xfullname.replace('-', ' - ')
     yvisname = yfullname.replace('-', ' - ')
     thiscds = ColumnDataSource(data=thisphoto)  # this object cds

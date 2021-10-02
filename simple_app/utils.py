@@ -233,7 +233,6 @@ def parse_photometry(photodf: pd.DataFrame, allbands: np.ndarray, multisource: b
                     newdict[key].append(None)  # use None as filler
             newdict['target'].append(target)  # add target to table
         newphoto: pd.DataFrame = pd.DataFrame(data=newdict)
-        newphoto.set_index('target', inplace=True)
     return newphoto
 
 
@@ -337,7 +336,7 @@ def results_concat(all_results_full: pd.DataFrame, all_photo: pd.DataFrame,
     all_results_full_cut: pd.DataFrame = all_results_full[['source', 'raproj', 'decproj']]  # cut dataframe
     all_results_mostfull: pd.DataFrame = pd.merge(all_results_full_cut, all_photo,
                                                   left_on='source', right_on='target', how='left')
-    all_results_mostfull = pd.merge(all_results_mostfull, all_plx, on='source', how='left')
+    all_results_mostfull = pd.merge(all_results_mostfull, all_plx, on='source')
     all_results_mostfull = absmags(all_results_mostfull, all_bands)  # find the absolute mags
     return all_results_mostfull
 
