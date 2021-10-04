@@ -15,13 +15,6 @@ import argparse  # system arguments
 from typing import Union, List  # type hinting
 
 
-PHOTOMETRIC_FILTERS = {'WISE.W1': 33526.00, 'WISE.W2': 46028.00, 'WISE.W3': 115608.00, 'WISE.W4': 220883.00,
-                       '2MASS.J': 12350.00, '2MASS.H': 16620.00, '2MASS.Ks': 21590.00,
-                       'GAIA2.G': 6230.00, 'GAIA2.Grp': 7730.00,
-                       'GAIA3.G': 6217.59, 'GAIA3.Grp': 7769.02,
-                       'IRAC.I1': 35378.41, 'IRAC.I2': 44780.49, 'IRAC.I3': 56961.77, 'IRAC.I4': 77978.39}
-
-
 def sysargs():
     """
     These are the system arguments given after calling this python script
@@ -51,6 +44,7 @@ class SimpleDB(Database):  # this keeps pycharm happy about unresolved reference
     Photometry = None
     Parallaxes = None
     Spectra = None
+    PhotometryFilters = None
 
 
 class Inventory:
@@ -95,6 +89,11 @@ class Inventory:
             The key corresponding to the inventory
         rtnmk: bool
             Switch for whether to return either a markdown string or a dataframe
+
+        Returns
+        -------
+        df: Union[pd.DataFrame, str]
+            Either the dataframe for a given key or the markdown parsed string
         """
         obj: List[dict] = self.results[key]  # the value for the given key
         df: pd.DataFrame = pd.concat([pd.DataFrame(objrow, index=[i])  # create dataframe from found dict
@@ -123,9 +122,14 @@ class SearchForm(FlaskForm):
     submit = SubmitField('Query', id='querybutton')  # clicker button to send request
 
 
-def all_sources(db_file):
+def all_sources(db_file: str):
     """
     Queries the full table to get all the sources
+
+    Parameters
+    ----------
+    db_file: str
+        The connection string to the database
 
     Returns
     -------
@@ -140,7 +144,7 @@ def all_sources(db_file):
     return allresults, fullresults
 
 
-def find_colours(photodf: pd.DataFrame, allbands: np.ndarray):
+def find_colours(photodf: pd.DataFrame, allbands: np.ndarray, photfilters: pd.DataFrame):
     """
     Find all the colours using available photometry
 
@@ -150,6 +154,8 @@ def find_colours(photodf: pd.DataFrame, allbands: np.ndarray):
         The dataframe with all photometry in
     allbands: np.ndarray
         All the photometric bands
+    photfilters: pd.DataFrame
+        The filters
 
     Returns
     -------
@@ -160,7 +166,7 @@ def find_colours(photodf: pd.DataFrame, allbands: np.ndarray):
         bandtrue = band
         if '(' in band:  # duplicate bands
             bandtrue = band[:band.find('(')]
-        if bandtrue not in PHOTOMETRIC_FILTERS:  # check if we have this in the dictionary
+        if bandtrue not in photfilters.columns:  # check if we have this in the dictionary
             raise KeyError(f'{bandtrue} not yet a supported filter')
         for nextband in allbands:  # over all bands
             if band == nextband:  # don't make a colour of same band (0)
@@ -168,9 +174,10 @@ def find_colours(photodf: pd.DataFrame, allbands: np.ndarray):
             nextbandtrue = nextband
             if '(' in nextband:  # duplicate bands
                 nextbandtrue = nextband[:nextband.find('(')]
-            if nextbandtrue not in PHOTOMETRIC_FILTERS:  # check if we have this in dictionary
+            if nextbandtrue not in photfilters.columns:  # check if we have this in dictionary
                 raise KeyError(f'{nextbandtrue} not yet a supported filter')
-            if PHOTOMETRIC_FILTERS[bandtrue] >= PHOTOMETRIC_FILTERS[nextbandtrue]:  # if not blue-red
+            if photfilters.at['effective_wavelength', bandtrue] >= \
+                    photfilters.at['effective_wavelength', nextbandtrue]:  # if not blue-red
                 continue
             try:
                 photodf[f'{band}-{nextband}'] = photodf[band] - photodf[nextband]  # colour
@@ -198,7 +205,20 @@ def parse_photometry(photodf: pd.DataFrame, allbands: np.ndarray, multisource: b
         DataFrame of effectively transposed photometry
     """
 
-    def replacer(val: int):
+    def replacer(val: int) -> str:
+        """
+        Swapping an integer value for a string denoting the value
+
+        Parameters
+        ----------
+        val: int
+            The input number
+
+        Returns
+        -------
+        _: str
+            The formatted string of the value
+        """
         if not val:
             return ''
         return f'({val})'
@@ -244,9 +264,16 @@ def parse_photometry(photodf: pd.DataFrame, allbands: np.ndarray, multisource: b
     return newphoto
 
 
-def all_photometry(db_file: str):
+def all_photometry(db_file: str, photfilters: pd.DataFrame):
     """
     Get all the photometric data from the database to be used in later CMD as background
+
+    Parameters
+    ----------
+    db_file: str
+        The connection string to the database
+    photfilters: pd.DataFrame
+        The dataframe of the filters
 
     Returns
     -------
@@ -259,7 +286,7 @@ def all_photometry(db_file: str):
     allphoto: pd.DataFrame = db.query(db.Photometry).pandas()  # get all photometry
     allbands: np.ndarray = allphoto.band.unique()  # the unique bands
     allphoto: pd.DataFrame = parse_photometry(allphoto, allbands, True)  # transpose photometric table
-    allphoto = find_colours(allphoto, allbands)  # get the colours
+    allphoto = find_colours(allphoto, allbands, photfilters)  # get the colours
     return allphoto, allbands
 
 
@@ -427,14 +454,34 @@ def coordinate_project(all_results_full: pd.DataFrame):
     return raproj, decproj
 
 
+def get_filters(db_file: str) -> pd.DataFrame:
+    """
+    Query the photometry filters table
+
+    Parameters
+    ----------
+    db_file: str
+        The connection string to the database
+
+    Returns
+    -------
+    phot_filters: pd.DataFrame
+        All of the filters, access as: phot_filters.at['effective_wavelength', <bandname>]
+    """
+    db = SimpleDB(db_file, connection_arguments={'check_same_thread': False})
+    phot_filters: pd.DataFrame = db.query(db.PhotometryFilters).pandas().set_index('band').T
+    return phot_filters
+
+
 def mainutils():
     _args = sysargs()  # get all system arguments
     _db_file = f'sqlite:///{_args.file}'  # the database file
+    _phot_filters = get_filters(_db_file)  # the photometric filters
     _all_results, _all_results_full = all_sources(_db_file)  # find all the objects once
-    _all_photo, _all_bands = all_photometry(_db_file)  # get all the photometry
+    _all_photo, _all_bands = all_photometry(_db_file, _phot_filters)  # get all the photometry
     _all_plx = all_parallaxes(_db_file)  # get all the parallaxes
-    return _args, _db_file, _all_results, _all_results_full, _all_photo, _all_bands, _all_plx
+    return _args, _db_file, _phot_filters, _all_results, _all_results_full, _all_photo, _all_bands, _all_plx
 
 
 if __name__ == '__main__':
-    ARGS, DB_FILE, ALL_RESULTS, ALL_RESULTS_FULL, ALL_PHOTO, ALL_BANDS, ALL_PLX = mainutils()
+    ARGS, DB_FILE, PHOTOMETRIC_FILTERS, ALL_RESULTS, ALL_RESULTS_FULL, ALL_PHOTO, ALL_BANDS, ALL_PLX = mainutils()

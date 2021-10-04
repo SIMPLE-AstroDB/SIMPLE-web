@@ -223,7 +223,7 @@ def multiplotbokeh(all_results_full: pd.DataFrame, all_bands: np.ndarray,
 
 
 def camdplot(query: str, everything: Inventory, all_bands: np.ndarray,
-             all_results_full: pd.DataFrame, all_plx: pd.DataFrame,
+             all_results_full: pd.DataFrame, all_plx: pd.DataFrame, photfilters: pd.DataFrame,
              all_photo: pd.DataFrame, jscallbacks: JSCallbacks, nightskytheme: Theme):
     """
     Creates CAMD plot as JSON object
@@ -240,6 +240,8 @@ def camdplot(query: str, everything: Inventory, all_bands: np.ndarray,
         Every object and its basic information
     all_plx: pd.DataFrame
         All of the parallaxes
+    photfilters: pd.DataFrame
+        All of the filters to check
     all_photo: pd.DataFrame
         All of the photometry
     jscallbacks: JSCallbacks
@@ -264,9 +266,8 @@ def camdplot(query: str, everything: Inventory, all_bands: np.ndarray,
     except KeyError:  # no photometry for this object
         return None, None
     thisphoto = parse_photometry(thisphoto, all_bands)
-    print(thisphoto)
     thisbands: np.ndarray = np.unique(thisphoto.columns)  # the columns
-    thisphoto: pd.DataFrame = find_colours(thisphoto, thisbands)  # get the colours
+    thisphoto: pd.DataFrame = find_colours(thisphoto, thisbands, photfilters)  # get the colours
     thisphoto['target'] = query
     try:
         thisplx: pd.DataFrame = everything.listconcat('Parallaxes', False)  # try to grab parallaxes
@@ -334,5 +335,5 @@ def mainplots():
 
 
 if __name__ == '__main__':
-    ARGS, DB_FILE, ALL_RESULTS, ALL_RESULTS_FULL, ALL_PHOTO, ALL_BANDS, ALL_PLX = mainutils()
+    ARGS, DB_FILE, PHOTOMETRIC_FILTERS, ALL_RESULTS, ALL_RESULTS_FULL, ALL_PHOTO, ALL_BANDS, ALL_PLX = mainutils()
     NIGHTSKYTHEME, JSCALLBACKS = mainplots()
