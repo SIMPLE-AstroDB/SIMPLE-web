@@ -8,6 +8,7 @@ from flask_wtf import FlaskForm  # web forms
 from markdown2 import markdown  # using markdown formatting
 import numpy as np  # numerical python
 import pandas as pd  # running dataframes
+from tqdm import tqdm
 from wtforms import StringField, SubmitField  # web forms
 # internal packages
 import argparse  # system arguments
@@ -43,6 +44,7 @@ class SimpleDB(Database):  # this keeps pycharm happy about unresolved reference
     Photometry = None
     Parallaxes = None
     Spectra = None
+    PhotometryFilters = None
 
 
 class Inventory:
@@ -87,6 +89,11 @@ class Inventory:
             The key corresponding to the inventory
         rtnmk: bool
             Switch for whether to return either a markdown string or a dataframe
+
+        Returns
+        -------
+        df: Union[pd.DataFrame, str]
+            Either the dataframe for a given key or the markdown parsed string
         """
         obj: List[dict] = self.results[key]  # the value for the given key
         df: pd.DataFrame = pd.concat([pd.DataFrame(objrow, index=[i])  # create dataframe from found dict
@@ -115,9 +122,14 @@ class SearchForm(FlaskForm):
     submit = SubmitField('Query', id='querybutton')  # clicker button to send request
 
 
-def all_sources(db_file):
+def all_sources(db_file: str):
     """
     Queries the full table to get all the sources
+
+    Parameters
+    ----------
+    db_file: str
+        The connection string to the database
 
     Returns
     -------
@@ -132,7 +144,7 @@ def all_sources(db_file):
     return allresults, fullresults
 
 
-def find_colours(photodf: pd.DataFrame, allbands: np.ndarray):
+def find_colours(photodf: pd.DataFrame, allbands: np.ndarray, photfilters: pd.DataFrame):
     """
     Find all the colours using available photometry
 
@@ -142,27 +154,39 @@ def find_colours(photodf: pd.DataFrame, allbands: np.ndarray):
         The dataframe with all photometry in
     allbands: np.ndarray
         All the photometric bands
+    photfilters: pd.DataFrame
+        The filters
 
     Returns
     -------
     photodf: pd.DataFrame
         The dataframe with all photometry and colours in
     """
-    for i, band in enumerate(allbands):  # loop over all bands TODO: sort by wavelength?
-        j = 1  # start count
-        while j < 20:
-            if i + j == len(allbands):  # last band
-                break
-            nextband: str = allbands[i + j]  # next band
-            j += 1
-            try:
-                photodf[f'{band}_{nextband}'] = photodf[band] - photodf[nextband]  # colour
-            except KeyError:
+    for band in allbands:  # loop over all bands
+        bandtrue = band
+        if '(' in band:  # duplicate bands
+            bandtrue = band[:band.find('(')]
+        if bandtrue not in photfilters.columns:  # check if we have this in the dictionary
+            raise KeyError(f'{bandtrue} not yet a supported filter')
+        for nextband in allbands:  # over all bands
+            if band == nextband:  # don't make a colour of same band (0)
                 continue
+            nextbandtrue = nextband
+            if '(' in nextband:  # duplicate bands
+                nextbandtrue = nextband[:nextband.find('(')]
+            if nextbandtrue not in photfilters.columns:  # check if we have this in dictionary
+                raise KeyError(f'{nextbandtrue} not yet a supported filter')
+            if photfilters.at['effective_wavelength', bandtrue] >= \
+                    photfilters.at['effective_wavelength', nextbandtrue]:  # if not blue-red
+                continue
+            try:
+                photodf[f'{band}-{nextband}'] = photodf[band] - photodf[nextband]  # colour
+            except KeyError:
+                photodf[f'{band}-{nextband}'] = photodf[bandtrue] - photodf[nextband]  # colour for full sample
     return photodf
 
 
-def parse_photometry(photodf: pd.DataFrame, allbands: np.ndarray, multisource: bool = False) -> dict:
+def parse_photometry(photodf: pd.DataFrame, allbands: np.ndarray, multisource: bool = False) -> pd.DataFrame:
     """
     Parses the photometry dataframe handling multiple references for same magnitude
 
@@ -177,9 +201,28 @@ def parse_photometry(photodf: pd.DataFrame, allbands: np.ndarray, multisource: b
 
     Returns
     -------
-    newphoto: dict
-        Dictionary of effectively transposed photometry
+    newphoto: pd.DataFrame
+        DataFrame of effectively transposed photometry
     """
+
+    def replacer(val: int) -> str:
+        """
+        Swapping an integer value for a string denoting the value
+
+        Parameters
+        ----------
+        val: int
+            The input number
+
+        Returns
+        -------
+        _: str
+            The formatted string of the value
+        """
+        if not val:
+            return ''
+        return f'({val})'
+
     def one_source_iter(onephotodf: pd.DataFrame):
         """
         Parses the photometry dataframe handling multiple references for same magnitude for one object
@@ -191,51 +234,46 @@ def parse_photometry(photodf: pd.DataFrame, allbands: np.ndarray, multisource: b
 
         Returns
         -------
-        thisnewphot: dict
-            Dictionary of transposed photometry
-        arrsize: int
-            The number of rows in the dictionary
+        thisnewphot: pd.DataFrame
+            DataFrame of transposed photometry
         """
-        refgrp = onephotodf.groupby('reference')  # all references grouped
-        arrsize: int = len(refgrp)  # the number of rows
-        thisnewphot = {band: [None, ] * arrsize for band in onephotodf.band.unique()}  # initial dictionary
-        thisnewphot['ref'] = [None, ] * arrsize  # references
-        for i, (ref, refval) in enumerate(refgrp):  # over all references
-            for band, bandval in refval.groupby('band'):  # over all bands
-                thisnewphot[band][i] = bandval.iloc[0].magnitude  # given magnitude (0 index of length 1 dataframe)
-            thisnewphot['ref'][i] = ref  # reference for these mags
-        return thisnewphot, arrsize
+        onephotodf.set_index('band', inplace=True)  # set the band as the index
+        thisnewphot: pd.DataFrame = onephotodf.loc[:, ['magnitude']].T  # flip the dataframe and keep only mags
+        s = pd.Series(thisnewphot.columns)  # the columns as series
+        scc = s.groupby(s).cumcount()  # number of duplicate bands
+        thisnewphot.columns += scc.map(replacer)  # fill the duplicate values as (N)
+        return thisnewphot
 
     if not multisource:
-        newphoto = one_source_iter(photodf)[0]
+        newphoto = one_source_iter(photodf)
     else:
-        newphoto: dict = {band: [] for band in np.hstack([allbands, ['ref', 'target']])}  # empty dict
-        for target, targetdf in photodf.groupby('source'):
-            specificphoto, grplen = one_source_iter(targetdf)  # get the dictionary for this object photometry
-            targetname = [target, ] * grplen  # list of the target name
-            for key in newphoto.keys():  # over all keys
-                key: str = key
+        photodfgrp = photodf.groupby('source')
+        newdict = {col: np.empty(len(photodfgrp)) for col in allbands}  # empty dict
+        newdict['target'] = np.empty(len(photodfgrp), dtype=str)
+        newphoto = pd.DataFrame(newdict)
+        for i, (target, targetdf) in tqdm(enumerate(photodfgrp), total=len(photodfgrp), desc='Photometry'):
+            specificphoto = one_source_iter(targetdf)  # get the dictionary for this object photometry
+            for key in newphoto.columns:  # over all keys
                 if key == 'target':
-                    continue
-                try:
-                    newphoto[key].extend(specificphoto[key])  # extend the list for given key
-                except KeyError:  # if that key wasn't present for the object
-                    newphoto[key].extend([None, ] * grplen)  # use None as filler
-            newphoto['target'].extend(targetname)  # add target to table
-    newphotocp: dict = newphoto.copy()
-    for key in newphotocp:
-        key: str = key
-        if key in ('ref', 'target'):  # other than these columns
-            continue
-        newkey: str = key.replace('.', '_')  # swap dot for underscore
-        newphoto[newkey] = newphoto[key].copy()
-        del newphoto[key]
+                    newphoto.at[i, key] = target
+                else:
+                    try:
+                        newphoto.at[i, key] = specificphoto.at['magnitude', key]  # append the list for given key
+                    except KeyError:  # if that key wasn't present for the object
+                        newphoto.at[i, key] = None  # use None as filler
     return newphoto
 
 
-def all_photometry(db_file: str):
+def all_photometry(db_file: str, photfilters: pd.DataFrame):
     """
     Get all the photometric data from the database to be used in later CMD as background
+
+    Parameters
+    ----------
+    db_file: str
+        The connection string to the database
+    photfilters: pd.DataFrame
+        The dataframe of the filters
 
     Returns
     -------
@@ -247,10 +285,8 @@ def all_photometry(db_file: str):
     db = SimpleDB(db_file, connection_arguments={'check_same_thread': False})  # open database
     allphoto: pd.DataFrame = db.query(db.Photometry).pandas()  # get all photometry
     allbands: np.ndarray = allphoto.band.unique()  # the unique bands
-    outphoto: dict = parse_photometry(allphoto, allbands, True)  # transpose photometric table
-    allbands = np.array([band.replace('.', '_') for band in allbands])
-    allphoto = pd.DataFrame(outphoto)  # use rearranged dataframe
-    allphoto = find_colours(allphoto, allbands)  # get the colours
+    allphoto: pd.DataFrame = parse_photometry(allphoto, allbands, True)  # transpose photometric table
+    allphoto = find_colours(allphoto, allbands, photfilters)  # get the colours
     return allphoto, allbands
 
 
@@ -305,7 +341,10 @@ def absmags(df: pd.DataFrame, all_bands: np.ndarray) -> pd.DataFrame:
     df['dist'] = np.divide(1000, df['parallax'])
     for mag in all_bands:
         abs_mag = "M_" + mag
-        df[abs_mag] = pogsonlaw(df[mag], df['dist'])
+        try:
+            df[abs_mag] = pogsonlaw(df[mag], df['dist'])
+        except KeyError:
+            df[abs_mag] = pogsonlaw(df[mag[:mag.find('(')]], df['dist'])
     return df
 
 
@@ -335,7 +374,7 @@ def results_concat(all_results_full: pd.DataFrame, all_photo: pd.DataFrame,
     all_results_full_cut: pd.DataFrame = all_results_full[['source', 'raproj', 'decproj']]  # cut dataframe
     all_results_mostfull: pd.DataFrame = pd.merge(all_results_full_cut, all_photo,
                                                   left_on='source', right_on='target', how='left')
-    all_results_mostfull = pd.merge(all_results_mostfull, all_plx, on='source', how='left')
+    all_results_mostfull = pd.merge(all_results_mostfull, all_plx, on='source')
     all_results_mostfull = absmags(all_results_mostfull, all_bands)  # find the absolute mags
     return all_results_mostfull
 
@@ -415,14 +454,34 @@ def coordinate_project(all_results_full: pd.DataFrame):
     return raproj, decproj
 
 
+def get_filters(db_file: str) -> pd.DataFrame:
+    """
+    Query the photometry filters table
+
+    Parameters
+    ----------
+    db_file: str
+        The connection string to the database
+
+    Returns
+    -------
+    phot_filters: pd.DataFrame
+        All of the filters, access as: phot_filters.at['effective_wavelength', <bandname>]
+    """
+    db = SimpleDB(db_file, connection_arguments={'check_same_thread': False})
+    phot_filters: pd.DataFrame = db.query(db.PhotometryFilters).pandas().set_index('band').T
+    return phot_filters
+
+
 def mainutils():
     _args = sysargs()  # get all system arguments
     _db_file = f'sqlite:///{_args.file}'  # the database file
+    _phot_filters = get_filters(_db_file)  # the photometric filters
     _all_results, _all_results_full = all_sources(_db_file)  # find all the objects once
-    _all_photo, _all_bands = all_photometry(_db_file)  # get all the photometry
+    _all_photo, _all_bands = all_photometry(_db_file, _phot_filters)  # get all the photometry
     _all_plx = all_parallaxes(_db_file)  # get all the parallaxes
-    return _args, _db_file, _all_results, _all_results_full, _all_photo, _all_bands, _all_plx
+    return _args, _db_file, _phot_filters, _all_results, _all_results_full, _all_photo, _all_bands, _all_plx
 
 
 if __name__ == '__main__':
-    ARGS, DB_FILE, ALL_RESULTS, ALL_RESULTS_FULL, ALL_PHOTO, ALL_BANDS, ALL_PLX = mainutils()
+    ARGS, DB_FILE, PHOTOMETRIC_FILTERS, ALL_RESULTS, ALL_RESULTS_FULL, ALL_PHOTO, ALL_BANDS, ALL_PLX = mainutils()

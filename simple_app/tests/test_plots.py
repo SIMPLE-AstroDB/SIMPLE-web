@@ -37,9 +37,10 @@ def test_specplot(db, test_mainplots):
     return
 
 
-def test_camdplot(db, test_mainplots, test_all_photometry):
+def test_camdplot(db, test_mainplots, test_all_photometry, test_all_sources, test_all_parallaxes, test_get_filters):
     assert db
     allphoto, allbands = test_all_photometry
+    photfilters = test_get_filters
     args = argparse.ArgumentParser()
     args = args.parse_args([])
     args.debug = False
@@ -50,8 +51,12 @@ def test_camdplot(db, test_mainplots, test_all_photometry):
     goodeverything = Inventory(resultdict, args)
     resultdict = db.inventory(bad_query)
     badeverything = Inventory(resultdict, args)
-    goodscript, gooddiv = camdplot(good_query, goodeverything, allbands, allphoto, jscallbacks, nightskytheme)
-    badscript, baddiv = camdplot(bad_query, badeverything, allbands, allphoto, jscallbacks, nightskytheme)
+    allresults, allresultsfull = test_all_sources
+    allplx = test_all_parallaxes
+    goodscript, gooddiv = camdplot(good_query, goodeverything, allbands,
+                                   allresultsfull, allplx, photfilters, allphoto, jscallbacks, nightskytheme)
+    badscript, baddiv = camdplot(bad_query, badeverything, allbands,
+                                 allresultsfull, allplx, photfilters, allphoto, jscallbacks, nightskytheme)
     assert all([type(s) == str for s in (goodscript, gooddiv)])
     assert all([s is None for s in (badscript, baddiv)])
     return

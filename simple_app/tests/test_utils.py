@@ -44,9 +44,10 @@ def test_all_sources(db):
 
 
 @pytest.fixture(scope='module')
-def test_all_photometry(db):
+def test_all_photometry(db, test_get_filters):
     assert db
-    allphoto, allbands = all_photometry(db_cs)
+    photfilters = test_get_filters
+    allphoto, allbands = all_photometry(db_cs, photfilters)
     assert len(allphoto) and len(allbands)
     assert type(allphoto) == pd.DataFrame
     assert type(allbands) == np.ndarray
@@ -60,6 +61,19 @@ def test_all_parallaxes(db):
     assert len(allplx)
     assert type(allplx) == pd.DataFrame
     return allplx
+
+
+@pytest.fixture(scope='module')
+def test_get_filters(db):
+    assert db
+    photfilters = get_filters(db_cs)
+    assert len(photfilters)
+    assert len(photfilters.columns)
+    assert 'effective_wavelength' in photfilters.index
+    assert photfilters.at['effective_wavelength', 'WISE.W1']
+    with pytest.raises(KeyError):
+        _ = photfilters.at['effective_wavelength', 'notaband']
+    return photfilters
 
 
 def test_inventory(db):
@@ -76,10 +90,11 @@ def test_inventory(db):
     return
 
 
-def test_find_colours(db, test_all_photometry):
+def test_find_colours(db, test_all_photometry, test_get_filters):
     assert db
+    photfilters = test_get_filters
     allphoto, allbands = test_all_photometry
-    photodf = find_colours(allphoto, allbands)
+    photodf = find_colours(allphoto, allbands, photfilters)
     assert len(photodf)
     assert type(photodf) == pd.DataFrame
     return
