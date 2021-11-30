@@ -50,7 +50,8 @@ def specplot(query: str, db_file: str, nightskytheme: Theme):
     tspec: Table = db.query(db.Spectra).\
         filter(db.Spectra.c.source == query).\
         table(spectra=['spectrum'])  # query the database for the spectra
-    if not len(tspec):  # if there aren't any spectra, return nothing
+    if not len(tspec) or \
+            all([isinstance(spec['spectrum'], str) for spec in tspec]):  # if there aren't any spectra, return nothing
         return None, None
     p = figure(title='Spectra', plot_height=500,
                active_scroll='wheel_zoom', active_drag='box_zoom',
@@ -61,20 +62,23 @@ def specplot(query: str, db_file: str, nightskytheme: Theme):
     p.xaxis.major_label_text_font_size = '1.5em'
     p.yaxis.major_label_text_font_size = '1.5em'
     p.title.text_font_size = '2em'
+    p.xaxis.axis_label = 'Wavelength [μm]'  # units for wavelength on x axis
+    p.yaxis.axis_label = 'Normalised Flux'  # units for wavelength on y axis
     normfact, ld = None, 'solid'
-    for i, spec in enumerate(tspec):  # over all spectra
+    i = 0
+    for spec in tspec:  # over all spectra
         spectrum: Spectrum1D = spec['spectrum']  # spectrum as an object
+        if isinstance(spectrum, str):
+            continue
         wave: np.ndarray = spectrum.spectral_axis.value  # unpack wavelengths
         flux: np.ndarray = spectrum.flux.value  # unpack fluxes
         label = f'{spec["telescope"]}-{spec["instrument"]}: {spec["observation_date"].date()}'  # legend label
-        if not i:  # first spectra
-            p.xaxis.axis_label = 'Wavelength [μm]'  # units for wavelength on x axis
-            p.yaxis.axis_label = 'Normalised Flux'  # units for wavelength on y axis
-            flux = normalise(flux)  # normalise the flux by the sum
+        flux = normalise(flux)  # normalise the flux by the sum
         if j := i > len(Colorblind8):  # loop around colours if we have more than 8 spectra, and start line dashing
             j = 0
             ld = 'dashed'
         p.line(x=wave, y=flux, legend_label=label, line_color=Colorblind8[j], line_dash=ld)  # create line plot
+        i += 1
     p.legend.click_policy = 'hide'  # hide the graph if clicked on
     p.legend.label_text_font_size = '1.5em'
     script, div = components(p, theme=nightskytheme)  # convert bokeh plot into script and div for html us
