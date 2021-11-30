@@ -4,6 +4,7 @@ File containing the 'workhorse' functions generating the various plots seen on t
 # external packages
 import numpy as np
 import pandas as pd
+import astropy.units as u
 from astropy.table import Table
 from bokeh.embed import components
 from bokeh.layouts import row, column  # bokeh displaying nicely
@@ -70,7 +71,7 @@ def specplot(query: str, db_file: str, nightskytheme: Theme):
         spectrum: Spectrum1D = spec['spectrum']  # spectrum as an object
         if isinstance(spectrum, str):
             continue
-        wave: np.ndarray = spectrum.spectral_axis.value  # unpack wavelengths
+        wave: np.ndarray = spectrum.spectral_axis.to(u.micron).value  # unpack wavelengths
         flux: np.ndarray = spectrum.flux.value  # unpack fluxes
         label = f'{spec["telescope"]}-{spec["instrument"]}: {spec["observation_date"].date()}'  # legend label
         flux = normalise(flux)  # normalise the flux by the sum
