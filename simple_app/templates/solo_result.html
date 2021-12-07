@@ -49,6 +49,7 @@
             <p class="display-6">
                 {{ everything.spectra|safe if everything.spectra
                    else 'No Spectra for ' + query|safe }}
+                {{ failstr if everything.spectra and nfail }}
             </p>
             <div class="row" id="specplot">
                 {{ divspectra|safe if divspectra is not none }}
