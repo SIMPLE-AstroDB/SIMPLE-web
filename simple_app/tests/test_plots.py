@@ -30,8 +30,8 @@ def test_specplot(db, test_mainplots):
     nightskytheme = test_mainplots[0]
     good_query = '2MASS J00192626+4614078'
     bad_query = 'thisisabadquery'
-    goodscript, gooddiv = specplot(good_query, db_cs, nightskytheme)
-    badscript, baddiv = specplot(bad_query, db_cs, nightskytheme)
+    goodscript, gooddiv = specplot(good_query, db_cs, nightskytheme)[:2]
+    badscript, baddiv = specplot(bad_query, db_cs, nightskytheme)[:2]
     assert all([type(s) == str for s in (goodscript, gooddiv)])
     assert all([s is None for s in (badscript, baddiv)])
     return
