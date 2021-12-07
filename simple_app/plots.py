@@ -17,13 +17,15 @@ from bokeh.themes import built_in_themes, Theme
 from specutils import Spectrum1D
 # internal packages
 import sys
+from typing import Tuple, Optional
 # local packages
 sys.path.append('.')
 from simple_app.utils import *
 from simple_app.simple_callbacks import JSCallbacks
 
 
-def specplot(query: str, db_file: str, nightskytheme: Theme):
+def specplot(query: str, db_file: str, nightskytheme: Theme) -> Tuple[Optional[str], Optional[str],
+                                                                      Optional[int], Optional[str]]:
     """
     Creates the bokeh representation of the plot
 
@@ -42,6 +44,10 @@ def specplot(query: str, db_file: str, nightskytheme: Theme):
         script for creating the bokeh plot
     div: str
         the html to be inserted in dom
+    nfail: int
+        the number of failed spectra to be loaded
+    failstr: str
+        the failed spectra
     """
     def normalise(fluxarr: np.ndarray) -> np.ndarray:
         fluxarr = (fluxarr - np.nanmin(fluxarr)) /\
@@ -52,9 +58,10 @@ def specplot(query: str, db_file: str, nightskytheme: Theme):
     tspec: Table = db.query(db.Spectra).\
         filter(db.Spectra.c.source == query).\
         table(spectra=['spectrum'])  # query the database for the spectra
+    nfail, failstrlist = 0, []
     if not len(tspec) or \
             all([isinstance(spec['spectrum'], str) for spec in tspec]):  # if there aren't any spectra, return nothing
-        return None, None
+        return None, None, None, None
     p = figure(title='Spectra', plot_height=500,
                active_scroll='wheel_zoom', active_drag='box_zoom',
                tools='pan,wheel_zoom,box_zoom,reset', toolbar_location='left',
@@ -70,11 +77,16 @@ def specplot(query: str, db_file: str, nightskytheme: Theme):
     i = 0
     for spec in tspec:  # over all spectra
         spectrum: Spectrum1D = spec['spectrum']  # spectrum as an object
-        if isinstance(spectrum, str):
-            continue
         try:
             wave: np.ndarray = spectrum.spectral_axis.to(u.micron).value  # unpack wavelengths
-        except astropy.units.UnitConversionError:
+        except (astropy.units.UnitConversionError, AttributeError):  # check astrodbkit2 has loaded spectra
+            nfail += 1
+            if spec["mode"] is None:
+                failstrlist.append(f'{spec["telescope"]}/{spec["instrument"]} '
+                                   f' ({spec["reference"]})')
+            else:
+                failstrlist.append(f'{spec["telescope"]}/{spec["instrument"]}/{spec["mode"]}'
+                                   f' ({spec["reference"]})')
             continue
         flux: np.ndarray = spectrum.flux.value  # unpack fluxes
         label = f'{spec["telescope"]}-{spec["instrument"]}: {spec["observation_date"].date()}'  # legend label
@@ -84,14 +96,18 @@ def specplot(query: str, db_file: str, nightskytheme: Theme):
             ld = 'dashed'
         p.line(x=wave, y=flux, legend_label=label, line_color=Colorblind8[j], line_dash=ld)  # create line plot
         i += 1
+    failstr = 'The spectra ' + ', '.join(failstrlist) + ' could not be plotted.'
     p.legend.click_policy = 'hide'  # hide the graph if clicked on
     p.legend.label_text_font_size = '1.5em'
-    script, div = components(p, theme=nightskytheme)  # convert bokeh plot into script and div for html us
-    return script, div
+    scriptdiv = components(p, theme=nightskytheme)  # convert bokeh plot into script and div
+    script: str = scriptdiv[0]
+    div: str = scriptdiv[1]
+    return script, div, nfail, failstr
 
 
 def multiplotbokeh(all_results_full: pd.DataFrame, all_bands: np.ndarray,
-                   all_photo: pd.DataFrame, all_plx: pd.DataFrame, jscallbacks: JSCallbacks, nightskytheme: Theme):
+                   all_photo: pd.DataFrame, all_plx: pd.DataFrame,
+                   jscallbacks: JSCallbacks, nightskytheme: Theme) -> Tuple[str, str]:
     """
     The workhorse generating the multiple plots view page
 
@@ -233,7 +249,8 @@ def multiplotbokeh(all_results_full: pd.DataFrame, all_bands: np.ndarray,
 
 def camdplot(query: str, everything: Inventory, all_bands: np.ndarray,
              all_results_full: pd.DataFrame, all_plx: pd.DataFrame, photfilters: pd.DataFrame,
-             all_photo: pd.DataFrame, jscallbacks: JSCallbacks, nightskytheme: Theme):
+             all_photo: pd.DataFrame, jscallbacks: JSCallbacks, nightskytheme: Theme) -> Tuple[Optional[str],
+                                                                                               Optional[str]]:
     """
     Creates CAMD plot as JSON object
 

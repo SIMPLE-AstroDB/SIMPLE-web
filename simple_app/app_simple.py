@@ -77,9 +77,9 @@ def solo_result(query: str):
     everything = Inventory(resultdict, args)  # parsing the inventory into markdown
     scriptcmd, divcmd = camdplot(query, everything, all_bands, all_results_full, all_plx, photfilters,
                                  all_photo, jscallbacks, nightskytheme)
-    scriptspectra, divspectra = specplot(query, db_file, nightskytheme)
+    scriptspectra, divspectra, nfail, failstr = specplot(query, db_file, nightskytheme)
     return render_template('solo_result.html', resources=CDN.render(), scriptcmd=scriptcmd, divcmd=divcmd,
-                           scriptspectra=scriptspectra, divspectra=divspectra,
+                           scriptspectra=scriptspectra, divspectra=divspectra, nfail=nfail, failstr=failstr,
                            query=query, resultdict=resultdict, everything=everything)
 
 
