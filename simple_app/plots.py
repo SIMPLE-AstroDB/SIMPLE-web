@@ -2,6 +2,7 @@
 File containing the 'workhorse' functions generating the various plots seen on the website
 """
 # external packages
+import astropy.units
 import numpy as np
 import pandas as pd
 import astropy.units as u
@@ -71,7 +72,10 @@ def specplot(query: str, db_file: str, nightskytheme: Theme):
         spectrum: Spectrum1D = spec['spectrum']  # spectrum as an object
         if isinstance(spectrum, str):
             continue
-        wave: np.ndarray = spectrum.spectral_axis.to(u.micron).value  # unpack wavelengths
+        try:
+            wave: np.ndarray = spectrum.spectral_axis.to(u.micron).value  # unpack wavelengths
+        except astropy.units.UnitConversionError:
+            continue
         flux: np.ndarray = spectrum.flux.value  # unpack fluxes
         label = f'{spec["telescope"]}-{spec["instrument"]}: {spec["observation_date"].date()}'  # legend label
         flux = normalise(flux)  # normalise the flux by the sum
