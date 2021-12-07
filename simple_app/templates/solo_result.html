@@ -49,6 +49,8 @@
             <p class="display-6">
                 {{ everything.spectra|safe if everything.spectra
                    else 'No Spectra for ' + query|safe }}
+                {{'If any spectra in the table above are not shown in the plot below,
+                   then there is an issue with their automated loading.' if everything.spectra}}
             </p>
             <div class="row" id="specplot">
                 {{ divspectra|safe if divspectra is not none }}
