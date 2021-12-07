@@ -2,7 +2,6 @@
 File containing the 'workhorse' functions generating the various plots seen on the website
 """
 # external packages
-import astropy.units
 import numpy as np
 import pandas as pd
 import astropy.units as u
@@ -79,7 +78,7 @@ def specplot(query: str, db_file: str, nightskytheme: Theme) -> Tuple[Optional[s
         spectrum: Spectrum1D = spec['spectrum']  # spectrum as an object
         try:
             wave: np.ndarray = spectrum.spectral_axis.to(u.micron).value  # unpack wavelengths
-        except (astropy.units.UnitConversionError, AttributeError):  # check astrodbkit2 has loaded spectra
+        except (u.UnitConversionError, AttributeError):  # check astrodbkit2 has loaded spectra
             nfail += 1
             if spec["mode"] is None:
                 failstrlist.append(f'{spec["telescope"]}/{spec["instrument"]} '
