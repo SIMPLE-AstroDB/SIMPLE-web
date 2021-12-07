@@ -107,6 +107,7 @@ class Inventory:
                     inplace=True)
             df = df.loc[:, 'telescope':].copy()
             df['download'] = urlinks
+            df['observation_date'] = df['observation_date'].dt.date
         if rtnmk:  # return markdown boolean
             df.rename(columns={s: s.replace('_', ' ') for s in df.columns}, inplace=True)  # renaming columns
             return markdown(df.to_html(index=False, escape=False,
