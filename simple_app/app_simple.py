@@ -73,11 +73,11 @@ def solo_result(query: str):
     curdoc().template_variables['query'] = query  # add query to bokeh curdoc
     db = SimpleDB(db_file, connection_arguments={'check_same_thread': False})  # open database
     resultdict: dict = db.inventory(query)  # get everything about that object
-    query = query.upper()  # convert query to all upper case
     everything = Inventory(resultdict, args)  # parsing the inventory into markdown
     scriptcmd, divcmd = camdplot(query, everything, all_bands, all_results_full, all_plx, photfilters,
                                  all_photo, jscallbacks, nightskytheme)
     scriptspectra, divspectra, nfail, failstr = specplot(query, db_file, nightskytheme)
+    query = query.upper()  # convert query to all upper case
     return render_template('solo_result.html', resources=CDN.render(), scriptcmd=scriptcmd, divcmd=divcmd,
                            scriptspectra=scriptspectra, divspectra=divspectra, nfail=nfail, failstr=failstr,
                            query=query, resultdict=resultdict, everything=everything)
