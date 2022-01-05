@@ -37,10 +37,30 @@ def specplot(query: str, db_file: str,
     failstr: str
         the failed spectra
     """
-    def normalise(fluxarr: np.ndarray) -> np.ndarray:
-        fluxarr = (fluxarr - np.nanmin(fluxarr)) /\
-                  (np.nanmax(fluxarr) - np.nanmin(fluxarr))
-        return fluxarr
+    def normalise() -> np.ndarray:
+        wavestart = wave[0]
+        waveend = wave[-1]
+        objminwave, objmaxwave = minwave, maxwave = 0.81, 0.82
+        if wavestart > minwave and waveend > minwave and wavestart > maxwave and waveend > maxwave:
+            objminwave = wavestart
+            objmaxwave = wavestart + 0.01
+        elif minwave < wavestart < maxwave <= waveend and waveend > minwave:
+            objminwave = wavestart
+            objmaxwave = maxwave
+        elif wavestart <= minwave < waveend and wavestart < maxwave <= waveend:
+            objminwave = minwave
+            objmaxwave = maxwave
+        elif wavestart <= minwave < waveend < maxwave and wavestart < maxwave:
+            objminwave = minwave
+            objmaxwave = waveend
+        elif wavestart < minwave and waveend < minwave and wavestart < maxwave and waveend < maxwave:
+            objminwave = waveend - 0.01
+            objmaxwave = waveend
+        if objmaxwave - objminwave < 0.01:
+            objmaxwave = objminwave + 0.01
+        fluxreg = flux[(wave >= objminwave) & (wave <= objmaxwave)]
+        fluxmed = np.nanmedian(fluxreg)
+        return flux / fluxmed
 
     db = SimpleDB(db_file, connection_arguments={'check_same_thread': False})  # open database
     tspec: Table = db.query(db.Spectra).\
@@ -81,8 +101,8 @@ def specplot(query: str, db_file: str,
         label = f'{spec["telescope"]}-{spec["instrument"]}: {spec["observation_date"].date()}'  # legend label
         normminwave = wave[0] if wave[0] < normminwave else normminwave
         normmaxwave = wave[-1] if wave[-1] > normmaxwave else normmaxwave
-        normedflux = normalise(flux)  # normalise the flux by the sum
-        cds = ColumnDataSource(data=dict(wave=wave, flux=flux, normflux=normedflux))
+        normflux = normalise()  # normalise the flux by the sum
+        cds = ColumnDataSource(data=dict(wave=wave, flux=flux, normflux=normflux))
         cdslist.append(cds)
         if j := i > len(Colorblind8):  # loop around colours if we have more than 8 spectra, and start line dashing
             j = 0
