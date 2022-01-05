@@ -1,26 +1,10 @@
 """
 File containing the 'workhorse' functions generating the various plots seen on the website
 """
-# external packages
-import numpy as np
-import pandas as pd
-import astropy.units as u
-from astropy.table import Table
-from bokeh.embed import components
-from bokeh.layouts import row, column  # bokeh displaying nicely
-from bokeh.models import ColumnDataSource, Range1d, CustomJS,\
-    Select, Toggle, TapTool, OpenURL, HoverTool  # bokeh models
-from bokeh.palettes import Colorblind8
-from bokeh.plotting import figure  # bokeh plotting
-from bokeh.themes import built_in_themes, Theme
-from specutils import Spectrum1D
-# internal packages
 import sys
-from typing import Tuple, Optional
 # local packages
 sys.path.append('.')
 from simple_app.utils import *
-from simple_app.simple_callbacks import JSCallbacks
 
 
 def specplot(query: str, db_file: str, nightskytheme: Theme) -> Tuple[Optional[str], Optional[str],

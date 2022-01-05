@@ -1,18 +1,10 @@
 """
 The static functions for various calculations and required parameters
 """
-# external packages
-from astrodbkit2.astrodb import Database, REFERENCE_TABLES  # used for pulling out database and querying
-from astropy.coordinates import SkyCoord
-from flask_wtf import FlaskForm  # web forms
-from markdown2 import markdown  # using markdown formatting
-import numpy as np  # numerical python
-import pandas as pd  # running dataframes
-from tqdm import tqdm
-from wtforms import StringField, SubmitField  # web forms
-# internal packages
-import argparse  # system arguments
-from typing import Union, List  # type hinting
+import sys
+# local packages
+sys.path.append('.')
+from simple_app.simports import *
 
 
 def sysargs():
@@ -121,6 +113,31 @@ class SearchForm(FlaskForm):
     """
     search = StringField('Search for an object:', id='autocomplete')  # searchbar
     submit = SubmitField('Query', id='querybutton')  # clicker button to send request
+
+
+class JSCallbacks:
+    dropdownx_js = ''
+    dropdowny_js = ''
+    button_flip = ''
+
+    def __init__(self):
+        jsfuncnames = ('dropdownx_js', 'dropdowny_js', 'button_flip')
+        with open('simple_app/simple_callbacks.js', 'r') as fcall:
+            whichvar = ''
+            outstr = """"""
+            for line in fcall:
+                for funcname in jsfuncnames:
+                    if funcname in line:
+                        whichvar = funcname
+                        outstr = """"""
+                        break
+                else:
+                    if line.startswith('}'):
+                        setattr(self, whichvar, outstr)
+                        whichvar = ''
+                        outstr = """"""
+                        continue
+                    outstr = '\n'.join([outstr, line.strip('\n')])
 
 
 def all_sources(db_file: str):

@@ -2,14 +2,6 @@
 This is the main script to be run from the directory root, it will start the Flask application running which one can
 then connect to.
 """
-# external packages
-from bokeh.plotting import curdoc  # bokeh plotting
-from bokeh.resources import CDN
-from flask import Flask, render_template, jsonify  # website functionality
-from flask_cors import CORS  # cross origin fix (aladin mostly)
-# internal packages
-import os  # operating system
-from urllib.parse import quote  # handling strings into url friendly form
 # local packages
 from plots import *
 from utils import *
