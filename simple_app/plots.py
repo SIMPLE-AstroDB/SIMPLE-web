@@ -3,8 +3,6 @@ File containing the 'workhorse' functions generating the various plots seen on t
 """
 import sys
 # local packages
-import numpy as np
-
 sys.path.append('.')
 from simple_app.utils import *
 
