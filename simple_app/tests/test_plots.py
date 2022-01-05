@@ -27,11 +27,11 @@ def test_multiplotbokeh(db, test_all_sources, test_all_photometry, test_all_para
 
 def test_specplot(db, test_mainplots):
     assert db
-    nightskytheme = test_mainplots[0]
+    nightskytheme, jscallbacks = test_mainplots
     good_query = '2MASS J00192626+4614078'
     bad_query = 'thisisabadquery'
-    goodscript, gooddiv = specplot(good_query, db_cs, nightskytheme)[:2]
-    badscript, baddiv = specplot(bad_query, db_cs, nightskytheme)[:2]
+    goodscript, gooddiv = specplot(good_query, db_cs, nightskytheme, jscallbacks)[:2]
+    badscript, baddiv = specplot(bad_query, db_cs, nightskytheme, jscallbacks)[:2]
     assert all([type(s) == str for s in (goodscript, gooddiv)])
     assert all([s is None for s in (badscript, baddiv)])
     return

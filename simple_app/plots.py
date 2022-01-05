@@ -3,11 +3,14 @@ File containing the 'workhorse' functions generating the various plots seen on t
 """
 import sys
 # local packages
+import numpy as np
+
 sys.path.append('.')
 from simple_app.utils import *
 
 
-def specplot(query: str, db_file: str, nightskytheme: Theme) -> Tuple[Optional[str], Optional[str],
+def specplot(query: str, db_file: str,
+             nightskytheme: Theme, jscallbacks: JSCallbacks) -> Tuple[Optional[str], Optional[str],
                                                                       Optional[int], Optional[str]]:
     """
     Creates the bokeh representation of the plot
@@ -20,6 +23,8 @@ def specplot(query: str, db_file: str, nightskytheme: Theme) -> Tuple[Optional[s
         The connection string of the database
     nightskytheme: Theme
         The bokeh theme
+    jscallbacks: JSCallbacks
+        An instance containing the javascript as strings
 
     Returns
     -------
@@ -57,6 +62,8 @@ def specplot(query: str, db_file: str, nightskytheme: Theme) -> Tuple[Optional[s
     p.yaxis.axis_label = 'Normalised Flux'  # units for wavelength on y axis
     normfact, ld = None, 'solid'
     i = 0
+    cdslist = []
+    normminwave, normmaxwave = 0.81, 0.82
     for spec in tspec:  # over all spectra
         spectrum: Spectrum1D = spec['spectrum']  # spectrum as an object
         try:
@@ -72,18 +79,31 @@ def specplot(query: str, db_file: str, nightskytheme: Theme) -> Tuple[Optional[s
             continue
         flux: np.ndarray = spectrum.flux.value  # unpack fluxes
         label = f'{spec["telescope"]}-{spec["instrument"]}: {spec["observation_date"].date()}'  # legend label
-        flux = normalise(flux)  # normalise the flux by the sum
+        normminwave = wave[0] if wave[0] < normminwave else normminwave
+        normmaxwave = wave[-1] if wave[-1] > normmaxwave else normmaxwave
+        normedflux = normalise(flux)  # normalise the flux by the sum
+        cds = ColumnDataSource(data=dict(wave=wave, flux=flux, normflux=normedflux))
+        cdslist.append(cds)
         if j := i > len(Colorblind8):  # loop around colours if we have more than 8 spectra, and start line dashing
             j = 0
             ld = 'dashed'
-        p.line(x=wave, y=flux, legend_label=label, line_color=Colorblind8[j], line_dash=ld)  # create line plot
+        p.line(x='wave', y='normflux', source=cds, legend_label=label,
+               line_color=Colorblind8[j], line_dash=ld)  # create line plot
         i += 1
     failstr = 'The spectra ' + ', '.join(failstrlist) + ' could not be plotted.'
     if not i:
         return None, None, nfail, failstr
     p.legend.click_policy = 'hide'  # hide the graph if clicked on
     p.legend.label_text_font_size = '1.5em'
-    scriptdiv = components(p, theme=nightskytheme)  # convert bokeh plot into script and div
+    spmin = Span(location=0.81, dimension='height', line_color='white', line_dash='dashed')
+    spmax = Span(location=0.82, dimension='height', line_color='white', line_dash='dashed')
+    spslide = RangeSlider(start=normminwave, end=normmaxwave, value=(0.81, 0.82), step=0.01, title='Normalisation')
+    spslide.js_on_change('value', CustomJS(args=dict(spmin=spmin, spmax=spmax, cdslist=cdslist),
+                                           code=jscallbacks.normslider))
+    for sp in (spmin, spmax):
+        p.add_layout(sp)
+    scriptdiv = components(column(p, spslide, sizing_mode='stretch_width'),
+                           theme=nightskytheme)  # convert bokeh plot into script and div
     script: str = scriptdiv[0]
     div: str = scriptdiv[1]
     return script, div, nfail, failstr

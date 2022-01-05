@@ -85,3 +85,11 @@ function button_flip(axrange) {
     axrange.end = newend;
     axrange.change.emit()
 }
+
+function normslider(spmin, spmax, cdslist) {
+    let minwave = this.value[0];
+    let maxwave = this.value[1];
+    console.log(minwave, maxwave, cdslist);
+    spmin.location = minwave;
+    spmax.location = maxwave;
+}

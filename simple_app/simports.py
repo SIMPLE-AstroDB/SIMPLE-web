@@ -6,7 +6,7 @@ from astropy.table import Table  # tables in astropy
 from bokeh.embed import components  # converting python bokeh to javascript
 from bokeh.layouts import row, column  # bokeh displaying nicely
 from bokeh.models import ColumnDataSource, Range1d, CustomJS,\
-    Select, Toggle, TapTool, OpenURL, HoverTool  # bokeh models
+    Select, Toggle, TapTool, OpenURL, HoverTool, Span, RangeSlider  # bokeh models
 from bokeh.palettes import Colorblind8
 from bokeh.plotting import figure, curdoc  # bokeh plotting
 from bokeh.resources import CDN  # resources for webpage
