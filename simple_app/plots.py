@@ -58,8 +58,7 @@ def specplot(query: str, db_file: str, nightskytheme: Theme) -> Tuple[Optional[s
         filter(db.Spectra.c.source == query).\
         table(spectra=['spectrum'])  # query the database for the spectra
     nfail, failstrlist = 0, []
-    if not len(tspec) or \
-            all([isinstance(spec['spectrum'], str) for spec in tspec]):  # if there aren't any spectra, return nothing
+    if not len(tspec):  # if there aren't any spectra, return nothing
         return None, None, None, None
     p = figure(title='Spectra', plot_height=500,
                active_scroll='wheel_zoom', active_drag='box_zoom',
@@ -96,6 +95,8 @@ def specplot(query: str, db_file: str, nightskytheme: Theme) -> Tuple[Optional[s
         p.line(x=wave, y=flux, legend_label=label, line_color=Colorblind8[j], line_dash=ld)  # create line plot
         i += 1
     failstr = 'The spectra ' + ', '.join(failstrlist) + ' could not be plotted.'
+    if not i:
+        return None, None, nfail, failstr
     p.legend.click_policy = 'hide'  # hide the graph if clicked on
     p.legend.label_text_font_size = '1.5em'
     scriptdiv = components(p, theme=nightskytheme)  # convert bokeh plot into script and div
