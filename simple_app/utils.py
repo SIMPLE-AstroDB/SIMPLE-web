@@ -492,6 +492,47 @@ def get_filters(db_file: str) -> pd.DataFrame:
     return phot_filters
 
 
+def checkdict(ref: str, refdict: dict, altref: str = 'altname', replace: bool = None) -> bool:
+    """
+    Checking dictionary, taken from splat
+
+    Parameters
+    ----------
+    ref: str
+        The reference to check
+    refdict: dict
+        The dictionary the reference should be in
+    altref: str
+        The alternate reference name
+    replace: bool
+        Switch whether reference should be edited
+
+    Returns
+    -------
+    output: bool
+        Switch that everything is okay or not
+    """
+    if replace is None:
+        replace = []
+    output = False
+    refc = deepcopy(ref)
+
+    # check reference
+    if not isinstance(refc, str):
+        return output
+    if len(replace):
+        for rep in replace:
+            if isinstance(rep, list) and len(rep):
+                refc = refc.replace(rep[0], rep[1])
+    for k in list(refdict.keys()):
+        if refc.lower() == k.lower():
+            output = k
+        if altref in list(refdict[k].keys()):
+            if refc.lower() in [x.lower() for x in list(refdict[k][altref])]:
+                output = k
+    return output
+
+
 def mainutils():
     _args = sysargs()  # get all system arguments
     _db_file = f'sqlite:///{_args.file}'  # the database file

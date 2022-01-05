@@ -6,7 +6,7 @@ from astropy.table import Table  # tables in astropy
 from bokeh.embed import components  # converting python bokeh to javascript
 from bokeh.layouts import row, column  # bokeh displaying nicely
 from bokeh.models import ColumnDataSource, Range1d, CustomJS,\
-    Select, Toggle, TapTool, OpenURL, HoverTool, Span, RangeSlider  # bokeh models
+    Select, Toggle, TapTool, OpenURL, HoverTool, Span, RangeSlider, Label  # bokeh models
 from bokeh.palettes import Colorblind8
 from bokeh.plotting import figure, curdoc  # bokeh plotting
 from bokeh.resources import CDN  # resources for webpage
@@ -24,6 +24,7 @@ from wtforms import StringField, SubmitField  # web forms
 
 # internal packages
 import argparse  # parsing the arguments given with file
+from copy import deepcopy
 import os  # operating system
 from shutil import copy  # copying files
 import sys  # system arguments

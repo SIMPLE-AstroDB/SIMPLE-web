@@ -8,6 +8,56 @@ import numpy as np
 sys.path.append('.')
 from simple_app.utils import *
 
+# feature labels taken from splat
+FEATURE_LABELS = {
+    'h2o': {'altname': [], 'label': r'H$_2$O', 'type': 'band',
+            'wavelengths': [[0.925, 0.95], [1.08, 1.20], [1.325, 1.550],
+                            [1.72, 2.14]]},
+    'ch4': {'altname': [], 'label': r'CH$_4$', 'type': 'band',
+            'wavelengths': [[1.1, 1.24], [1.28, 1.44], [1.6, 1.76],
+                            [2.2, 2.35]]},
+    'co': {'altname': [], 'label': r'CO', 'type': 'band', 'wavelengths': [[2.29, 2.39]]},
+    'tio': {'altname': [], 'label': r'TiO', 'type': 'band',
+            'wavelengths': [[0.6569, 0.6852], [0.705, 0.727], [0.76, 0.80],
+                            [0.825, 0.831], [0.845, 0.86]]},
+    'vo': {'altname': [], 'label': r'VO', 'type': 'band', 'wavelengths': [[1.04, 1.08]]},
+    'young vo': {'altname': [], 'label': r'VO', 'type': 'band', 'wavelengths': [[1.17, 1.20]]},
+    'cah': {'altname': [], 'label': r'CaH', 'type': 'band',
+            'wavelengths': [[0.6346, 0.639], [0.675, 0.705]]},
+    'crh': {'altname': [], 'label': r'CrH', 'type': 'band', 'wavelengths': [[0.8611, 0.8681]]},
+    'feh': {'altname': [], 'label': r'FeH', 'type': 'band',
+            'wavelengths': [[0.8692, 0.875], [0.98, 1.03], [1.19, 1.25],
+                            [1.57, 1.64]]},
+    'h2': {'altname': ['cia h2'], 'label': r'H$_2$', 'type': 'band', 'wavelengths': [[1.5, 2.4]]},
+    'sb': {'altname': ['binary', 'lt binary', 'spectral binary'], 'label': r'*', 'type': 'band',
+           'wavelengths': [[1.6, 1.64]]},
+    'h': {'altname': ['hi', 'h1'], 'label': r'H I', 'type': 'line',
+          'wavelengths': [[1.004, 1.005], [1.093, 1.094], [1.281, 1.282],
+                          [1.944, 1.945], [2.166, 2.166]]},
+    'na': {'altname': ['nai', 'na1'], 'label': r'Na I', 'type': 'line',
+           'wavelengths': [[0.8186, 0.8195], [1.136, 1.137], [2.206, 2.209]]},
+    'cs': {'altname': ['csi', 'cs1'], 'label': r'Cs I', 'type': 'line',
+           'wavelengths': [[0.8521, 0.8521], [0.8943, 0.8943]]},
+    'rb': {'altname': ['rbi', 'rb1'], 'label': r'Rb I', 'type': 'line',
+           'wavelengths': [[0.78, 0.78], [0.7948, 0.7948]]},
+    'mg': {'altname': ['mgi', 'mg1'], 'label': r'Mg I', 'type': 'line',
+           'wavelengths': [[1.7113336, 1.7113336], [1.5745017, 1.5770150],
+                           [1.4881595, 1.4881847, 1.5029098, 1.5044356], [1.1831422, 1.2086969]]},
+    'ca': {'altname': ['cai', 'ca1'], 'label': r'Ca I', 'type': 'line',
+           'wavelengths': [[0.6573, 0.6573], [2.263110, 2.265741],
+                           [1.978219, 1.985852, 1.986764], [1.931447, 1.945830, 1.951105]]},
+    'caii': {'altname': ['ca2'], 'label': r'Ca II', 'type': 'line',
+             'wavelengths': [[1.184224, 1.195301], [0.985746, 0.993409]]},
+    'al': {'altname': ['ali', 'al1'], 'label': r'Al I', 'type': 'line',
+           'wavelengths': [[1.672351, 1.675511], [1.3127006, 1.3154345]]},
+    'fe': {'altname': ['fei', 'fe1'], 'label': r'Fe I', 'type': 'line',
+           'wavelengths': [[1.5081407, 1.5494570], [1.25604314, 1.28832892],
+                           [1.14254467, 1.15967616, 1.16107501, 1.16414462, 1.16931726, 1.18860965, 1.18873357,
+                            1.19763233]]},
+    'k': {'altname': ['ki', 'k1'], 'label': r'K I', 'type': 'line',
+          'wavelengths': [[0.7699, 0.7665], [1.169, 1.177], [1.244, 1.252]]},
+}
+
 
 def specplot(query: str, db_file: str,
              nightskytheme: Theme, jscallbacks: JSCallbacks) -> Tuple[Optional[str], Optional[str],
@@ -84,6 +134,7 @@ def specplot(query: str, db_file: str,
     i = 0
     cdslist = []
     normminwave, normmaxwave = 0.81, 0.82
+    fluxmin, fluxmax = np.inf, -np.inf
     for spec in tspec:  # over all spectra
         spectrum: Spectrum1D = spec['spectrum']  # spectrum as an object
         try:
@@ -102,6 +153,8 @@ def specplot(query: str, db_file: str,
         normminwave = wave[0] if wave[0] < normminwave else normminwave
         normmaxwave = wave[-1] if wave[-1] > normmaxwave else normmaxwave
         normflux = normalise()  # normalise the flux by the sum
+        fluxmin = np.min(normflux) if np.min(normflux) < fluxmin else fluxmin
+        fluxmax = np.max(normflux) if np.max(normflux) > fluxmax else fluxmax
         cds = ColumnDataSource(data=dict(wave=wave, flux=flux, normflux=normflux))
         cdslist.append(cds)
         if j := i > len(Colorblind8):  # loop around colours if we have more than 8 spectra, and start line dashing
@@ -113,6 +166,8 @@ def specplot(query: str, db_file: str,
     failstr = 'The spectra ' + ', '.join(failstrlist) + ' could not be plotted.'
     if not i:
         return None, None, nfail, failstr
+    bounds = [normminwave, normmaxwave, fluxmin, fluxmax]
+    features = ['k', 'na', 'feh', 'tio', 'co']
     p.legend.click_policy = 'hide'  # hide the graph if clicked on
     p.legend.label_text_font_size = '1.5em'
     spmin = Span(location=0.81, dimension='height', line_color='white', line_dash='dashed')
@@ -122,6 +177,28 @@ def specplot(query: str, db_file: str,
                                            code=jscallbacks.normslider))
     for sp in (spmin, spmax):
         p.add_layout(sp)
+    # all this features stuff is heavily taken from splat
+    yoff = 0.02 * (bounds[3] - bounds[2])  # label offset
+    for ftr in features:
+        if ftr in FEATURE_LABELS:
+            ftrc = checkdict(ftr, FEATURE_LABELS)
+            if ftrc:
+                for ii, waverng in enumerate(FEATURE_LABELS[ftrc]['wavelengths']):
+                    # features must be contained in plot range (may change this)
+                    if np.nanmin(waverng) > bounds[0] and np.nanmax(waverng) < bounds[1]:
+                        y = (bounds[3] - bounds[2]) / 2 + bounds[2]
+                        if FEATURE_LABELS[ftrc]['type'] == 'band':
+                            p.line(waverng, [y + yoff] * 2, color='white', legend_label='Features')
+                            lfeat = p.line([waverng[0]] * 2, [y, y + yoff], color='white', legend_label='Features')
+                            t = Label(x=np.mean(waverng), y=y + 1.5 * yoff, text=FEATURE_LABELS[ftrc]['label'])
+                        else:
+                            lfeat = None
+                            for w in waverng:
+                                lfeat = p.line([w] * 2, [y, y + yoff], color='white', legend_label='Features')
+                            t = Label(x=np.mean(waverng), y=y + 1.5 * yoff, text=FEATURE_LABELS[ftrc]['label'])
+                        p.add_layout(t)
+                        lfeat.js_on_change('visible', CustomJS(args=dict(t=t),
+                                                               code='''t.visible = cb_obj.visible;'''))
     scriptdiv = components(column(p, spslide, sizing_mode='stretch_width'),
                            theme=nightskytheme)  # convert bokeh plot into script and div
     script: str = scriptdiv[0]
