@@ -1,26 +1,26 @@
-function dropdownx_js() {
+function dropdownx_js(fulldata, fullplot, xrange, xbut, xaxis, thisplot) {
     for (let i = 0; i < this.options.length; i++) {
-        if (this.value == this.options[i][0]) {
+        if (this.value === this.options[i][0]) {
             this.label = this.options[i][1];
             break;
         }
     }
-    var fullvalue = this.value;
+    let fullvalue = this.value;
     if (fullvalue.includes('(')) {
         fullvalue = fullvalue.substr(0, fullvalue.indexOf('('));
     }
-    var newx = fulldata[fullvalue];
-    var newnewx = [];
+    let newx = fulldata[fullvalue];
+    let newnewx = [];
     for (let i = 0; i < newx.length; i++) {
-        var val = newx[i];
+        let val = newx[i];
         if (isNaN(val)) {
             continue;
         }
         newnewx.push(val);
     }
     newx = newnewx;
-    var minx = Math.min(...newx);
-    var maxx = Math.max(...newx);
+    let minx = Math.min(...newx);
+    let maxx = Math.max(...newx);
     if (xbut.active) {
         xrange.start = maxx;
         xrange.end = minx;
@@ -38,29 +38,29 @@ function dropdownx_js() {
     fullplot.glyph.change.emit();
 }
 
-function dropdowny_js() {
+function dropdowny_js(fulldata, fullplot, yrange, ybut, yaxis, thisplot) {
     for (let i = 0; i < this.options.length; i++) {
-        if (this.value == this.options[i][0]) {
+        if (this.value === this.options[i][0]) {
             this.label = this.options[i][1];
             break;
         }
     }
-    var fullvalue = this.value;
+    let fullvalue = this.value;
     if (fullvalue.includes('(')) {
         fullvalue = fullvalue.substr(0, fullvalue.indexOf('('));
     }
-    var newy = fulldata[fullvalue];
-    var newnewy = [];
+    let newy = fulldata[fullvalue];
+    let newnewy = [];
     for (let i = 0; i < newy.length; i++) {
-        var val = newy[i];
+        let val = newy[i];
         if (isNaN(val)) {
             continue;
         }
         newnewy.push(val);
     }
     newy = newnewy;
-    var miny = Math.min(...newy);
-    var maxy = Math.max(...newy);
+    let miny = Math.min(...newy);
+    let maxy = Math.max(...newy);
     if (ybut.active) {
         yrange.start = maxy;
         yrange.end = miny;
@@ -78,9 +78,9 @@ function dropdowny_js() {
     fullplot.glyph.change.emit();
 }
 
-function button_flip() {
-    var newstart = axrange.end;
-    var newend = axrange.start;
+function button_flip(axrange) {
+    let newstart = axrange.end;
+    let newend = axrange.start;
     axrange.start = newstart;
     axrange.end = newend;
     axrange.change.emit()
