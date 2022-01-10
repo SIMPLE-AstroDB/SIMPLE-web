@@ -114,7 +114,7 @@ def specplot(query: str, db_file: str,
         return None, None, None, None
     p = figure(title='Spectra', plot_height=500,
                active_scroll='wheel_zoom', active_drag='box_zoom',
-               tools='pan,wheel_zoom,box_zoom,reset', toolbar_location='left',
+               tools='pan,wheel_zoom,box_zoom,save,reset', toolbar_location='left',
                sizing_mode='stretch_width')  # init figure
     p.xaxis.axis_label_text_font_size = '1.5em'
     p.yaxis.axis_label_text_font_size = '1.5em'
@@ -125,7 +125,7 @@ def specplot(query: str, db_file: str,
     p.yaxis.axis_label = 'Normalised Flux'  # units for wavelength on y axis
     normfact, ld = None, 'solid'
     i = 0
-    cdslist = []
+    cdslist, lineplots = [], []
     normminwave, normmaxwave = 0.81, 0.82
     fluxmin, fluxmax = np.inf, -np.inf
     for spec in tspec:  # over all spectra
@@ -153,13 +153,15 @@ def specplot(query: str, db_file: str,
         if j := i > len(Colorblind8):  # loop around colours if we have more than 8 spectra, and start line dashing
             j = 0
             ld = 'dashed'
-        p.line(x='wave', y='normflux', source=cds, legend_label=label,
-               line_color=Colorblind8[j], line_dash=ld)  # create line plot
+        lineplot = p.line(x='wave', y='normflux', source=cds, legend_label=label,
+                          line_color=Colorblind8[j], line_dash=ld)  # create line plot
+        lineplots.append(lineplot)
         i += 1
     failstr = 'The spectra ' + ', '.join(failstrlist) + ' could not be plotted.'
     if not i:
         return None, None, nfail, failstr
     bounds = [normminwave, normmaxwave, fluxmin, fluxmax]
+    p.add_tools(HoverTool(tooltips=[('Wave', '@wave'), ('Flux', '@flux')], renderers=lineplots))
     features = ['k', 'na', 'feh', 'tio', 'co']
     p.legend.click_policy = 'hide'  # hide the graph if clicked on
     p.legend.label_text_font_size = '1.5em'
@@ -184,12 +186,14 @@ def specplot(query: str, db_file: str,
                         if FEATURE_LABELS[ftrc]['type'] == 'band':
                             p.line(waverng, [y + yoff] * 2, color='white', legend_label='Features')
                             lfeat = p.line([waverng[0]] * 2, [y, y + yoff], color='white', legend_label='Features')
-                            t = Label(x=np.mean(waverng), y=y + 1.5 * yoff, text=FEATURE_LABELS[ftrc]['label'])
+                            t = Label(x=np.mean(waverng), y=y + 1.5 * yoff, text=FEATURE_LABELS[ftrc]['label'],
+                                      text_color='white')
                         else:
                             lfeat = None
                             for w in waverng:
                                 lfeat = p.line([w] * 2, [y, y + yoff], color='white', legend_label='Features')
-                            t = Label(x=np.mean(waverng), y=y + 1.5 * yoff, text=FEATURE_LABELS[ftrc]['label'])
+                            t = Label(x=np.mean(waverng), y=y + 1.5 * yoff, text=FEATURE_LABELS[ftrc]['label'],
+                                      text_color='white')
                         p.add_layout(t)
                         lfeat.js_on_change('visible', CustomJS(args=dict(t=t),
                                                                code='''t.visible = cb_obj.visible;'''))
