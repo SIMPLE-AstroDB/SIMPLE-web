@@ -145,7 +145,10 @@ function normslider(spmin, spmax, cdslist) {
         let indmin = wave.findIndex(mincheck, comparisons);
         let indmax = wave.findIndex(maxcheck, comparisons);
         let fluxreg = data.flux.slice(indmin, indmax);
-        let med = median(fluxreg);
+        let med = median(data.flux);
+        if (fluxreg.length > 0) {
+            med = median(fluxreg);
+        }
         for (let j = 0; j < wave.length; j++) {
             data.normflux[j] = data.flux[j] / med;
         }

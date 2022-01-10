@@ -3,6 +3,8 @@ File containing the 'workhorse' functions generating the various plots seen on t
 """
 import sys
 # local packages
+import numpy as np
+
 sys.path.append('.')
 from simple_app.utils import *
 
@@ -89,28 +91,18 @@ def specplot(query: str, db_file: str,
         """
         Normalises the flux using the wave & flux variables in the surrounding scope
         """
-        wavestart = wave[0]
-        waveend = wave[-1]
-        objminwave, objmaxwave = minwave, maxwave = 0.81, 0.82
-        if wavestart > minwave and waveend > minwave and wavestart > maxwave and waveend > maxwave:
-            objminwave = wavestart
-            objmaxwave = wavestart + 0.01
-        elif minwave < wavestart < maxwave <= waveend and waveend > minwave:
-            objminwave = wavestart
-            objmaxwave = maxwave
-        elif wavestart <= minwave < waveend and wavestart < maxwave <= waveend:
-            objminwave = minwave
-            objmaxwave = maxwave
-        elif wavestart <= minwave < waveend < maxwave and wavestart < maxwave:
-            objminwave = minwave
-            objmaxwave = waveend
-        elif wavestart < minwave and waveend < minwave and wavestart < maxwave and waveend < maxwave:
-            objminwave = waveend - 0.01
-            objmaxwave = waveend
-        if objmaxwave - objminwave < 0.01:
-            objmaxwave = objminwave + 0.01
-        fluxreg = flux[(wave >= objminwave) & (wave <= objmaxwave)]
-        fluxmed = np.nanmedian(fluxreg)
+        wavestart, waveend = wave[0], wave[-1]  # start and end points of wavelength array
+        minwave, maxwave = 0.81, 0.82  # normalisation region bounds
+        objminwave, objmaxwave = np.clip([minwave, maxwave], wavestart, waveend)  # clipping bounds on wavelength
+        if np.isclose(objminwave, waveend):  # if clipped by end of wavelength
+            objminwave -= 0.01  # shift minimum down
+        if np.isclose(objmaxwave, wavestart):  # if clipped by start of wavelength
+            objmaxwave += 0.01  # shift maximum up
+        fluxreg = flux[(wave >= objminwave) & (wave <= objmaxwave)]  # cut flux to region
+        if len(fluxreg):
+            fluxmed = np.nanmedian(fluxreg)
+        else:
+            fluxmed = np.nanmedian(flux)  # for spectra with wavelength steps < 100A
         return flux / fluxmed
 
     db = SimpleDB(db_file, connection_arguments={'check_same_thread': False})  # open database
