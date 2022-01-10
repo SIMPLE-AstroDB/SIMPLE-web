@@ -157,3 +157,8 @@ function normslider(spmin, spmax, cdslist) {
     spmin.location = minwave;
     spmax.location = maxwave;
 }
+
+function reset_slider (spslide) {
+    spslide.value = [0.81, 0.82];
+    spslide.change.emit();
+}

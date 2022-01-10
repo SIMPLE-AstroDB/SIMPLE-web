@@ -123,9 +123,10 @@ class JSCallbacks:
     dropdowny_js = ''
     button_flip = ''
     normslider = ''
+    reset_slider = ''
 
     def __init__(self):
-        jsfuncnames = ('dropdownx_js', 'dropdowny_js', 'button_flip', 'normslider')
+        jsfuncnames = ('dropdownx_js', 'dropdowny_js', 'button_flip', 'normslider', 'reset_slider')
         with open('simple_app/simple_callbacks.js', 'r') as fcall:
             whichvar = ''
             outstr = """"""

@@ -166,6 +166,7 @@ def specplot(query: str, db_file: str,
     spmin = Span(location=0.81, dimension='height', line_color='white', line_dash='dashed')
     spmax = Span(location=0.82, dimension='height', line_color='white', line_dash='dashed')
     spslide = RangeSlider(start=normminwave, end=normmaxwave, value=(0.81, 0.82), step=0.01, title='Normalisation')
+    p.js_on_event('reset', CustomJS(args=dict(spslide=spslide), code=jscallbacks.reset_slider))
     spslide.js_on_change('value', CustomJS(args=dict(spmin=spmin, spmax=spmax, cdslist=cdslist),
                                            code=jscallbacks.normslider))
     for sp in (spmin, spmax):
