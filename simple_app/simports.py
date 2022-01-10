@@ -1,3 +1,6 @@
+"""
+Importing all packages
+"""
 # external packages
 from astrodbkit2.astrodb import Database, REFERENCE_TABLES  # used for pulling out database and querying
 from astropy.coordinates import SkyCoord  # coordinates

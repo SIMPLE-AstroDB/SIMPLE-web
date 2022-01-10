@@ -86,6 +86,9 @@ def specplot(query: str, db_file: str,
         the failed spectra
     """
     def normalise() -> np.ndarray:
+        """
+        Normalises the flux using the wave & flux variables in the surrounding scope
+        """
         wavestart = wave[0]
         waveend = wave[-1]
         objminwave, objmaxwave = minwave, maxwave = 0.81, 0.82
@@ -454,6 +457,9 @@ def camdplot(query: str, everything: Inventory, all_bands: np.ndarray,
 
 
 def mainplots():
+    """
+    Control module, called to grab the specific instances relating to plotting.
+    """
     _nightskytheme = built_in_themes['night_sky']  # darker theme for bokeh
     _jscallbacks = JSCallbacks()  # grab the callbacks for bokeh interactivity
     return _nightskytheme, _jscallbacks

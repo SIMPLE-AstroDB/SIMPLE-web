@@ -116,6 +116,9 @@ class SearchForm(FlaskForm):
 
 
 class JSCallbacks:
+    """
+    Converts javascript callbacks into python triple quoted strings
+    """
     dropdownx_js = ''
     dropdowny_js = ''
     button_flip = ''
@@ -534,6 +537,9 @@ def checkdict(ref: str, refdict: dict, altref: str = 'altname', replace: bool = 
 
 
 def mainutils():
+    """
+    Control module called when grabbing all instances from utils scripts.
+    """
     _args = sysargs()  # get all system arguments
     _db_file = f'sqlite:///{_args.file}'  # the database file
     _phot_filters = get_filters(_db_file)  # the photometric filters
