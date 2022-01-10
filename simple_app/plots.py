@@ -176,27 +176,23 @@ def specplot(query: str, db_file: str,
     # all this features stuff is heavily taken from splat
     yoff = 0.02 * (bounds[3] - bounds[2])  # label offset
     for ftr in features:
-        if ftr in FEATURE_LABELS:
-            ftrc = checkdict(ftr, FEATURE_LABELS)
-            if ftrc:
-                for ii, waverng in enumerate(FEATURE_LABELS[ftrc]['wavelengths']):
-                    # features must be contained in plot range (may change this)
-                    if np.nanmin(waverng) > bounds[0] and np.nanmax(waverng) < bounds[1]:
-                        y = (bounds[3] - bounds[2]) / 2 + bounds[2]
-                        if FEATURE_LABELS[ftrc]['type'] == 'band':
-                            p.line(waverng, [y + yoff] * 2, color='white', legend_label='Features')
-                            lfeat = p.line([waverng[0]] * 2, [y, y + yoff], color='white', legend_label='Features')
-                            t = Label(x=np.mean(waverng), y=y + 1.5 * yoff, text=FEATURE_LABELS[ftrc]['label'],
-                                      text_color='white')
-                        else:
-                            lfeat = None
-                            for w in waverng:
-                                lfeat = p.line([w] * 2, [y, y + yoff], color='white', legend_label='Features')
-                            t = Label(x=np.mean(waverng), y=y + 1.5 * yoff, text=FEATURE_LABELS[ftrc]['label'],
-                                      text_color='white')
-                        p.add_layout(t)
-                        lfeat.js_on_change('visible', CustomJS(args=dict(t=t),
-                                                               code='''t.visible = cb_obj.visible;'''))
+        for ii, waverng in enumerate(FEATURE_LABELS[ftr]['wavelengths']):
+            if np.nanmin(waverng) > bounds[0] and np.nanmax(waverng) < bounds[1]:
+                y = 1
+                if FEATURE_LABELS[ftr]['type'] == 'band':
+                    p.line(waverng, [y + yoff] * 2, color='white', legend_label='Features')
+                    lfeat = p.line([waverng[0]] * 2, [y, y + yoff], color='white', legend_label='Features')
+                    t = Label(x=np.mean(waverng), y=y + 1.5 * yoff, text=FEATURE_LABELS[ftr]['label'],
+                              text_color='white')
+                else:
+                    lfeat = None
+                    for w in waverng:
+                        lfeat = p.line([w] * 2, [y, y + yoff], color='white', legend_label='Features')
+                    t = Label(x=np.mean(waverng), y=y + 1.5 * yoff, text=FEATURE_LABELS[ftr]['label'],
+                              text_color='white')
+                p.add_layout(t)
+                lfeat.js_on_change('visible', CustomJS(args=dict(t=t),
+                                                       code="""t.visible = cb_obj.visible;"""))
     scriptdiv = components(column(p, spslide, sizing_mode='stretch_width'),
                            theme=nightskytheme)  # convert bokeh plot into script and div
     script: str = scriptdiv[0]
