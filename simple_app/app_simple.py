@@ -33,9 +33,8 @@ def search():
     if query is None:
         query = ''
     db = SimpleDB(db_file, connection_arguments={'check_same_thread': False})  # open database
-    # FIXME: FYI David, doing the to_pandas method because giving fmt='pandas' produces df without col names
-    results = db.search_object(query, fmt='astropy')  # get the results for that object
-    results: Union[pd.DataFrame, None] = results.to_pandas()  # convert to pandas from astropy table
+    results = db.search_object(query, fmt='pandas')  # get the results for that object
+    results: Optional[pd.DataFrame] = results  # convert to pandas from astropy table
     sourcelinks: list = []  # empty list
     if len(results):
         for src in results.source.values:  # over every source in table
