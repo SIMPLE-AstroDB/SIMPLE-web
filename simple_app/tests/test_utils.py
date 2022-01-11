@@ -7,11 +7,6 @@ parse_photometry -- called by all_photometry
 absmags -- called by results_concat
 coordinate_project -- called by results_concat
 """
-# external packages
-import pytest
-# internal packages
-import os
-from shutil import copy
 # local packages
 from simple_app.utils import *
 

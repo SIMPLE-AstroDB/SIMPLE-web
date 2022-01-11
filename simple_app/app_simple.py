@@ -2,14 +2,6 @@
 This is the main script to be run from the directory root, it will start the Flask application running which one can
 then connect to.
 """
-# external packages
-from bokeh.plotting import curdoc  # bokeh plotting
-from bokeh.resources import CDN
-from flask import Flask, render_template, jsonify  # website functionality
-from flask_cors import CORS  # cross origin fix (aladin mostly)
-# internal packages
-import os  # operating system
-from urllib.parse import quote  # handling strings into url friendly form
 # local packages
 from plots import *
 from utils import *
@@ -76,7 +68,7 @@ def solo_result(query: str):
     everything = Inventory(resultdict, args)  # parsing the inventory into markdown
     scriptcmd, divcmd = camdplot(query, everything, all_bands, all_results_full, all_plx, photfilters,
                                  all_photo, jscallbacks, nightskytheme)
-    scriptspectra, divspectra, nfail, failstr = specplot(query, db_file, nightskytheme)
+    scriptspectra, divspectra, nfail, failstr = specplot(query, db_file, nightskytheme, jscallbacks)
     query = query.upper()  # convert query to all upper case
     return render_template('solo_result.html', resources=CDN.render(), scriptcmd=scriptcmd, divcmd=divcmd,
                            scriptspectra=scriptspectra, divspectra=divspectra, nfail=nfail, failstr=failstr,
