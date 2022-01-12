@@ -62,6 +62,37 @@ def search():
                            results=stringed_results, query=query)  # if everything not okay, return existing page as is
 
 
+@app_simple.route('/loose_search', methods=['GET', 'POST'])
+def loose_search():
+    """
+    Wrapping the search string function to search through all tables and return them
+    """
+    form = LooseSearchForm()  # main searchbar
+    if (query := form.search.data) is None:  # content in main searchbar
+        query = ''
+    db = SimpleDB(db_file, connection_arguments={'check_same_thread': False})  # open database
+    results: Dict[str, pd.DataFrame] = db.search_string(query, fmt='pandas', verbose=False)  # search
+    resultsout = {}
+    if len(results):
+        for tabname, df in results.items():
+            if tabname in REFERENCE_TABLES:  # don't want the reference tables
+                continue
+            if 'source' in df:
+                sourcelinks = []
+                for src in df.source.values:  # over every source in table
+                    urllnk = quote(src)  # convert object name to url safe
+                    srclnk = f'<a href="/solo_result/{urllnk}" target="_blank">{src}</a>'  # construct hyperlink
+                    sourcelinks.append(srclnk)  # add that to list
+                df['source'] = sourcelinks  # update dataframe with the linked ones
+            if tabname == 'Spectra':
+                df = Inventory.spectra_handle(df, False)
+            stringed_df: Optional[str] = markdown(df.to_html(index=False, escape=False, max_rows=10,
+                                                             classes='table table-dark table-bordered table-striped'))
+            resultsout[tabname] = stringed_df
+    return render_template('loose_search.html', form=form,
+                           results=resultsout, query=query)  # if everything not okay, return existing page
+
+
 @app_simple.route('/solo_result/<query>')
 def solo_result(query: str):
     """
