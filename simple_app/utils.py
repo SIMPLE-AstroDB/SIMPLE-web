@@ -112,6 +112,7 @@ class SearchForm(FlaskForm):
     Searchbar class
     """
     search = StringField('Search for an object:', id='autocomplete')  # searchbar
+    refsearch = StringField('Filter by reference or comment:', id='refsearchfield')
     submit = SubmitField('Query', id='querybutton')  # clicker button to send request
 
 

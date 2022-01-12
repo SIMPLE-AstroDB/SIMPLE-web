@@ -9,11 +9,24 @@
             {{ form.csrf_token }}
             <fieldset class="mb-3">
                 {{ form.search.label(class_="form-label") }}
-                {{ form.search(size=40, class_="form-control") }}
+                {{ form.search(size=30, class_="form-control") }}
+            </fieldset>
+            <fieldset class="mb-3">
+                {{ form.refsearch.label(class_="form-label") }}
+                {{ form.refsearch(size=30, class_="form-control") }}
             </fieldset>
             {% if form.search.errors %}
             <fieldset class="mb-4">
                 {% for error in form.search.errors %}
+                    <p class="display-6" style="color: #5f6988">
+                        {{ error }}
+                    </p>
+                {% endfor %}
+            </fieldset>
+            {% endif %}
+            {% if form.refsearch.errors %}
+            <fieldset class="mb-4">
+                {% for error in form.refsearch.errors %}
                     <p class="display-6" style="color: #5f6988">
                         {{ error }}
                     </p>
@@ -50,23 +63,23 @@
             delay(
                 function () {
                     $('#querybutton').trigger("click");},
-                2000)
+                3000)
         )
     </script>
-    <script>
-        function setCaretPosition(ctrl, pos) {
-            if (ctrl.setSelectionRange) {
-                ctrl.focus();
-                ctrl.setSelectionRange(pos, pos);
-            } else {
-            }
-        }
-        window.onload = function () {
-          let searchvalue = document.getElementById('autocomplete');
-          searchvalue.focus();
-          setCaretPosition(searchvalue, searchvalue.value.length);
-        };
-    </script>
+{#    <script>#}
+{#        function setCaretPosition(ctrl, pos) {#}
+{#            if (ctrl.setSelectionRange) {#}
+{#                ctrl.focus();#}
+{#                ctrl.setSelectionRange(pos, pos);#}
+{#            } else {#}
+{#            }#}
+{#        }#}
+{#        window.onload = function () {#}
+{#          let searchvalue = document.getElementById('autocomplete');#}
+{#          searchvalue.focus();#}
+{#          setCaretPosition(searchvalue, searchvalue.value.length);#}
+{#        };#}
+{#    </script>#}
     <div class="container-fluid">
         <h2 class="display-3">Results for: {{ query|safe }}</h2>
         <p class="display-6">{{ results|safe if results is not none }}</p>
