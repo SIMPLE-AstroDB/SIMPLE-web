@@ -97,7 +97,7 @@ class Inventory:
         dropcols = ['spectrum', 'local_spectrum', 'regime']
         if dropsource:
             dropcols.append('source')
-        df.drop(columns=dropcols, inplace=True)
+        df.drop(columns=dropcols, inplace=True, errors='ignore')
         df['download'] = urlinks
         df['observation_date'] = df['observation_date'].dt.date
         return df
