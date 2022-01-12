@@ -42,22 +42,23 @@ def search():
     try:
         refsources: pd.DataFrame = refresults['Sources']
     except KeyError:
-        refsources = pd.DataFrame()
-    filtered_results: Optional[pd.DataFrame] = results.merge(refsources, on='source', suffixes=(None, 'extra'))
-    filtered_results.drop(columns=list(filtered_results.filter(regex='extra')), inplace=True)
-    sourcelinks: list = []  # empty list
-    if len(filtered_results):
-        for src in filtered_results.source.values:  # over every source in table
-            urllnk = quote(src)  # convert object name to url safe
-            srclnk = f'<a href="/solo_result/{urllnk}" target="_blank">{src}</a>'  # construct hyperlink
-            sourcelinks.append(srclnk)  # add that to list
-        filtered_results['source'] = sourcelinks  # update dataframe with the linked ones
-        query = query.upper()  # convert contents of search bar to all upper case
-        stringed_results: Optional[str] = markdown(filtered_results.to_html(index=False, escape=False, max_rows=10,
-                                                                            classes='table table-dark'
-                                                                                    ' table-bordered table-striped'))
+        stringed_results: Optional[str] = None
     else:
-        stringed_results = None
+        filtered_results: Optional[pd.DataFrame] = results.merge(refsources, on='source', suffixes=(None, 'extra'))
+        filtered_results.drop(columns=list(filtered_results.filter(regex='extra')), inplace=True)
+        sourcelinks: list = []  # empty list
+        if len(filtered_results):
+            for src in filtered_results.source.values:  # over every source in table
+                urllnk = quote(src)  # convert object name to url safe
+                srclnk = f'<a href="/solo_result/{urllnk}" target="_blank">{src}</a>'  # construct hyperlink
+                sourcelinks.append(srclnk)  # add that to list
+            filtered_results['source'] = sourcelinks  # update dataframe with the linked ones
+            query = query.upper()  # convert contents of search bar to all upper case
+            stringed_results = markdown(filtered_results.to_html(index=False, escape=False, max_rows=10,
+                                                                 classes='table table-dark '
+                                                                         'table-bordered table-striped'))
+        else:
+            stringed_results = None
     return render_template('search.html', form=form, refquery=refquery,
                            results=stringed_results, query=query)  # if everything not okay, return existing page as is
 
