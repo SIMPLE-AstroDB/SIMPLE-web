@@ -41,7 +41,7 @@
             $.ajax({
                 url: '{{ url_for("autocomplete") }}'
                 }).done(function (data) {
-                    $('#autocomplete').autocomplete({
+                    $('#mainsearchfield').autocomplete({
                         source: data.alljsonlist,
                         minLength: 2
                     });
@@ -59,27 +59,33 @@
             }, ms || 0);
           };
         }
-        $('#autocomplete').keyup(
+        $('#mainsearchfield').keyup(
+            delay(
+                function () {
+                    $('#querybutton').trigger("click");},
+                3000)
+        )
+        $('#refsearchfield').keyup(
             delay(
                 function () {
                     $('#querybutton').trigger("click");},
                 3000)
         )
     </script>
-{#    <script>#}
-{#        function setCaretPosition(ctrl, pos) {#}
-{#            if (ctrl.setSelectionRange) {#}
-{#                ctrl.focus();#}
-{#                ctrl.setSelectionRange(pos, pos);#}
-{#            } else {#}
-{#            }#}
-{#        }#}
-{#        window.onload = function () {#}
-{#          let searchvalue = document.getElementById('autocomplete');#}
-{#          searchvalue.focus();#}
-{#          setCaretPosition(searchvalue, searchvalue.value.length);#}
-{#        };#}
-{#    </script>#}
+    <script>
+        function setCaretPosition(ctrl, pos) {
+            if (ctrl.setSelectionRange) {
+                ctrl.focus();
+                ctrl.setSelectionRange(pos, pos);
+            } else {
+            }
+        }
+        window.onload = function () {
+          let searchvalue = document.getElementById('mainsearchfield');
+          searchvalue.focus();
+          setCaretPosition(searchvalue, searchvalue.value.length);
+        };
+    </script>
     <div class="container-fluid">
         <h2 class="display-3">Results for: {{ query|safe }}</h2>
         <p class="display-6">{{ results|safe if results is not none }}</p>
