@@ -9,10 +9,10 @@ from simple_app.utils import *
 
 # feature labels taken from splat
 FEATURE_LABELS = {
-    'h2o': {'altname': [], 'label': r'H$_2$O', 'type': 'band',
+    'h2o': {'altname': [], 'label': r'H₂O', 'type': 'band',
             'wavelengths': [[0.925, 0.95], [1.08, 1.20], [1.325, 1.550],
                             [1.72, 2.14]]},
-    'ch4': {'altname': [], 'label': r'CH$_4$', 'type': 'band',
+    'ch4': {'altname': [], 'label': r'CH₄', 'type': 'band',
             'wavelengths': [[1.1, 1.24], [1.28, 1.44], [1.6, 1.76],
                             [2.2, 2.35]]},
     'co': {'altname': [], 'label': r'CO', 'type': 'band', 'wavelengths': [[2.29, 2.39]]},
@@ -27,7 +27,7 @@ FEATURE_LABELS = {
     'feh': {'altname': [], 'label': r'FeH', 'type': 'band',
             'wavelengths': [[0.8692, 0.875], [0.98, 1.03], [1.19, 1.25],
                             [1.57, 1.64]]},
-    'h2': {'altname': ['cia h2'], 'label': r'H$_2$', 'type': 'band', 'wavelengths': [[1.5, 2.4]]},
+    'h2': {'altname': ['cia h2'], 'label': r'H₂', 'type': 'band', 'wavelengths': [[1.5, 2.4]]},
     'sb': {'altname': ['binary', 'lt binary', 'spectral binary'], 'label': r'*', 'type': 'band',
            'wavelengths': [[1.6, 1.64]]},
     'h': {'altname': ['hi', 'h1'], 'label': r'H I', 'type': 'line',
