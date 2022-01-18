@@ -1,19 +1,15 @@
 {% extends "base.html" %}
-{% set active_page = "search" %}
+{% set active_page = "fulltextsearch" %}
 
 {% block content %}
 
     <div class="container">
         <h2 class="display-3">Exploring the Database</h2>
-        <form method="post" action="{{ url_for('search') }}" id="searchform">
+        <form method="post" action="{{ url_for('fulltextsearch') }}" id="searchform">
             {{ form.csrf_token }}
             <fieldset class="mb-3">
                 {{ form.search.label(class_="form-label") }}
                 {{ form.search(size=30, class_="form-control") }}
-            </fieldset>
-            <fieldset class="mb-3">
-                {{ form.refsearch.label(class_="form-label") }}
-                {{ form.refsearch(size=30, class_="form-control") }}
             </fieldset>
             {% if form.search.errors %}
             <fieldset class="mb-4">
@@ -24,30 +20,9 @@
                 {% endfor %}
             </fieldset>
             {% endif %}
-            {% if form.refsearch.errors %}
-            <fieldset class="mb-4">
-                {% for error in form.refsearch.errors %}
-                    <p class="display-6" style="color: #5f6988">
-                        {{ error }}
-                    </p>
-                {% endfor %}
-            </fieldset>
-            {% endif %}
             {{ form.submit(class_="btn btn-primary") }}
         </form>
     </div>
-    <script>
-        $(function() {
-            $.ajax({
-                url: '{{ url_for("autocomplete") }}'
-                }).done(function (data) {
-                    $('#mainsearchfield').autocomplete({
-                        source: data.alljsonlist,
-                        minLength: 2
-                    });
-                });
-            });
-    </script>
     <script>
         function delay(callback, ms) {
           let timer = 0;
@@ -60,12 +35,6 @@
           };
         }
         $('#mainsearchfield').keyup(
-            delay(
-                function () {
-                    $('#querybutton').trigger("click");},
-                3000)
-        )
-        $('#refsearchfield').keyup(
             delay(
                 function () {
                     $('#querybutton').trigger("click");},
@@ -88,7 +57,12 @@
     </script>
     <div class="container-fluid">
         <h2 class="display-3">Results for: {{ query|safe }}</h2>
-        <p class="display-6">{{ results|safe if results is not none }}</p>
+        {% for tabname, df in results.items() %}
+            <div class="container-fluid">
+                <h3 class="display-4">{{ tabname|safe }}</h3>
+                <p class="display-6">{{ df|safe }}</p>
+            </div>
+        {% endfor %}
     </div>
 
 {% endblock %}

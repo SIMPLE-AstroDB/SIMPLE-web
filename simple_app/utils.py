@@ -71,6 +71,37 @@ class Inventory:
             pass
         return
 
+    @staticmethod
+    def spectra_handle(df: pd.DataFrame, dropsource: bool = True):
+        """
+        Handles spectra, converting files to links
+
+        Parameters
+        ----------
+        df: pd.DataFrame
+            The table for the spectra
+        dropsource: bool
+            Switch to keep source in the dataframe
+
+        Returns
+        -------
+        df: pd.DataFrame
+            The edited table
+        """
+        urlinks = []
+        for src in df.spectrum.values:  # over every source in table
+            srclnk = f'<a href="{src}" target="_blank">Link</a>'  # construct hyperlink
+            urlinks.append(srclnk)  # add that to list
+        df.drop(columns=[col for col in df.columns if any([substr in col for substr in ('wave', 'flux')])],
+                inplace=True)
+        dropcols = ['spectrum', 'local_spectrum', 'regime']
+        if dropsource:
+            dropcols.append('source')
+        df.drop(columns=dropcols, inplace=True, errors='ignore')
+        df['download'] = urlinks
+        df['observation_date'] = df['observation_date'].dt.date
+        return df
+
     def listconcat(self, key: str, rtnmk: bool = True) -> Union[pd.DataFrame, str]:
         """
         Concatenates the list for a given key
@@ -90,17 +121,9 @@ class Inventory:
         obj: List[dict] = self.results[key]  # the value for the given key
         df: pd.DataFrame = pd.concat([pd.DataFrame(objrow, index=[i])  # create dataframe from found dict
                                       for i, objrow in enumerate(obj)], ignore_index=True)  # every dict in the list
-        urlinks = []
-        if rtnmk and key == 'Spectra':
-            for src in df.spectrum.values:  # over every source in table
-                srclnk = f'<a href="{src}" target="_blank">Link</a>'  # construct hyperlink
-                urlinks.append(srclnk)  # add that to list
-            df.drop(columns=[col for col in df.columns if any([substr in col for substr in ('wave', 'flux')])],
-                    inplace=True)
-            df = df.loc[:, 'telescope':].copy()
-            df['download'] = urlinks
-            df['observation_date'] = df['observation_date'].dt.date
         if rtnmk:  # return markdown boolean
+            if key == 'Spectra':
+                df = self.spectra_handle(df)
             df.rename(columns={s: s.replace('_', ' ') for s in df.columns}, inplace=True)  # renaming columns
             return markdown(df.to_html(index=False, escape=False,
                                        classes='table table-dark table-bordered table-striped'))  # html then markdown
@@ -111,8 +134,17 @@ class SearchForm(FlaskForm):
     """
     Searchbar class
     """
-    search = StringField('Search for an object:', id='autocomplete')  # searchbar
-    submit = SubmitField('Query', id='querybutton')  # clicker button to send request
+    search = StringField('Search for an object:', id='mainsearchfield')  # searchbar
+    refsearch = StringField('Filter by full text search:', id='refsearchfield')
+    submit = SubmitField('Search', id='querybutton')  # clicker button to send request
+
+
+class LooseSearchForm(FlaskForm):
+    """
+    Searchbar class
+    """
+    search = StringField('Search by full text:', id='mainsearchfield')  # searchbar
+    submit = SubmitField('Search', id='querybutton')  # clicker button to send request
 
 
 class JSCallbacks:
