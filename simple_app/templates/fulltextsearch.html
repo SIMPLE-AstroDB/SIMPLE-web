@@ -1,11 +1,11 @@
 {% extends "base.html" %}
-{% set active_page = "loose_search" %}
+{% set active_page = "fulltextsearch" %}
 
 {% block content %}
 
     <div class="container">
         <h2 class="display-3">Exploring the Database</h2>
-        <form method="post" action="{{ url_for('loose_search') }}" id="searchform">
+        <form method="post" action="{{ url_for('fulltextsearch') }}" id="searchform">
             {{ form.csrf_token }}
             <fieldset class="mb-3">
                 {{ form.search.label(class_="form-label") }}

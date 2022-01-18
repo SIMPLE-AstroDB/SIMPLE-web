@@ -63,8 +63,8 @@ def search():
                            results=stringed_results, query=query)  # if everything not okay, return existing page as is
 
 
-@app_simple.route('/loose_search', methods=['GET', 'POST'])
-def loose_search():
+@app_simple.route('/fulltextsearch', methods=['GET', 'POST'])
+def fulltextsearch():
     """
     Wrapping the search string function to search through all tables and return them
     """
@@ -76,8 +76,6 @@ def loose_search():
     resultsout = {}
     if len(results):
         for tabname, df in results.items():
-            if tabname in REFERENCE_TABLES:  # don't want the reference tables
-                continue
             if 'source' in df:
                 sourcelinks = []
                 for src in df.source.values:  # over every source in table
@@ -90,7 +88,7 @@ def loose_search():
             stringed_df: Optional[str] = markdown(df.to_html(index=False, escape=False, max_rows=10,
                                                              classes='table table-dark table-bordered table-striped'))
             resultsout[tabname] = stringed_df
-    return render_template('loose_search.html', form=form,
+    return render_template('fulltextsearch.html', form=form,
                            results=resultsout, query=query)  # if everything not okay, return existing page
 
 

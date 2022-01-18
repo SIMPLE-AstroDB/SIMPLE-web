@@ -135,16 +135,16 @@ class SearchForm(FlaskForm):
     Searchbar class
     """
     search = StringField('Search for an object:', id='mainsearchfield')  # searchbar
-    refsearch = StringField('Filter by reference or comment:', id='refsearchfield')
-    submit = SubmitField('Query', id='querybutton')  # clicker button to send request
+    refsearch = StringField('Filter by full text search:', id='refsearchfield')
+    submit = SubmitField('Search', id='querybutton')  # clicker button to send request
 
 
 class LooseSearchForm(FlaskForm):
     """
     Searchbar class
     """
-    search = StringField('Search for anything:', id='mainsearchfield')  # searchbar
-    submit = SubmitField('Query', id='querybutton')  # clicker button to send request
+    search = StringField('Search by full text:', id='mainsearchfield')  # searchbar
+    submit = SubmitField('Search', id='querybutton')  # clicker button to send request
 
 
 class JSCallbacks:
