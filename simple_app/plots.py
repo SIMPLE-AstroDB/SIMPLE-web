@@ -179,16 +179,17 @@ def specplot(query: str, db_file: str,
             if np.nanmin(waverng) > bounds[0] and np.nanmax(waverng) < bounds[1]:
                 y = 1
                 if FEATURE_LABELS[ftr]['type'] == 'band':
-                    p.line(waverng, [y + yoff] * 2, color='white', legend_label='Features')
-                    lfeat = p.line([waverng[0]] * 2, [y, y + yoff], color='white', legend_label='Features')
+                    p.line(waverng, [y + yoff] * 2, color='white', legend_label='Features', visible=False)
+                    lfeat = p.line([waverng[0]] * 2, [y, y + yoff], color='white',
+                                   legend_label='Features', visible=False)
                     t = Label(x=np.mean(waverng), y=y + 1.5 * yoff, text=FEATURE_LABELS[ftr]['label'],
-                              text_color='white')
+                              text_color='white', visible=False)
                 else:
                     lfeat = None
                     for w in waverng:
-                        lfeat = p.line([w] * 2, [y, y + yoff], color='white', legend_label='Features')
+                        lfeat = p.line([w] * 2, [y, y + yoff], color='white', legend_label='Features', visible=False)
                     t = Label(x=np.mean(waverng), y=y + 1.5 * yoff, text=FEATURE_LABELS[ftr]['label'],
-                              text_color='white')
+                              text_color='white', visible=False)
                 p.add_layout(t)
                 lfeat.js_on_change('visible', CustomJS(args=dict(t=t),
                                                        code="""t.visible = cb_obj.visible;"""))
