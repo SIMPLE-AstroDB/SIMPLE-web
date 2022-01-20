@@ -147,6 +147,14 @@ class LooseSearchForm(FlaskForm):
     submit = SubmitField('Search', id='querybutton')  # clicker button to send request
 
 
+class SQLForm(FlaskForm):
+    """
+    Searchbox class
+    """
+    sqlfield = TextAreaField('Enter SQL query here:', id='rawsqlarea')
+    submit = SubmitField('Query', id='querybutton')
+
+
 class JSCallbacks:
     """
     Converts javascript callbacks into python triple quoted strings

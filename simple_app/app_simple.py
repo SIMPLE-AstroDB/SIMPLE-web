@@ -92,6 +92,34 @@ def fulltextsearch():
                            results=resultsout, query=query)  # if everything not okay, return existing page
 
 
+@app_simple.route('/raw_query', methods=['GET', 'POST'])
+def raw_query():
+    """
+    Page for raw sql query, returning all tables
+    """
+    form = SQLForm()  # main searchbar
+    if (query := form.sqlfield.data) is None:  # content in main searchbar
+        query = ''
+    db = SimpleDB(db_file, connection_arguments={'check_same_thread': False})  # open database
+    try:
+        results: Optional[pd.DataFrame] = db.sql_query(query, format='pandas')
+    except (ResourceClosedError, OperationalError):
+        results = pd.DataFrame()
+    sourcelinks = []
+    if len(results):
+        for src in results.source.values:  # over every source in table
+            urllnk = quote(src)  # convert object name to url safe
+            srclnk = f'<a href="/solo_result/{urllnk}" target="_blank">{src}</a>'  # construct hyperlink
+            sourcelinks.append(srclnk)  # add that to list
+        results['source'] = sourcelinks  # update dataframe with the linked ones
+        query = query.upper()  # convert contents of search bar to all upper case
+        stringed_results = markdown(results.to_html(index=False, escape=False, max_rows=10,
+                                                    classes='table table-dark table-bordered table-striped'))
+    else:
+        stringed_results = None
+    return render_template('rawquery.html', form=form, results=stringed_results, query=query)
+
+
 @app_simple.route('/solo_result/<query>')
 def solo_result(query: str):
     """
