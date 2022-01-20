@@ -23,6 +23,29 @@
             {{ form.submit(class_="btn btn-primary") }}
         </form>
     </div>
+    <script>
+    $('#rawsqlarea').keydown(
+        function (e) {
+            if ((e.ctrlKey || e.metaKey) && (e.keyCode === 13 || e.keyCode === 10)) {
+                $('#querybutton').trigger("click");
+            }
+        }
+    )
+    </script>
+    <script>
+        function setCaretPosition(ctrl, pos) {
+            if (ctrl.setSelectionRange) {
+                ctrl.focus();
+                ctrl.setSelectionRange(pos, pos);
+            } else {
+            }
+        }
+        window.onload = function () {
+          let searchvalue = document.getElementById('rawsqlarea');
+          searchvalue.focus();
+          setCaretPosition(searchvalue, searchvalue.value.length);
+        };
+    </script>
     <div class="container-fluid">
         <p class="display-6">{{ results|safe if results is not none }}</p>
     </div>
