@@ -27,7 +27,6 @@ FEATURE_LABELS = {
     'feh': {'altname': [], 'label': r'FeH', 'type': 'band',
             'wavelengths': [[0.8692, 0.875], [0.98, 1.03], [1.19, 1.25],
                             [1.57, 1.64]]},
-    'h2': {'altname': ['cia h2'], 'label': r'H₂', 'type': 'band', 'wavelengths': [[1.5, 2.4]]},
     'sb': {'altname': ['binary', 'lt binary', 'spectral binary'], 'label': r'*', 'type': 'band',
            'wavelengths': [[1.6, 1.64]]},
     'h': {'altname': ['hi', 'h1'], 'label': r'H I', 'type': 'line',
@@ -161,8 +160,8 @@ def specplot(query: str, db_file: str,
         return None, None, nfail, failstr
     bounds = [normminwave, normmaxwave, fluxmin, fluxmax]
     p.add_tools(HoverTool(tooltips=[('Wave', '@wave'), ('Flux', '@flux')], renderers=lineplots))
-    featuresall = {'L Dwarf Features': ['k', 'na', 'feh', 'tio', 'co', 'h2o', 'h2'],
-                   'T Dwarf Features': ['k', 'ch4', 'h2o', 'h2'],
+    featuresall = {'L Dwarf Features': ['k', 'na', 'feh', 'tio', 'co', 'h2o'],
+                   'T Dwarf Features': ['k', 'ch4', 'h2o'],
                    'Youth Features': ['vo', ],
                    'Binary Features': ['sb', ]}
     p.legend.click_policy = 'hide'  # hide the graph if clicked on
