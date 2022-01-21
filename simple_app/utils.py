@@ -517,6 +517,57 @@ def coordinate_project(all_results_full: pd.DataFrame):
     return raproj, decproj
 
 
+def onedfquery(results: pd.DataFrame) -> Optional[str]:
+    """
+    Handling the output from a query that returns only one dataframe
+
+    Parameters
+    ----------
+    results
+        The dataframe of results for the query
+
+    Returns
+    -------
+    stringed_results
+        Results converted into markdown including links where there is a source
+    """
+    if len(results):
+        if 'source' in results.columns:
+            sourcelinks = []
+            for src in results.source.values:  # over every source in table
+                urllnk = quote(src)  # convert object name to url safe
+                srclnk = f'<a href="/solo_result/{urllnk}" target="_blank">{src}</a>'  # construct hyperlink
+                sourcelinks.append(srclnk)  # add that to list
+            results['source'] = sourcelinks  # update dataframe with the linked ones
+        stringed_results = markdown(results.to_html(index=False, escape=False, max_rows=10,
+                                                    classes='table table-dark table-bordered table-striped'))
+    else:
+        stringed_results = None
+    return stringed_results
+
+
+def multidfquery(results: Dict[str, pd.DataFrame]) -> Dict[str, Optional[str]]:
+    """
+    Handling the output from a query which returns multiple dataframes
+
+    Parameters
+    ----------
+    results
+        The dictionary of dataframes
+
+    Returns
+    -------
+    resultsout
+        The dictionary of handled dataframes
+    """
+    resultsout = {}
+    if len(results):
+        for tabname, df in results.items():  # looping through dictionary
+            stringed_df = onedfquery(df)  # handle each dataframe
+            resultsout[tabname] = stringed_df
+    return resultsout
+
+
 def get_filters(db_file: str) -> pd.DataFrame:
     """
     Query the photometry filters table
