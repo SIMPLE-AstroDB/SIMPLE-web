@@ -165,8 +165,8 @@ class SQLForm(FlaskForm):
             raise ValidationError('Empty field')
         try:
             _: Optional[pd.DataFrame] = db.sql_query(query, fmt='pandas')
-        except (ResourceClosedError, OperationalError, IndexError):
-            raise ValidationError('Invalid SQL')
+        except (ResourceClosedError, OperationalError, IndexError) as e:
+            raise ValidationError('Invalid SQL: ' + str(e))
 
 
 class JSCallbacks:
