@@ -24,7 +24,7 @@ import pytest  # testing
 from specutils import Spectrum1D  # spectrum objects
 from sqlalchemy.exc import ResourceClosedError, OperationalError  # errors from sqlalchemy
 from tqdm import tqdm  # progress bars
-from wtforms import StringField, SubmitField, TextAreaField  # web forms
+from wtforms import StringField, SubmitField, TextAreaField, ValidationError  # web forms
 
 # internal packages
 import argparse  # parsing the arguments given with file

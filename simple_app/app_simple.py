@@ -71,16 +71,19 @@ def raw_query():
     """
     Page for raw sql query, returning all tables
     """
-    form = SQLForm()  # main searchbar
-    if (query := form.sqlfield.data) is None:  # content in main searchbar
-        query = ''
     db = SimpleDB(db_file, connection_arguments={'check_same_thread': False})  # open database
-    try:
-        results: Optional[pd.DataFrame] = db.sql_query(query, fmt='pandas')
-    except (ResourceClosedError, OperationalError, IndexError):
-        results = pd.DataFrame()
-    stringed_results = onedfquery(results)
-    return render_template('rawquery.html', form=form, results=stringed_results, query=query)
+    form = SQLForm(db_file=db_file)  # main query form
+    if form.validate_on_submit():
+        if (query := form.sqlfield.data) is None:  # content in main searchbar
+            query = ''
+        try:
+            results: Optional[pd.DataFrame] = db.sql_query(query, fmt='pandas')
+        except (ResourceClosedError, OperationalError, IndexError):
+            results = pd.DataFrame()
+        stringed_results = onedfquery(results)
+        return render_template('rawquery.html', form=form, results=stringed_results)
+    else:
+        return render_template('rawquery.html', form=form, results=None)
 
 
 @app_simple.route('/solo_result/<query>')

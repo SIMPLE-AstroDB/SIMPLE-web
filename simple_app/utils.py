@@ -154,6 +154,20 @@ class SQLForm(FlaskForm):
     sqlfield = TextAreaField('Enter SQL query here:', id='rawsqlarea')
     submit = SubmitField('Query', id='querybutton')
 
+    def __init__(self, *args, **kwargs):
+        super(SQLForm, self).__init__(*args, **kwargs)
+        self.db_file = kwargs['db_file']
+        return
+
+    def validate_sqlfield(self, field):
+        db = SimpleDB(self.db_file, connection_arguments={'check_same_thread': False})  # open database
+        if (query := field.data) is None or query.strip() == '':  # content in main searchbar
+            raise ValidationError('Empty field')
+        try:
+            _: Optional[pd.DataFrame] = db.sql_query(query, fmt='pandas')
+        except (ResourceClosedError, OperationalError, IndexError):
+            raise ValidationError('Invalid SQL')
+
 
 class JSCallbacks:
     """
