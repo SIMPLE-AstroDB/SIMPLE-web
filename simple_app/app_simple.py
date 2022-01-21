@@ -76,7 +76,7 @@ def raw_query():
         query = ''
     db = SimpleDB(db_file, connection_arguments={'check_same_thread': False})  # open database
     try:
-        results: Optional[pd.DataFrame] = db.sql_query(query, format='pandas')
+        results: Optional[pd.DataFrame] = db.sql_query(query, fmt='pandas')
     except (ResourceClosedError, OperationalError, IndexError):
         results = pd.DataFrame()
     stringed_results = onedfquery(results)
