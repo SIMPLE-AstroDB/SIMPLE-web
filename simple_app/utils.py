@@ -147,6 +147,12 @@ class LooseSearchForm(FlaskForm):
     submit = SubmitField('Search', id='querybutton')  # clicker button to send request
 
 
+class BadSQLError(Exception):
+    """
+    Anything not starting with select in sql query
+    """
+
+
 class SQLForm(FlaskForm):
     """
     Searchbox class
@@ -164,9 +170,14 @@ class SQLForm(FlaskForm):
         if (query := field.data) is None or query.strip() == '':  # content in main searchbar
             raise ValidationError('Empty field')
         try:
+            query: str = query.lower()
+            if not query.startswith('select') or 'from' not in query:
+                raise BadSQLError('Queries must start with "select" and contain "from".')
             _: Optional[pd.DataFrame] = db.sql_query(query, fmt='pandas')
-        except (ResourceClosedError, OperationalError, IndexError, SqliteWarning) as e:
+        except (ResourceClosedError, OperationalError, IndexError, SqliteWarning, BadSQLError) as e:
             raise ValidationError('Invalid SQL: ' + str(e))
+        except Exception as e:  # ugly but safe
+            raise ValidationError('Uncaught Error: ' + str(e))
 
 
 class JSCallbacks:
