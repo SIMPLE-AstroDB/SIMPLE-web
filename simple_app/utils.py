@@ -157,21 +157,16 @@ class SQLForm(FlaskForm):
     def __init__(self, *args, **kwargs):
         super(SQLForm, self).__init__(*args, **kwargs)
         self.db_file: str = kwargs['db_file']
-        self.db_filename = self.db_file.split('///')[-1]
         return
 
     def validate_sqlfield(self, field):
-        copy(self.db_filename, 'temp.db')
-        db = SimpleDB('sqlite:///temp.db', connection_arguments={'check_same_thread': False})  # open database
+        db = SimpleDB(self.db_file, connection_arguments={'check_same_thread': False})  # open database
         if (query := field.data) is None or query.strip() == '':  # content in main searchbar
             raise ValidationError('Empty field')
         try:
             _: Optional[pd.DataFrame] = db.sql_query(query, fmt='pandas')
         except (ResourceClosedError, OperationalError, IndexError, SqliteWarning) as e:
-            os.remove('temp.db')
             raise ValidationError('Invalid SQL: ' + str(e))
-        else:
-            os.remove('temp.db')
 
 
 class JSCallbacks:
