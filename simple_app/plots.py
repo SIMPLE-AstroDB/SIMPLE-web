@@ -9,10 +9,10 @@ from simple_app.utils import *
 
 # feature labels taken from splat
 FEATURE_LABELS = {
-    'h2o': {'altname': [], 'label': r'H$_2$O', 'type': 'band',
+    'h2o': {'altname': [], 'label': r'H₂O', 'type': 'band',
             'wavelengths': [[0.925, 0.95], [1.08, 1.20], [1.325, 1.550],
                             [1.72, 2.14]]},
-    'ch4': {'altname': [], 'label': r'CH$_4$', 'type': 'band',
+    'ch4': {'altname': [], 'label': r'CH₄', 'type': 'band',
             'wavelengths': [[1.1, 1.24], [1.28, 1.44], [1.6, 1.76],
                             [2.2, 2.35]]},
     'co': {'altname': [], 'label': r'CO', 'type': 'band', 'wavelengths': [[2.29, 2.39]]},
@@ -27,7 +27,6 @@ FEATURE_LABELS = {
     'feh': {'altname': [], 'label': r'FeH', 'type': 'band',
             'wavelengths': [[0.8692, 0.875], [0.98, 1.03], [1.19, 1.25],
                             [1.57, 1.64]]},
-    'h2': {'altname': ['cia h2'], 'label': r'H$_2$', 'type': 'band', 'wavelengths': [[1.5, 2.4]]},
     'sb': {'altname': ['binary', 'lt binary', 'spectral binary'], 'label': r'*', 'type': 'band',
            'wavelengths': [[1.6, 1.64]]},
     'h': {'altname': ['hi', 'h1'], 'label': r'H I', 'type': 'line',
@@ -161,7 +160,10 @@ def specplot(query: str, db_file: str,
         return None, None, nfail, failstr
     bounds = [normminwave, normmaxwave, fluxmin, fluxmax]
     p.add_tools(HoverTool(tooltips=[('Wave', '@wave'), ('Flux', '@flux')], renderers=lineplots))
-    features = ['k', 'na', 'feh', 'tio', 'co']
+    featuresall = {'L Dwarf Features': ['k', 'na', 'feh', 'tio', 'co', 'h2o'],
+                   'T Dwarf Features': ['k', 'ch4', 'h2o'],
+                   'Youth Features': ['vo', ],
+                   'Binary Features': ['sb', ]}
     p.legend.click_policy = 'hide'  # hide the graph if clicked on
     p.legend.label_text_font_size = '1.5em'
     spmin = Span(location=0.81, dimension='height', line_color='white', line_dash='dashed')
@@ -174,24 +176,27 @@ def specplot(query: str, db_file: str,
         p.add_layout(sp)
     # all this features stuff is heavily taken from splat
     yoff = 0.02 * (bounds[3] - bounds[2])  # label offset
-    for ftr in features:
-        for ii, waverng in enumerate(FEATURE_LABELS[ftr]['wavelengths']):
-            if np.nanmin(waverng) > bounds[0] and np.nanmax(waverng) < bounds[1]:
-                y = 1
-                if FEATURE_LABELS[ftr]['type'] == 'band':
-                    p.line(waverng, [y + yoff] * 2, color='white', legend_label='Features')
-                    lfeat = p.line([waverng[0]] * 2, [y, y + yoff], color='white', legend_label='Features')
-                    t = Label(x=np.mean(waverng), y=y + 1.5 * yoff, text=FEATURE_LABELS[ftr]['label'],
-                              text_color='white')
-                else:
-                    lfeat = None
-                    for w in waverng:
-                        lfeat = p.line([w] * 2, [y, y + yoff], color='white', legend_label='Features')
-                    t = Label(x=np.mean(waverng), y=y + 1.5 * yoff, text=FEATURE_LABELS[ftr]['label'],
-                              text_color='white')
-                p.add_layout(t)
-                lfeat.js_on_change('visible', CustomJS(args=dict(t=t),
-                                                       code="""t.visible = cb_obj.visible;"""))
+    for featurename, features in featuresall.items():
+        for ftr in features:
+            for ii, waverng in enumerate(FEATURE_LABELS[ftr]['wavelengths']):
+                if np.nanmin(waverng) > bounds[0] and np.nanmax(waverng) < bounds[1]:
+                    y = 1
+                    if FEATURE_LABELS[ftr]['type'] == 'band':
+                        p.line(waverng, [y + 5 * yoff] * 2, color='white', legend_label=featurename, visible=False)
+                        lfeat = p.line([waverng[0]] * 2, [y + 4 * yoff, y + 5 * yoff], color='white',
+                                       legend_label=featurename, visible=False)
+                        t = Label(x=np.mean(waverng), y=y + 5.5 * yoff, text=FEATURE_LABELS[ftr]['label'],
+                                  text_color='white', visible=False)
+                    else:
+                        lfeat = None
+                        for w in waverng:
+                            lfeat = p.line([w] * 2, [y, y + yoff], color='white', line_dash='dotted',
+                                           legend_label=featurename, visible=False)
+                        t = Label(x=np.mean(waverng), y=y + 1.5 * yoff, text=FEATURE_LABELS[ftr]['label'],
+                                  text_color='white', visible=False)
+                    p.add_layout(t)
+                    lfeat.js_on_change('visible', CustomJS(args=dict(t=t),
+                                                           code="""t.visible = cb_obj.visible;"""))
     scriptdiv = components(column(p, spslide, sizing_mode='stretch_width'),
                            theme=nightskytheme)  # convert bokeh plot into script and div
     script: str = scriptdiv[0]
