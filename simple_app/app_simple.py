@@ -78,7 +78,7 @@ def raw_query():
             query = ''
         try:
             results: Optional[pd.DataFrame] = db.sql_query(query, fmt='pandas')
-        except (ResourceClosedError, OperationalError, IndexError):
+        except (ResourceClosedError, OperationalError, IndexError, SqliteWarning):
             results = pd.DataFrame()
         stringed_results = onedfquery(results)
         return render_template('rawquery.html', form=form, results=stringed_results)
