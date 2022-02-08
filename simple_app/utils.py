@@ -170,8 +170,8 @@ class SQLForm(FlaskForm):
         if (query := field.data) is None or query.strip() == '':  # content in main searchbar
             raise ValidationError('Empty field')
         try:
-            query: str = query.lower()
-            if not query.startswith('select') or 'from' not in query:
+            querylow: str = query.lower()
+            if not querylow.startswith('select') or 'from' not in querylow:
                 raise BadSQLError('Queries must start with "select" and contain "from".')
             _: Optional[pd.DataFrame] = db.sql_query(query, fmt='pandas')
         except (ResourceClosedError, OperationalError, IndexError, SqliteWarning, BadSQLError) as e:
