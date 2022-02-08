@@ -147,6 +147,39 @@ class LooseSearchForm(FlaskForm):
     submit = SubmitField('Search', id='querybutton')  # clicker button to send request
 
 
+class BadSQLError(Exception):
+    """
+    Anything not starting with select in sql query
+    """
+
+
+class SQLForm(FlaskForm):
+    """
+    Searchbox class
+    """
+    sqlfield = TextAreaField('Enter SQL query here:', id='rawsqlarea', render_kw={'rows': '4'})
+    submit = SubmitField('Query', id='querybutton')
+
+    def __init__(self, *args, **kwargs):
+        super(SQLForm, self).__init__(*args, **kwargs)
+        self.db_file: str = kwargs['db_file']
+        return
+
+    def validate_sqlfield(self, field):
+        db = SimpleDB(self.db_file, connection_arguments={'check_same_thread': False})  # open database
+        if (query := field.data) is None or query.strip() == '':  # content in main searchbar
+            raise ValidationError('Empty field')
+        try:
+            querylow: str = query.lower()
+            if not querylow.startswith('select') or 'from' not in querylow:
+                raise BadSQLError('Queries must start with "select" and contain "from".')
+            _: Optional[pd.DataFrame] = db.sql_query(query, fmt='pandas')
+        except (ResourceClosedError, OperationalError, IndexError, SqliteWarning, BadSQLError) as e:
+            raise ValidationError('Invalid SQL: ' + str(e))
+        except Exception as e:  # ugly but safe
+            raise ValidationError('Uncaught Error: ' + str(e))
+
+
 class JSCallbacks:
     """
     Converts javascript callbacks into python triple quoted strings
@@ -391,7 +424,7 @@ def absmags(df: pd.DataFrame, all_bands: np.ndarray) -> pd.DataFrame:
         _
             Absolute magnitude
         """
-        return m - 5 * np.log10(dist) + 5
+        return m - 5 * np.log10(dist, where=dist > 0) + 5
 
     df['dist'] = np.divide(1000, df['parallax'])
     for mag in all_bands:
@@ -507,6 +540,57 @@ def coordinate_project(all_results_full: pd.DataFrame):
     ravalues, decvalues = np.deg2rad([ravalues, decvalues])  # convert to radians
     raproj, decproj = project_mollweide(ravalues, decvalues)  # project to Mollweide
     return raproj, decproj
+
+
+def onedfquery(results: pd.DataFrame) -> Optional[str]:
+    """
+    Handling the output from a query that returns only one dataframe
+
+    Parameters
+    ----------
+    results
+        The dataframe of results for the query
+
+    Returns
+    -------
+    stringed_results
+        Results converted into markdown including links where there is a source
+    """
+    if len(results):
+        if 'source' in results.columns:
+            sourcelinks = []
+            for src in results.source.values:  # over every source in table
+                urllnk = quote(src)  # convert object name to url safe
+                srclnk = f'<a href="/solo_result/{urllnk}" target="_blank">{src}</a>'  # construct hyperlink
+                sourcelinks.append(srclnk)  # add that to list
+            results['source'] = sourcelinks  # update dataframe with the linked ones
+        stringed_results = markdown(results.to_html(index=False, escape=False, max_rows=10,
+                                                    classes='table table-dark table-bordered table-striped'))
+    else:
+        stringed_results = None
+    return stringed_results
+
+
+def multidfquery(results: Dict[str, pd.DataFrame]) -> Dict[str, Optional[str]]:
+    """
+    Handling the output from a query which returns multiple dataframes
+
+    Parameters
+    ----------
+    results
+        The dictionary of dataframes
+
+    Returns
+    -------
+    resultsout
+        The dictionary of handled dataframes
+    """
+    resultsout = {}
+    if len(results):
+        for tabname, df in results.items():  # looping through dictionary
+            stringed_df = onedfquery(df)  # handle each dataframe
+            resultsout[tabname] = stringed_df
+    return resultsout
 
 
 def get_filters(db_file: str) -> pd.DataFrame:

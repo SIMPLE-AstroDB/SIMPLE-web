@@ -106,6 +106,61 @@ def test_results_concat(db, test_all_photometry, test_all_sources, test_all_para
     return
 
 
+def test_onedfquery(db):
+    assert db
+    badquery = 'thisisabadquery'
+    goodquery = 'twa'
+    # test search object
+    with pytest.raises(IndexError):
+        _ = db.search_object(badquery, fmt='pandas')
+    results = db.search_object(goodquery, fmt='pandas')
+    assert isinstance(results, pd.DataFrame)
+    # test search string
+    with pytest.raises(KeyError):
+        refresults: Optional[dict] = db.search_string(badquery, fmt='pandas', verbose=False)
+        _ = refresults['Sources']
+    refresults: Optional[dict] = db.search_string(goodquery, fmt='pandas', verbose=False)
+    assert isinstance(refresults, dict)
+    assert 'Sources' in refresults
+    refsources = refresults['Sources']
+    filtered_results: Optional[pd.DataFrame] = results.merge(refsources, on='source', suffixes=(None, 'extra'))
+    assert isinstance(filtered_results, pd.DataFrame)
+    filtered_results.drop(columns=list(filtered_results.filter(regex='extra')), inplace=True)
+    # test onedfquery
+    stringed_results = onedfquery(filtered_results)
+    assert isinstance(stringed_results, str)
+    # test sql query
+    with pytest.raises(OperationalError):
+        _ = db.sql_query('notasqlquery', fmt='pandas')
+    with pytest.raises(OperationalError):
+        _ = db.sql_query('select * from NotaTable', fmt='pandas')
+    with pytest.raises(OperationalError):
+        _ = db.sql_query('select * from Sources where notacolumn == "asdf"', fmt='pandas')
+    rawsqlquery = db.sql_query('select * from Sources where source == "Luhman 16"', fmt='pandas')
+    assert isinstance(rawsqlquery, pd.DataFrame)
+    stringed_results = onedfquery(rawsqlquery)
+    assert isinstance(stringed_results, str)
+    return
+
+
+def test_multidfquery(db):
+    assert db
+    badquery = 'thisisabadquery'
+    goodquery = 'cruz'
+    with pytest.raises(KeyError):
+        results: Optional[dict] = db.search_string(badquery, fmt='pandas', verbose=False)
+        _ = results['Sources']
+    results: Optional[dict] = db.search_string(goodquery, fmt='pandas', verbose=False)
+    assert isinstance(results, dict)
+    assert 'Sources' in results
+    assert isinstance(results['Sources'], pd.DataFrame)
+    resultsout = multidfquery(results)
+    assert isinstance(resultsout, dict)
+    assert 'Sources' in resultsout
+    assert isinstance(resultsout['Sources'], str)
+    return
+
+
 def test_remove_database(db):
     # Clean up temporary database
     db.session.close()

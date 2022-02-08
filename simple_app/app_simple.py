@@ -46,19 +46,7 @@ def search():
     else:
         filtered_results: Optional[pd.DataFrame] = results.merge(refsources, on='source', suffixes=(None, 'extra'))
         filtered_results.drop(columns=list(filtered_results.filter(regex='extra')), inplace=True)
-        sourcelinks: list = []  # empty list
-        if len(filtered_results):
-            for src in filtered_results.source.values:  # over every source in table
-                urllnk = quote(src)  # convert object name to url safe
-                srclnk = f'<a href="/solo_result/{urllnk}" target="_blank">{src}</a>'  # construct hyperlink
-                sourcelinks.append(srclnk)  # add that to list
-            filtered_results['source'] = sourcelinks  # update dataframe with the linked ones
-            query = query.upper()  # convert contents of search bar to all upper case
-            stringed_results = markdown(filtered_results.to_html(index=False, escape=False, max_rows=10,
-                                                                 classes='table table-dark '
-                                                                         'table-bordered table-striped'))
-        else:
-            stringed_results = None
+        stringed_results = onedfquery(filtered_results)
     return render_template('search.html', form=form, refquery=refquery,
                            results=stringed_results, query=query)  # if everything not okay, return existing page as is
 
@@ -73,23 +61,29 @@ def fulltextsearch():
         query = ''
     db = SimpleDB(db_file, connection_arguments={'check_same_thread': False})  # open database
     results: Dict[str, pd.DataFrame] = db.search_string(query, fmt='pandas', verbose=False)  # search
-    resultsout = {}
-    if len(results):
-        for tabname, df in results.items():
-            if 'source' in df:
-                sourcelinks = []
-                for src in df.source.values:  # over every source in table
-                    urllnk = quote(src)  # convert object name to url safe
-                    srclnk = f'<a href="/solo_result/{urllnk}" target="_blank">{src}</a>'  # construct hyperlink
-                    sourcelinks.append(srclnk)  # add that to list
-                df['source'] = sourcelinks  # update dataframe with the linked ones
-            if tabname == 'Spectra':
-                df = Inventory.spectra_handle(df, False)
-            stringed_df: Optional[str] = markdown(df.to_html(index=False, escape=False, max_rows=10,
-                                                             classes='table table-dark table-bordered table-striped'))
-            resultsout[tabname] = stringed_df
+    resultsout = multidfquery(results)
     return render_template('fulltextsearch.html', form=form,
                            results=resultsout, query=query)  # if everything not okay, return existing page
+
+
+@app_simple.route('/raw_query', methods=['GET', 'POST'])
+def raw_query():
+    """
+    Page for raw sql query, returning all tables
+    """
+    db = SimpleDB(db_file, connection_arguments={'check_same_thread': False})  # open database
+    form = SQLForm(db_file=db_file)  # main query form
+    if form.validate_on_submit():
+        if (query := form.sqlfield.data) is None:  # content in main searchbar
+            query = ''
+        try:
+            results: Optional[pd.DataFrame] = db.sql_query(query, fmt='pandas')
+        except (ResourceClosedError, OperationalError, IndexError, SqliteWarning, BadSQLError):
+            results = pd.DataFrame()
+        stringed_results = onedfquery(results)
+        return render_template('rawquery.html', form=form, results=stringed_results)
+    else:
+        return render_template('rawquery.html', form=form, results=None)
 
 
 @app_simple.route('/solo_result/<query>')
