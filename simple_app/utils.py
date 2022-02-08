@@ -157,7 +157,7 @@ class SQLForm(FlaskForm):
     """
     Searchbox class
     """
-    sqlfield = TextAreaField('Enter SQL query here:', id='rawsqlarea')
+    sqlfield = TextAreaField('Enter SQL query here:', id='rawsqlarea', render_kw={'rows': '4'})
     submit = SubmitField('Query', id='querybutton')
 
     def __init__(self, *args, **kwargs):

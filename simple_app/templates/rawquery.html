@@ -4,24 +4,51 @@
 {% block content %}
 
     <div class="container">
-        <h2 class="display-3">Exploring the Database</h2>
-        <form method="post" action="{{ url_for('raw_query') }}" id="searchform">
-            {{ form.csrf_token }}
-            <fieldset class="mb-3">
-                {{ form.sqlfield.label(class_="form-label") }}
-                {{ form.sqlfield(size=30, class_="form-control") }}
-            </fieldset>
-            {% if form.sqlfield.errors %}
-            <fieldset class="mb-4">
-                {% for error in form.sqlfield.errors %}
-                    <p class="display-6" style="color: #5f6988">
-                        {{ error }}
-                    </p>
-                {% endfor %}
-            </fieldset>
-            {% endif %}
-            {{ form.submit(class_="btn btn-primary") }}
-        </form>
+        <div class="d-flex row">
+            <div class="col-7 flex-grow-1">
+                <h2 class="display-3">Exploring the Database</h2>
+                <form method="post" action="{{ url_for('raw_query') }}" id="searchform">
+                    {{ form.csrf_token }}
+                    <fieldset class="mb-3">
+                        {{ form.sqlfield.label(class_="form-label display-6") }}
+                        {{ form.sqlfield(size=30, class_="form-control display-6") }}
+                    </fieldset>
+                    {% if form.sqlfield.errors %}
+                    <fieldset class="mb-4">
+                        {% for error in form.sqlfield.errors %}
+                            <p class="display-6" style="color: #5f6988">
+                                {{ error }}
+                            </p>
+                        {% endfor %}
+                    </fieldset>
+                    {% endif %}
+                    {{ form.submit(class_="btn btn-primary display-6") }}
+                </form>
+            </div>
+            <div class="col-5 m-lg-auto">
+                <h3 class="display-4">Examples:</h3>
+                <p class="display-6">
+                    <a href="https://github.com/SIMPLE-AstroDB/SIMPLE-db/tree/main/documentation" target="_blank">
+                        View the full schema.
+                    </a>
+                    <ul style="list-style-type: none" class="display-6 sql-list">
+                        <li>
+                            select * from Sources
+                        </li>
+                        <li>
+                            select * from Sources<br>
+                            where source like "%twa%"
+                        </li>
+                        <li>
+                            select * from Sources<br>
+                            join Photometry<br>
+                            using (source)<br>
+                            where source like "%twa%"
+                        </li>
+                    </ul>
+                </p>
+            </div>
+        </div>
     </div>
     <script>
     $('#rawsqlarea').keydown(
