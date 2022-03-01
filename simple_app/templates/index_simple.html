@@ -12,5 +12,50 @@
         using the menu above.
     </p>
 </div>
+<div class="container">
+    <form method="post" action="{{ url_for('search') }}" id="searchform">
+        {{ form.csrf_token }}
+        <fieldset class="mb-3">
+            {{ form.search.label(class_="form-label") }}
+            {{ form.search(size=30, class_="form-control") }}
+        </fieldset>
+        {% if form.search.errors %}
+        <fieldset class="mb-4">
+            {% for error in form.search.errors %}
+                <p class="display-6" style="color: #5f6988">
+                    {{ error }}
+                </p>
+            {% endfor %}
+        </fieldset>
+        {% endif %}
+        {{ form.submit(class_="btn btn-primary") }}
+    </form>
+</div>
+<script>
+    $(function() {
+        $.ajax({
+            url: '{{ url_for("autocomplete") }}'
+            }).done(function (data) {
+                $('#mainsearchfield').autocomplete({
+                    source: data.alljsonlist,
+                    minLength: 2
+                });
+            });
+        });
+</script>
+<script>
+    function setCaretPosition(ctrl, pos) {
+        if (ctrl.setSelectionRange) {
+            ctrl.focus();
+            ctrl.setSelectionRange(pos, pos);
+        } else {
+        }
+    }
+    window.onload = function () {
+      let searchvalue = document.getElementById('mainsearchfield');
+      searchvalue.focus();
+      setCaretPosition(searchvalue, searchvalue.value.length);
+    };
+</script>
 
 {% endblock %}
