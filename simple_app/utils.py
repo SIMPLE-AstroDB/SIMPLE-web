@@ -139,6 +139,14 @@ class SearchForm(FlaskForm):
     submit = SubmitField('Search', id='querybutton')  # clicker button to send request
 
 
+class BasicSearchForm(FlaskForm):
+    """
+    Searchbar class
+    """
+    search = StringField('Search for an object:', id='mainsearchfield')  # searchbar
+    submit = SubmitField('Search', id='querybutton')  # clicker button to send request
+
+
 class LooseSearchForm(FlaskForm):
     """
     Searchbar class

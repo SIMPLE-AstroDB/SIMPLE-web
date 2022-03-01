@@ -20,7 +20,8 @@ def index_page():
     The main splash page
     """
     source_count = len(all_results)  # count the number of sources
-    return render_template('index_simple.html', source_count=source_count)
+    form = BasicSearchForm()  # main searchbar
+    return render_template('index_simple.html', source_count=source_count, form=form)
 
 
 @app_simple.route('/search', methods=['GET', 'POST'])
