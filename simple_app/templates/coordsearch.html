@@ -1,0 +1,68 @@
+{% extends "base.html" %}
+{% set active_page = "coordsearch" %}
+
+{% block content %}
+
+    <div class="container">
+        <h2 class="display-3">Exploring the Database</h2>
+        <form method="post" action="{{ url_for('coordsearch') }}" id="searchform">
+            {{ form.csrf_token }}
+            <fieldset class="mb-3">
+                {{ form.search.label(class_="form-label") }}
+                {{ form.search(size=30, class_="form-control") }}
+            </fieldset>
+            {% if form.search.errors %}
+            <fieldset class="mb-4">
+                {% for error in form.search.errors %}
+                    <p class="display-6" style="color: #5f6988">
+                        {{ error }}
+                    </p>
+                {% endfor %}
+            </fieldset>
+            {% endif %}
+            {{ form.submit(class_="btn btn-primary") }}
+        </form>
+    </div>
+    <script>
+        function delay(callback, ms) {
+          let timer = 0;
+          return function() {
+            let context = this, args = arguments;
+            clearTimeout(timer);
+            timer = setTimeout(function () {
+              callback.apply(context, args);
+            }, ms || 0);
+          };
+        }
+        $('#mainsearchfield').keyup(
+            delay(
+                function () {
+                    $('#querybutton').trigger("click");},
+                3000)
+        )
+    </script>
+    <script>
+        function setCaretPosition(ctrl, pos) {
+            if (ctrl.setSelectionRange) {
+                ctrl.focus();
+                ctrl.setSelectionRange(pos, pos);
+            } else {
+            }
+        }
+        window.onload = function () {
+          let searchvalue = document.getElementById('mainsearchfield');
+          searchvalue.focus();
+          setCaretPosition(searchvalue, searchvalue.value.length);
+        };
+    </script>
+    <div class="container-fluid">
+        <h2 class="display-3">Results for: {{ query|safe }}</h2>
+        {% for tabname, df in results.items() %}
+            <div class="container-fluid">
+                <h3 class="display-4">{{ tabname|safe }}</h3>
+                <p class="display-6">{{ df|safe }}</p>
+            </div>
+        {% endfor %}
+    </div>
+
+{% endblock %}
