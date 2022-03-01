@@ -147,6 +147,35 @@ class BasicSearchForm(FlaskForm):
     submit = SubmitField('Search', id='querybutton')  # clicker button to send request
 
 
+class CoordQueryForm(FlaskForm):
+    """
+    Searchbar class
+    """
+    query = StringField('Query by coordinate within 10":', id='mainsearchfield')  # searchbar
+    submit = SubmitField('Query', id='querybutton')  # clicker button to send request
+
+    def __init__(self, *args, **kwargs):
+        super(CoordQueryForm, self).__init__(*args, **kwargs)
+        self.db_file: str = kwargs['db_file']
+        return
+
+    def validate_query(self, field):
+        db = SimpleDB(self.db_file, connection_arguments={'check_same_thread': False})  # open database
+        try:
+            ra, dec = field.data.lower().strip().split(' ')
+        except ValueError:
+            raise ValidationError('Input must be two inputs separated by " "')
+        ra, dec, unit = ra_dec_unit_parse(ra, dec)
+        try:
+            c = SkyCoord(ra=ra, dec=dec, unit=unit)
+        except ValueError:
+            raise ValidationError('Cannot parse coordinates, check astropy SkyCoord documentation')
+        try:
+            _ = db.query_region(c, fmt='pandas')
+        except Exception as e:
+            raise ValidationError(f'Uncaught Error -- {e}')
+
+
 class LooseSearchForm(FlaskForm):
     """
     Searchbar class
@@ -599,6 +628,36 @@ def multidfquery(results: Dict[str, pd.DataFrame]) -> Dict[str, Optional[str]]:
             stringed_df = onedfquery(df)  # handle each dataframe
             resultsout[tabname] = stringed_df
     return resultsout
+
+
+def ra_dec_unit_parse(ra: str, dec: str) -> Tuple[Union[str, float], Union[str, float], str]:
+    """
+    Parses ra and dec values into either string (hms) or float (deg)
+
+    Parameters
+    ----------
+    ra: str
+        RA from string
+    dec: str
+        Dec from string
+
+    Returns
+    -------
+    ra
+        RA either string or float
+    dec
+        Dec either string or float
+    unit
+        Unit as a string
+    """
+    try:
+        ra = float(ra)
+        dec = float(dec)
+    except ValueError:
+        unit = 'hourangle,deg'
+    else:
+        unit = 'deg'
+    return ra, dec, unit
 
 
 def get_filters(db_file: str) -> pd.DataFrame:

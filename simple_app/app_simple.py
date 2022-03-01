@@ -3,6 +3,8 @@ This is the main script to be run from the directory root, it will start the Fla
 then connect to.
 """
 # local packages
+import pandas as pd
+
 from plots import *
 from utils import *
 
@@ -50,6 +52,26 @@ def search():
         stringed_results = onedfquery(filtered_results)
     return render_template('search.html', form=form, refquery=refquery,
                            results=stringed_results, query=query)  # if everything not okay, return existing page as is
+
+
+@app_simple.route('/coordquery', methods=['GET', 'POST'])
+def coordquery():
+    """
+    Wrapping the query by coordinate function
+    """
+    form = CoordQueryForm(db_file=db_file)
+    if form.validate_on_submit():
+        if (query := form.query.data) is None:  # content in main searchbar
+            query = ''
+        db = SimpleDB(db_file, connection_arguments={'check_same_thread': False})  # open database
+        ra, dec = query.lower().strip().split(' ')
+        ra, dec, unit = ra_dec_unit_parse(ra, dec)
+        c = SkyCoord(ra=ra, dec=dec, unit=unit)
+        results: pd.DataFrame = db.query_region(c, fmt='pandas')  # query
+        stringed_results = onedfquery(results)
+        return render_template('coordquery.html', form=form, query=query, results=stringed_results)
+    else:
+        return render_template('coordquery.html', form=form, results=None)
 
 
 @app_simple.route('/fulltextsearch', methods=['GET', 'POST'])
