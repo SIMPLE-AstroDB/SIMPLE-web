@@ -14,10 +14,6 @@ Then, if you are running conda (recommended):
 ```bash
 conda env create -f environment.yml
 ```
-or:
-```bash
-conda create --name simple --file requirements.txt
-```
 
 ### Refresh the database
 Get a fresh copy of the database from the binary repo.
