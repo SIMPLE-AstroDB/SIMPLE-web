@@ -3,8 +3,6 @@ This is the main script to be run from the directory root, it will start the Fla
 then connect to.
 """
 # local packages
-import pandas as pd
-
 from plots import *
 from utils import *
 
