@@ -17,7 +17,7 @@
         {{ form.csrf_token }}
         <fieldset class="mb-3">
             {{ form.search.label(class_="form-label") }}
-            {{ form.search(size=30, class_="form-control") }}
+            {{ form.search(size=30, placeholder="object name", class_="form-control") }}
         </fieldset>
         {% if form.search.errors %}
         <fieldset class="mb-4">

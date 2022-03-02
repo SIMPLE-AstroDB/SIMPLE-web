@@ -11,7 +11,8 @@
                     {{ form.csrf_token }}
                     <fieldset class="mb-3">
                         {{ form.sqlfield.label(class_="form-label display-6") }}
-                        {{ form.sqlfield(size=30, class_="form-control display-6") }}
+                        {{ form.sqlfield(size=30, placeholder="select * from Sources",
+                         class_="form-control display-6") }}
                     </fieldset>
                     {% if form.sqlfield.errors %}
                     <fieldset class="mb-4">
