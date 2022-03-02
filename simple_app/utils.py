@@ -3,6 +3,8 @@ The static functions for various calculations and required parameters
 """
 import sys
 # local packages
+import numpy as np
+
 sys.path.append('.')
 from simple_app.simports import *
 
@@ -161,9 +163,8 @@ class CoordQueryForm(FlaskForm):
 
     def validate_query(self, field):
         db = SimpleDB(self.db_file, connection_arguments={'check_same_thread': False})  # open database
-        try:
-            ra, dec = field.data.lower().strip().split(' ')
-        except ValueError:
+        ra, dec = two_param_str_parse(field.data)
+        if not ra:  # i.e. empty string, bad parse
             raise ValidationError('Input must be two inputs separated by " "')
         ra, dec, unit = ra_dec_unit_parse(ra, dec)
         try:
@@ -628,6 +629,30 @@ def multidfquery(results: Dict[str, pd.DataFrame]) -> Dict[str, Optional[str]]:
             stringed_df = onedfquery(df)  # handle each dataframe
             resultsout[tabname] = stringed_df
     return resultsout
+
+
+def two_param_str_parse(s: str) -> Optional[Tuple[str, str]]:
+    """
+    Parses a string to split into two parameters separated by N spaces
+
+    Parameters
+    ----------
+    s: str
+        Input string
+
+    Returns
+    -------
+    a
+        First output
+    b
+        Second output
+    """
+    try:
+        qrysplit: np.ndarray = np.array(s.replace('\t', ' ').lower().strip().split(' '))
+        a, b = qrysplit[np.logical_not(qrysplit[qrysplit == ''])]
+    except ValueError:
+        return '', ''
+    return a, b
 
 
 def ra_dec_unit_parse(ra: str, dec: str) -> Tuple[Union[str, float], Union[str, float], str]:
