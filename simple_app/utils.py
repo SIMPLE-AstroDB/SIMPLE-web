@@ -648,7 +648,7 @@ def two_param_str_parse(s: str) -> Optional[Tuple[str, str]]:
     """
     try:
         qrysplit: np.ndarray = np.array(s.replace('\t', ' ').lower().strip().split(' '))
-        a, b = qrysplit[np.logical_not(qrysplit[qrysplit == ''])]
+        a, b = qrysplit[np.logical_not(qrysplit == '')]
     except ValueError:
         return '', ''
     return a, b
