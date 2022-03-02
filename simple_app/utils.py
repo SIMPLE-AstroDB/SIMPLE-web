@@ -3,7 +3,6 @@ The static functions for various calculations and required parameters
 """
 import sys
 # local packages
-import numpy as np
 
 sys.path.append('.')
 from simple_app.simports import *
