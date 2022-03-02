@@ -111,8 +111,8 @@ def test_onedfquery(db):
     badquery = 'thisisabadquery'
     goodquery = 'twa'
     # test search object
-    with pytest.raises(IndexError):
-        _ = db.search_object(badquery, fmt='pandas')
+    results = db.search_object(badquery, fmt='pandas')
+    assert not len(results)  # bad query should return empty table
     results = db.search_object(goodquery, fmt='pandas')
     assert isinstance(results, pd.DataFrame)
     # test search string

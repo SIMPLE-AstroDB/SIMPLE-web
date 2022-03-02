@@ -1,0 +1,51 @@
+{% extends "base.html" %}
+{% set active_page = "coordquery" %}
+
+{% block content %}
+
+    <div class="container">
+        <h2 class="display-3">Exploring the Database</h2>
+        <form method="post" action="{{ url_for('coordquery') }}" id="searchform">
+            {{ form.csrf_token }}
+            <fieldset class="mb-3">
+                {{ form.query.label(class_="form-label") }}
+                {{ form.query(size=30, placeholder="ra dec 10", class_="form-control") }}
+            </fieldset>
+            {% if form.query.errors %}
+            <fieldset class="mb-4">
+                {% for error in form.query.errors %}
+                    <p class="display-6" style="color: #5f6988">
+                        {{ error }}
+                    </p>
+                {% endfor %}
+            </fieldset>
+            {% endif %}
+            {{ form.submit(class_="btn btn-primary") }}
+        </form>
+        <p class="display-6">
+            Query in form: "ra dec radius[optional]"
+            where ra and dec can be in hms/dms or degrees
+            with an optional radius in arcseconds.
+        </p>
+    </div>
+    <script>
+        function setCaretPosition(ctrl, pos) {
+            if (ctrl.setSelectionRange) {
+                ctrl.focus();
+                ctrl.setSelectionRange(pos, pos);
+            } else {
+            }
+        }
+        window.onload = function () {
+          let searchvalue = document.getElementById('mainsearchfield');
+          searchvalue.focus();
+          setCaretPosition(searchvalue, searchvalue.value.length);
+        };
+    </script>
+
+    <div class="container-fluid">
+        <h2 class="display-3">Results for: {{ query|safe }}</h2>
+        <p class="display-6">{{ results|safe if results is not none }}</p>
+    </div>
+
+{% endblock %}

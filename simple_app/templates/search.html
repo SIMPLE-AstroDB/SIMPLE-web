@@ -9,11 +9,11 @@
             {{ form.csrf_token }}
             <fieldset class="mb-3">
                 {{ form.search.label(class_="form-label") }}
-                {{ form.search(size=30, class_="form-control") }}
+                {{ form.search(size=30, placeholder="object name", class_="form-control") }}
             </fieldset>
             <fieldset class="mb-3">
                 {{ form.refsearch.label(class_="form-label") }}
-                {{ form.refsearch(size=30, class_="form-control") }}
+                {{ form.refsearch(size=30, placeholder="free text search", class_="form-control") }}
             </fieldset>
             {% if form.search.errors %}
             <fieldset class="mb-4">
@@ -50,26 +50,31 @@
     </script>
     <script>
         function delay(callback, ms) {
-          let timer = 0;
-          return function() {
-            let context = this, args = arguments;
-            clearTimeout(timer);
-            timer = setTimeout(function () {
-              callback.apply(context, args);
-            }, ms || 0);
-          };
+            let timer = 0;
+            return function () {
+                let context = this, args = arguments;
+                clearTimeout(timer);
+                timer = setTimeout(function () {
+                    console.log(context.id, document.activeElement.id)
+                    if (context.id === document.activeElement.id) {
+                        callback.apply(context, args);
+                    }
+                }, ms || 0);
+            };
         }
-        $('#mainsearchfield').keyup(
+        $('#mainsearchfield').keypress(
             delay(
                 function () {
-                    $('#querybutton').trigger("click");},
-                3000)
+                    $('#querybutton').trigger("click");
+                }, 3000
+            )
         )
-        $('#refsearchfield').keyup(
+        $('#refsearchfield').keypress(
             delay(
                 function () {
-                    $('#querybutton').trigger("click");},
-                3000)
+                    $('#querybutton').trigger("click");
+                }, 3000
+            )
         )
     </script>
     <script>

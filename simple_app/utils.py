@@ -3,6 +3,7 @@ The static functions for various calculations and required parameters
 """
 import sys
 # local packages
+
 sys.path.append('.')
 from simple_app.simports import *
 
@@ -137,6 +138,42 @@ class SearchForm(FlaskForm):
     search = StringField('Search for an object:', id='mainsearchfield')  # searchbar
     refsearch = StringField('Filter by full text search:', id='refsearchfield')
     submit = SubmitField('Search', id='querybutton')  # clicker button to send request
+
+
+class BasicSearchForm(FlaskForm):
+    """
+    Searchbar class
+    """
+    search = StringField('Search for an object:', id='mainsearchfield')  # searchbar
+    submit = SubmitField('Search', id='querybutton')  # clicker button to send request
+
+
+class CoordQueryForm(FlaskForm):
+    """
+    Searchbar class
+    """
+    query = StringField('Query by coordinate within radius:', id='mainsearchfield')  # searchbar
+    submit = SubmitField('Query', id='querybutton')  # clicker button to send request
+
+    def __init__(self, *args, **kwargs):
+        super(CoordQueryForm, self).__init__(*args, **kwargs)
+        self.db_file: str = kwargs['db_file']
+        return
+
+    def validate_query(self, field):
+        db = SimpleDB(self.db_file, connection_arguments={'check_same_thread': False})  # open database
+        ra, dec, radius = multi_param_str_parse(field.data)
+        if not ra:  # i.e. empty string, bad parse
+            raise ValidationError('Input must be two or three inputs separated by " "')
+        ra, dec, unit = ra_dec_unit_parse(ra, dec)
+        try:
+            c = SkyCoord(ra=ra, dec=dec, unit=unit)
+        except ValueError:
+            raise ValidationError('Cannot parse coordinates, check astropy SkyCoord documentation')
+        try:
+            _ = db.query_region(c, fmt='pandas', radius=radius)
+        except Exception as e:
+            raise ValidationError(f'Uncaught Error -- {e}')
 
 
 class LooseSearchForm(FlaskForm):
@@ -591,6 +628,73 @@ def multidfquery(results: Dict[str, pd.DataFrame]) -> Dict[str, Optional[str]]:
             stringed_df = onedfquery(df)  # handle each dataframe
             resultsout[tabname] = stringed_df
     return resultsout
+
+
+def multi_param_str_parse(s: str) -> Optional[Tuple[str, str, float]]:
+    """
+    Parses a string to split into two or three parameters separated by N spaces
+
+    Parameters
+    ----------
+    s: str
+        Input string
+
+    Returns
+    -------
+    a
+        First output
+    b
+        Second output
+    c
+        Third output (optional)
+    """
+    try:
+        qrysplit: np.ndarray = np.array(s.replace('\t', ' ').lower().strip().split(' '))
+        qrysplit = qrysplit[np.logical_not(qrysplit == '')]
+        qrylen = len(qrysplit)
+        if qrylen < 2 or qrylen > 3:
+            raise ValueError
+        elif qrylen == 3:
+            _ = float(qrysplit[2])  # if radius can't be parsed as float, raises ValueError
+    except ValueError:
+        return '', '', 10.
+    if qrylen == 3:
+        a, b, c = qrysplit
+        c = float(c)
+    else:  # only ra and dec
+        a, b = qrysplit
+        c = 10.
+    return a, b, c
+
+
+def ra_dec_unit_parse(ra: str, dec: str) -> Tuple[Union[str, float], Union[str, float], str]:
+    """
+    Parses ra and dec values into either string (hms) or float (deg)
+
+    Parameters
+    ----------
+    ra: str
+        RA from string
+    dec: str
+        Dec from string
+
+    Returns
+    -------
+    ra
+        RA either string or float
+    dec
+        Dec either string or float
+    unit
+        Unit as a string
+    """
+    try:
+        ra = float(ra)
+        dec = float(dec)
+    except ValueError:
+        unit = 'hourangle,deg'
+    else:
+        unit = 'deg'
+    return ra, dec, unit
 
 
 def get_filters(db_file: str) -> pd.DataFrame:
