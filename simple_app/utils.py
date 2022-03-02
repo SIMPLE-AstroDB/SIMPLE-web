@@ -152,7 +152,7 @@ class CoordQueryForm(FlaskForm):
     """
     Searchbar class
     """
-    query = StringField('Query by coordinate within 10":', id='mainsearchfield')  # searchbar
+    query = StringField('Query by coordinate within radius:', id='mainsearchfield')  # searchbar
     submit = SubmitField('Query', id='querybutton')  # clicker button to send request
 
     def __init__(self, *args, **kwargs):
@@ -162,16 +162,16 @@ class CoordQueryForm(FlaskForm):
 
     def validate_query(self, field):
         db = SimpleDB(self.db_file, connection_arguments={'check_same_thread': False})  # open database
-        ra, dec = two_param_str_parse(field.data)
+        ra, dec, radius = multi_param_str_parse(field.data)
         if not ra:  # i.e. empty string, bad parse
-            raise ValidationError('Input must be two inputs separated by " "')
+            raise ValidationError('Input must be two or three inputs separated by " "')
         ra, dec, unit = ra_dec_unit_parse(ra, dec)
         try:
             c = SkyCoord(ra=ra, dec=dec, unit=unit)
         except ValueError:
             raise ValidationError('Cannot parse coordinates, check astropy SkyCoord documentation')
         try:
-            _ = db.query_region(c, fmt='pandas')
+            _ = db.query_region(c, fmt='pandas', radius=radius)
         except Exception as e:
             raise ValidationError(f'Uncaught Error -- {e}')
 
@@ -630,9 +630,9 @@ def multidfquery(results: Dict[str, pd.DataFrame]) -> Dict[str, Optional[str]]:
     return resultsout
 
 
-def two_param_str_parse(s: str) -> Optional[Tuple[str, str]]:
+def multi_param_str_parse(s: str) -> Optional[Tuple[str, str, float]]:
     """
-    Parses a string to split into two parameters separated by N spaces
+    Parses a string to split into two or three parameters separated by N spaces
 
     Parameters
     ----------
@@ -645,13 +645,26 @@ def two_param_str_parse(s: str) -> Optional[Tuple[str, str]]:
         First output
     b
         Second output
+    c
+        Third output (optional)
     """
     try:
         qrysplit: np.ndarray = np.array(s.replace('\t', ' ').lower().strip().split(' '))
-        a, b = qrysplit[np.logical_not(qrysplit == '')]
+        qrysplit = qrysplit[np.logical_not(qrysplit == '')]
+        qrylen = len(qrysplit)
+        if qrylen < 2 or qrylen > 3:
+            raise ValueError
+        elif qrylen == 3:
+            _ = float(qrysplit[2])  # if radius can't be parsed as float, raises ValueError
     except ValueError:
-        return '', ''
-    return a, b
+        return '', '', 10.
+    if qrylen == 3:
+        a, b, c = qrysplit
+        c = float(c)
+    else:  # only ra and dec
+        a, b = qrysplit
+        c = 10.
+    return a, b, c
 
 
 def ra_dec_unit_parse(ra: str, dec: str) -> Tuple[Union[str, float], Union[str, float], str]:

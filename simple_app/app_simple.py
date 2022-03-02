@@ -62,10 +62,10 @@ def coordquery():
         if (query := form.query.data) is None:  # content in main searchbar
             query = ''
         db = SimpleDB(db_file, connection_arguments={'check_same_thread': False})  # open database
-        ra, dec = two_param_str_parse(query)
+        ra, dec, radius = multi_param_str_parse(query)
         ra, dec, unit = ra_dec_unit_parse(ra, dec)
         c = SkyCoord(ra=ra, dec=dec, unit=unit)
-        results: pd.DataFrame = db.query_region(c, fmt='pandas')  # query
+        results: pd.DataFrame = db.query_region(c, fmt='pandas', radius=radius)  # query
         stringed_results = onedfquery(results)
         return render_template('coordquery.html', form=form, query=query, results=stringed_results)
     else:
