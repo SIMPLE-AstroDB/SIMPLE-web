@@ -258,7 +258,7 @@ def multiplotbokeh(all_results_full: pd.DataFrame, all_bands: np.ndarray,
     psky.xaxis.major_label_text_font_size = '1.5em'
     psky.yaxis.major_label_text_font_size = '1.5em'
     psky.title.text_font_size = '2em'
-    thistap.callback = OpenURL(url='/solo_result/@source')  # open new page on target when source tapped
+    thistap.callback = OpenURL(url='/load_solo/@source')  # open new page on target when source tapped
     # colour-colour
     pcc = figure(title='Colour-Colour', plot_height=500,
                  active_scroll='wheel_zoom', active_drag='box_zoom',
@@ -281,7 +281,7 @@ def multiplotbokeh(all_results_full: pd.DataFrame, all_bands: np.ndarray,
     pcc.yaxis.major_label_text_font_size = '1.5em'
     pcc.title.text_font_size = '2em'
     taptool = pcc.select(type=TapTool)  # tapping
-    taptool.callback = OpenURL(url='/solo_result/@source')  # open new page on target when source tapped
+    taptool.callback = OpenURL(url='/load_solo/@source')  # open new page on target when source tapped
     buttonxflip = Toggle(label='X Flip')
     buttonxflip.js_on_click(CustomJS(code=jscallbacks.button_flip, args={'axrange': pcc.x_range}))
     buttonyflip = Toggle(label='Y Flip')
@@ -318,7 +318,7 @@ def multiplotbokeh(all_results_full: pd.DataFrame, all_bands: np.ndarray,
     pcamd.yaxis.major_label_text_font_size = '1.5em'
     pcamd.title.text_font_size = '2em'
     taptoolmag = pcamd.select(type=TapTool)  # tapping
-    taptoolmag.callback = OpenURL(url='/solo_result/@source')  # open new page on target when source tapped
+    taptoolmag.callback = OpenURL(url='/load_solo/@source')  # open new page on target when source tapped
     buttonmagxflip = Toggle(label='X Flip')
     buttonmagxflip.js_on_click(CustomJS(code=jscallbacks.button_flip, args={'axrange': pcamd.x_range}))
     buttonmagyflip = Toggle(label='Y Flip')
@@ -432,7 +432,7 @@ def camdplot(query: str, everything: Inventory, all_bands: np.ndarray,
     p.xaxis.major_label_text_font_size = '1.5em'
     p.yaxis.major_label_text_font_size = '1.5em'
     taptool = p.select(type=TapTool)  # tapping
-    taptool.callback = OpenURL(url='/solo_result/@target')  # open new page on target when source tapped
+    taptool.callback = OpenURL(url='/load_solo/@target')  # open new page on target when source tapped
     buttonxflip = Toggle(label='X Flip')
     buttonxflip.js_on_click(CustomJS(code=jscallbacks.button_flip, args={'axrange': p.x_range}))
     buttonyflip = Toggle(label='Y Flip')

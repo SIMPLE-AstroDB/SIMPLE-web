@@ -130,6 +130,14 @@ def solo_result(query: str):
                            query=query, resultdict=resultdict, everything=everything)
 
 
+@app_simple.route('/load_solo/<query>')
+def load_solopage(query: str):
+    """
+    Loading solo result page
+    """
+    return render_template('load_solo.html', query=query)
+
+
 @app_simple.route('/multiplot')
 def multiplotpage():
     """
@@ -137,6 +145,14 @@ def multiplotpage():
     """
     scriptmulti, divmulti = multiplotbokeh(all_results_full, all_bands, all_photo, all_plx, jscallbacks, nightskytheme)
     return render_template('multiplot.html', scriptmulti=scriptmulti, divmulti=divmulti, resources=CDN.render())
+
+
+@app_simple.route('/load_multiplot')
+def load_multiplot():
+    """
+    Loading multiplot page
+    """
+    return render_template('load_multiplot.html')
 
 
 @app_simple.route('/autocomplete', methods=['GET'])

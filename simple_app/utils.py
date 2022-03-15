@@ -598,7 +598,7 @@ def onedfquery(results: pd.DataFrame) -> Optional[str]:
             sourcelinks = []
             for src in results.source.values:  # over every source in table
                 urllnk = quote(src)  # convert object name to url safe
-                srclnk = f'<a href="/solo_result/{urllnk}" target="_blank">{src}</a>'  # construct hyperlink
+                srclnk = f'<a href="/load_solo/{urllnk}" target="_blank">{src}</a>'  # construct hyperlink
                 sourcelinks.append(srclnk)  # add that to list
             results['source'] = sourcelinks  # update dataframe with the linked ones
         stringed_results = markdown(results.to_html(index=False, escape=False, max_rows=10,
