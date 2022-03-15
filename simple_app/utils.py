@@ -501,6 +501,7 @@ def results_concat(all_results_full: pd.DataFrame, all_photo: pd.DataFrame,
                                                   left_on='source', right_on='target', how='left')
     all_results_mostfull = pd.merge(all_results_mostfull, all_plx, on='source')
     all_results_mostfull = absmags(all_results_mostfull, all_bands)  # find the absolute mags
+    all_results_mostfull.drop_duplicates('source', inplace=True)
     return all_results_mostfull
 
 

@@ -158,7 +158,7 @@ def specplot(query: str, db_file: str,
             j = 0
             ld = 'dashed'
         lineplot = p.line(x='wave', y='normflux', source=cds, legend_label=label,
-                          line_color=Colorblind8[j], line_dash=ld)  # create line plot
+                          line_color=Colorblind8[j], line_dash=ld, line_width=2)  # create line plot
         lineplots.append(lineplot)
         i += 1
     failstr = 'The spectra ' + ', '.join(failstrlist) + ' could not be plotted.'
@@ -251,8 +251,8 @@ def multiplotbokeh(all_results_full: pd.DataFrame, all_bands: np.ndarray,
                   sizing_mode='stretch_width', x_range=[-180, 180], y_range=[-90, 90])  # bokeh figure
     psky.add_tools(thishover)  # add hover tool to plot
     psky.add_tools(thistap)  # add tap tool to plot
-    psky.ellipse(x=0, y=0, width=360, height=180, color='lightgrey', name='background')  # background ellipse
-    psky.circle(source=fullcds, x='raproj', y='decproj', size=6, name='circle')
+    psky.ellipse(x=0, y=0, width=360, height=180, color='#444444', name='background')  # background ellipse
+    psky.circle(source=fullcds, x='raproj', y='decproj', size=6, name='circle', color='ghostwhite')
     psky.xaxis.axis_label_text_font_size = '1.5em'
     psky.yaxis.axis_label_text_font_size = '1.5em'
     psky.xaxis.major_label_text_font_size = '1.5em'
@@ -270,7 +270,7 @@ def multiplotbokeh(all_results_full: pd.DataFrame, all_bands: np.ndarray,
     yfullname = just_colours.columns[1]
     xvisname = xfullname.replace('-', ' - ')
     yvisname = yfullname.replace('-', ' - ')
-    fullplot = pcc.circle(x=xfullname, y=yfullname, source=fullcds, size=5)  # plot all objects
+    fullplot = pcc.circle(x=xfullname, y=yfullname, source=fullcds, size=6, color='ghostwhite')  # plot all objects
     pcc.x_range = Range1d(all_results_mostfull[xfullname].min(), all_results_mostfull[xfullname].max())  # x
     pcc.y_range = Range1d(all_results_mostfull[yfullname].min(), all_results_mostfull[yfullname].max())  # y
     pcc.xaxis.axis_label = xvisname  # x label
@@ -307,7 +307,7 @@ def multiplotbokeh(all_results_full: pd.DataFrame, all_bands: np.ndarray,
                    tools='pan,wheel_zoom,box_zoom,box_select,hover,tap,reset', tooltips=tooltips,
                    sizing_mode='stretch_width')  # bokeh figure
     yfullname = absmagnames[0]
-    fullmagplot = pcamd.circle(x=xfullname, y=yfullname, source=fullcds, size=5)  # plot all objects
+    fullmagplot = pcamd.circle(x=xfullname, y=yfullname, source=fullcds, size=6, color='ghostwhite')  # plot all objects
     pcamd.x_range = Range1d(all_results_mostfull[xfullname].min(), all_results_mostfull[xfullname].max())  # x
     pcamd.y_range = Range1d(all_results_mostfull[yfullname].max(), all_results_mostfull[yfullname].min())  # y limits
     pcamd.xaxis.axis_label = xvisname  # x label
@@ -416,12 +416,12 @@ def camdplot(query: str, everything: Inventory, all_bands: np.ndarray,
     yvisname = yfullname.replace('-', ' - ')
     thiscds = ColumnDataSource(data=thisphoto)  # this object cds
     thisplot = p.circle(x=xfullname, y=yfullname, source=thiscds,
-                        color='blue', size=10)  # plot for this object
+                        color='#375a7f', size=20)  # plot for this object
     all_results_mostfull = results_concat(all_results_full, all_photo, all_plx, thisbands)
     all_results_mostfull.dropna(axis=1, how='all', inplace=True)
     cdsfull = ColumnDataSource(data=all_results_mostfull)  # bokeh cds object
     fullplot = p.circle_x(x=xfullname, y=yfullname, source=cdsfull,
-                          color='gray', alpha=0.5, size=5)  # plot all objects
+                          color='ghostwhite', alpha=0.5, size=6)  # plot all objects
     fullplot.level = 'underlay'  # put full plot underneath this plot
     p.x_range = Range1d(all_results_mostfull[xfullname].min(), all_results_mostfull[xfullname].max())  # x limits
     p.y_range = Range1d(all_results_mostfull[yfullname].min(), all_results_mostfull[yfullname].max())  # y limits
