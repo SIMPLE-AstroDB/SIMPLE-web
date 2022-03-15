@@ -3,6 +3,7 @@ File containing the 'workhorse' functions generating the various plots seen on t
 """
 import sys
 # local packages
+import numpy as np
 
 sys.path.append('.')
 from simple_app.utils import *
@@ -130,7 +131,13 @@ def specplot(query: str, db_file: str,
         spectrum: Spectrum1D = spec['spectrum']  # spectrum as an object
         try:
             wave: np.ndarray = spectrum.spectral_axis.to(u.micron).value  # unpack wavelengths
-        except (u.UnitConversionError, AttributeError):  # check astrodbkit2 has loaded spectra
+            flux: np.ndarray = spectrum.flux.value  # unpack fluxes
+            nancheck: np.ndarray = ~np.isnan(flux) & ~np.isnan(wave)
+            wave = wave[nancheck]
+            flux = flux[nancheck]
+            if not len(wave):
+                raise ValueError
+        except (u.UnitConversionError, AttributeError, ValueError):  # check astrodbkit2 has loaded spectra
             nfail += 1
             if spec["mode"] is None:
                 failstrlist.append(f'{spec["telescope"]}/{spec["instrument"]} '
@@ -139,7 +146,6 @@ def specplot(query: str, db_file: str,
                 failstrlist.append(f'{spec["telescope"]}/{spec["instrument"]}/{spec["mode"]}'
                                    f' ({spec["reference"]})')
             continue
-        flux: np.ndarray = spectrum.flux.value  # unpack fluxes
         label = f'{spec["telescope"]}-{spec["instrument"]}: {spec["observation_date"].date()}'  # legend label
         normminwave = wave[0] if wave[0] < normminwave else normminwave
         normmaxwave = wave[-1] if wave[-1] > normmaxwave else normmaxwave
