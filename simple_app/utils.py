@@ -463,7 +463,7 @@ def absmags(df: pd.DataFrame, all_bands: np.ndarray) -> pd.DataFrame:
         """
         return m - 5 * np.log10(dist, where=dist > 0) + 5
 
-    df['dist'] = np.divide(1000, df['parallax'])
+    df['dist'] = np.divide(1000, df.parallax, where=df.parallax > 0)
     for mag in all_bands:
         abs_mag = "M_" + mag
         try:
