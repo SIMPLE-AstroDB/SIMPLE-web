@@ -461,7 +461,7 @@ def absmags(df: pd.DataFrame, all_bands: np.ndarray) -> pd.DataFrame:
         _
             Absolute magnitude
         """
-        return m - 5 * np.log10(dist, where=dist > 0) + 5
+        return np.where(dist > 0, m - 5 * np.log10(dist, where=dist > 0) + 5, np.nan)
 
     df['dist'] = np.divide(1000, df.parallax, where=df.parallax > 0)
     for mag in all_bands:
