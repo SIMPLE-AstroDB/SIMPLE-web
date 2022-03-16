@@ -182,28 +182,31 @@ def specplot(query: str, db_file: str,
         p.add_layout(sp)
     # all this features stuff is heavily taken from splat
     yoff = 0.02 * (bounds[3] - bounds[2])  # label offset
+    toglist = []
     for featurename, features in featuresall.items():
+        feattoggle = Toggle(label=featurename, width=200)
         for ftr in features:
             for ii, waverng in enumerate(FEATURE_LABELS[ftr]['wavelengths']):
                 if np.nanmin(waverng) > bounds[0] and np.nanmax(waverng) < bounds[1]:
                     y = 1
                     if FEATURE_LABELS[ftr]['type'] == 'band':
-                        p.line(waverng, [y + 5 * yoff] * 2, color='white', legend_label=featurename, visible=False)
-                        lfeat = p.line([waverng[0]] * 2, [y + 4 * yoff, y + 5 * yoff], color='white',
-                                       legend_label=featurename, visible=False)
+                        p.line(waverng, [y + 5 * yoff] * 2, color='white', visible=False)
+                        lfeat = p.line([waverng[0]] * 2, [y + 4 * yoff, y + 5 * yoff], color='white', visible=False)
                         t = Label(x=np.mean(waverng), y=y + 5.5 * yoff, text=FEATURE_LABELS[ftr]['label'],
                                   text_color='white', visible=False)
                     else:
                         lfeat = None
                         for w in waverng:
-                            lfeat = p.line([w] * 2, [y, y + yoff], color='white', line_dash='dotted',
-                                           legend_label=featurename, visible=False)
+                            lfeat = p.line([w] * 2, [y, y + yoff], color='white', line_dash='dotted', visible=False)
                         t = Label(x=np.mean(waverng), y=y + 1.5 * yoff, text=FEATURE_LABELS[ftr]['label'],
                                   text_color='white', visible=False)
                     p.add_layout(t)
+                    feattoggle.js_link('active', lfeat, 'visible')
                     lfeat.js_on_change('visible', CustomJS(args=dict(t=t),
                                                            code="""t.visible = cb_obj.visible;"""))
-    scriptdiv = components(column(p, spslide, sizing_mode='stretch_width'),
+        toglist.append(feattoggle)
+    scriptdiv = components(column(row(p, column(*toglist, max_width=200)),
+                                  spslide, sizing_mode='stretch_width'),
                            theme=nightskytheme)  # convert bokeh plot into script and div
     script: str = scriptdiv[0]
     div: str = scriptdiv[1]
