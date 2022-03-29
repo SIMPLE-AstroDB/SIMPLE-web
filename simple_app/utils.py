@@ -461,9 +461,9 @@ def absmags(df: pd.DataFrame, all_bands: np.ndarray) -> pd.DataFrame:
         _
             Absolute magnitude
         """
-        return m - 5 * np.log10(dist, where=dist > 0) + 5
+        return np.where(dist > 0, m - 5 * np.log10(dist, where=dist > 0) + 5, np.nan)
 
-    df['dist'] = np.divide(1000, df['parallax'])
+    df['dist'] = np.divide(1000, df.parallax, where=df.parallax > 0)
     for mag in all_bands:
         abs_mag = "M_" + mag
         try:
@@ -501,6 +501,7 @@ def results_concat(all_results_full: pd.DataFrame, all_photo: pd.DataFrame,
                                                   left_on='source', right_on='target', how='left')
     all_results_mostfull = pd.merge(all_results_mostfull, all_plx, on='source')
     all_results_mostfull = absmags(all_results_mostfull, all_bands)  # find the absolute mags
+    all_results_mostfull.drop_duplicates('source', inplace=True)
     return all_results_mostfull
 
 
@@ -598,7 +599,7 @@ def onedfquery(results: pd.DataFrame) -> Optional[str]:
             sourcelinks = []
             for src in results.source.values:  # over every source in table
                 urllnk = quote(src)  # convert object name to url safe
-                srclnk = f'<a href="/solo_result/{urllnk}" target="_blank">{src}</a>'  # construct hyperlink
+                srclnk = f'<a href="/load_solo/{urllnk}" target="_blank">{src}</a>'  # construct hyperlink
                 sourcelinks.append(srclnk)  # add that to list
             results['source'] = sourcelinks  # update dataframe with the linked ones
         stringed_results = markdown(results.to_html(index=False, escape=False, max_rows=10,

@@ -3,6 +3,7 @@ File containing the 'workhorse' functions generating the various plots seen on t
 """
 import sys
 # local packages
+import numpy as np
 
 sys.path.append('.')
 from simple_app.utils import *
@@ -130,7 +131,13 @@ def specplot(query: str, db_file: str,
         spectrum: Spectrum1D = spec['spectrum']  # spectrum as an object
         try:
             wave: np.ndarray = spectrum.spectral_axis.to(u.micron).value  # unpack wavelengths
-        except (u.UnitConversionError, AttributeError):  # check astrodbkit2 has loaded spectra
+            flux: np.ndarray = spectrum.flux.value  # unpack fluxes
+            nancheck: np.ndarray = ~np.isnan(flux) & ~np.isnan(wave)
+            wave = wave[nancheck]
+            flux = flux[nancheck]
+            if not len(wave):
+                raise ValueError
+        except (u.UnitConversionError, AttributeError, ValueError):  # check astrodbkit2 has loaded spectra
             nfail += 1
             if spec["mode"] is None:
                 failstrlist.append(f'{spec["telescope"]}/{spec["instrument"]} '
@@ -139,7 +146,6 @@ def specplot(query: str, db_file: str,
                 failstrlist.append(f'{spec["telescope"]}/{spec["instrument"]}/{spec["mode"]}'
                                    f' ({spec["reference"]})')
             continue
-        flux: np.ndarray = spectrum.flux.value  # unpack fluxes
         label = f'{spec["telescope"]}-{spec["instrument"]}: {spec["observation_date"].date()}'  # legend label
         normminwave = wave[0] if wave[0] < normminwave else normminwave
         normmaxwave = wave[-1] if wave[-1] > normmaxwave else normmaxwave
@@ -152,7 +158,7 @@ def specplot(query: str, db_file: str,
             j = 0
             ld = 'dashed'
         lineplot = p.line(x='wave', y='normflux', source=cds, legend_label=label,
-                          line_color=Colorblind8[j], line_dash=ld)  # create line plot
+                          line_color=Colorblind8[j], line_dash=ld, line_width=2)  # create line plot
         lineplots.append(lineplot)
         i += 1
     failstr = 'The spectra ' + ', '.join(failstrlist) + ' could not be plotted.'
@@ -176,28 +182,31 @@ def specplot(query: str, db_file: str,
         p.add_layout(sp)
     # all this features stuff is heavily taken from splat
     yoff = 0.02 * (bounds[3] - bounds[2])  # label offset
+    toglist = []
     for featurename, features in featuresall.items():
+        feattoggle = Toggle(label=featurename, width=200)
         for ftr in features:
             for ii, waverng in enumerate(FEATURE_LABELS[ftr]['wavelengths']):
                 if np.nanmin(waverng) > bounds[0] and np.nanmax(waverng) < bounds[1]:
                     y = 1
                     if FEATURE_LABELS[ftr]['type'] == 'band':
-                        p.line(waverng, [y + 5 * yoff] * 2, color='white', legend_label=featurename, visible=False)
-                        lfeat = p.line([waverng[0]] * 2, [y + 4 * yoff, y + 5 * yoff], color='white',
-                                       legend_label=featurename, visible=False)
+                        p.line(waverng, [y + 5 * yoff] * 2, color='white', visible=False)
+                        lfeat = p.line([waverng[0]] * 2, [y + 4 * yoff, y + 5 * yoff], color='white', visible=False)
                         t = Label(x=np.mean(waverng), y=y + 5.5 * yoff, text=FEATURE_LABELS[ftr]['label'],
                                   text_color='white', visible=False)
                     else:
                         lfeat = None
                         for w in waverng:
-                            lfeat = p.line([w] * 2, [y, y + yoff], color='white', line_dash='dotted',
-                                           legend_label=featurename, visible=False)
+                            lfeat = p.line([w] * 2, [y, y + yoff], color='white', line_dash='dotted', visible=False)
                         t = Label(x=np.mean(waverng), y=y + 1.5 * yoff, text=FEATURE_LABELS[ftr]['label'],
                                   text_color='white', visible=False)
                     p.add_layout(t)
+                    feattoggle.js_link('active', lfeat, 'visible')
                     lfeat.js_on_change('visible', CustomJS(args=dict(t=t),
                                                            code="""t.visible = cb_obj.visible;"""))
-    scriptdiv = components(column(p, spslide, sizing_mode='stretch_width'),
+        toglist.append(feattoggle)
+    scriptdiv = components(column(row(p, column(*toglist, max_width=200)),
+                                  spslide, sizing_mode='stretch_width'),
                            theme=nightskytheme)  # convert bokeh plot into script and div
     script: str = scriptdiv[0]
     div: str = scriptdiv[1]
@@ -245,14 +254,14 @@ def multiplotbokeh(all_results_full: pd.DataFrame, all_bands: np.ndarray,
                   sizing_mode='stretch_width', x_range=[-180, 180], y_range=[-90, 90])  # bokeh figure
     psky.add_tools(thishover)  # add hover tool to plot
     psky.add_tools(thistap)  # add tap tool to plot
-    psky.ellipse(x=0, y=0, width=360, height=180, color='lightgrey', name='background')  # background ellipse
-    psky.circle(source=fullcds, x='raproj', y='decproj', size=6, name='circle')
+    psky.ellipse(x=0, y=0, width=360, height=180, color='#444444', name='background')  # background ellipse
+    psky.circle(source=fullcds, x='raproj', y='decproj', size=6, name='circle', color='ghostwhite')
     psky.xaxis.axis_label_text_font_size = '1.5em'
     psky.yaxis.axis_label_text_font_size = '1.5em'
     psky.xaxis.major_label_text_font_size = '1.5em'
     psky.yaxis.major_label_text_font_size = '1.5em'
     psky.title.text_font_size = '2em'
-    thistap.callback = OpenURL(url='/solo_result/@source')  # open new page on target when source tapped
+    thistap.callback = OpenURL(url='/load_solo/@source')  # open new page on target when source tapped
     # colour-colour
     pcc = figure(title='Colour-Colour', plot_height=500,
                  active_scroll='wheel_zoom', active_drag='box_zoom',
@@ -264,7 +273,7 @@ def multiplotbokeh(all_results_full: pd.DataFrame, all_bands: np.ndarray,
     yfullname = just_colours.columns[1]
     xvisname = xfullname.replace('-', ' - ')
     yvisname = yfullname.replace('-', ' - ')
-    fullplot = pcc.circle(x=xfullname, y=yfullname, source=fullcds, size=5)  # plot all objects
+    fullplot = pcc.circle(x=xfullname, y=yfullname, source=fullcds, size=6, color='ghostwhite')  # plot all objects
     pcc.x_range = Range1d(all_results_mostfull[xfullname].min(), all_results_mostfull[xfullname].max())  # x
     pcc.y_range = Range1d(all_results_mostfull[yfullname].min(), all_results_mostfull[yfullname].max())  # y
     pcc.xaxis.axis_label = xvisname  # x label
@@ -275,7 +284,7 @@ def multiplotbokeh(all_results_full: pd.DataFrame, all_bands: np.ndarray,
     pcc.yaxis.major_label_text_font_size = '1.5em'
     pcc.title.text_font_size = '2em'
     taptool = pcc.select(type=TapTool)  # tapping
-    taptool.callback = OpenURL(url='/solo_result/@source')  # open new page on target when source tapped
+    taptool.callback = OpenURL(url='/load_solo/@source')  # open new page on target when source tapped
     buttonxflip = Toggle(label='X Flip')
     buttonxflip.js_on_click(CustomJS(code=jscallbacks.button_flip, args={'axrange': pcc.x_range}))
     buttonyflip = Toggle(label='Y Flip')
@@ -301,7 +310,7 @@ def multiplotbokeh(all_results_full: pd.DataFrame, all_bands: np.ndarray,
                    tools='pan,wheel_zoom,box_zoom,box_select,hover,tap,reset', tooltips=tooltips,
                    sizing_mode='stretch_width')  # bokeh figure
     yfullname = absmagnames[0]
-    fullmagplot = pcamd.circle(x=xfullname, y=yfullname, source=fullcds, size=5)  # plot all objects
+    fullmagplot = pcamd.circle(x=xfullname, y=yfullname, source=fullcds, size=6, color='ghostwhite')  # plot all objects
     pcamd.x_range = Range1d(all_results_mostfull[xfullname].min(), all_results_mostfull[xfullname].max())  # x
     pcamd.y_range = Range1d(all_results_mostfull[yfullname].max(), all_results_mostfull[yfullname].min())  # y limits
     pcamd.xaxis.axis_label = xvisname  # x label
@@ -312,7 +321,7 @@ def multiplotbokeh(all_results_full: pd.DataFrame, all_bands: np.ndarray,
     pcamd.yaxis.major_label_text_font_size = '1.5em'
     pcamd.title.text_font_size = '2em'
     taptoolmag = pcamd.select(type=TapTool)  # tapping
-    taptoolmag.callback = OpenURL(url='/solo_result/@source')  # open new page on target when source tapped
+    taptoolmag.callback = OpenURL(url='/load_solo/@source')  # open new page on target when source tapped
     buttonmagxflip = Toggle(label='X Flip')
     buttonmagxflip.js_on_click(CustomJS(code=jscallbacks.button_flip, args={'axrange': pcamd.x_range}))
     buttonmagyflip = Toggle(label='Y Flip')
@@ -410,12 +419,12 @@ def camdplot(query: str, everything: Inventory, all_bands: np.ndarray,
     yvisname = yfullname.replace('-', ' - ')
     thiscds = ColumnDataSource(data=thisphoto)  # this object cds
     thisplot = p.circle(x=xfullname, y=yfullname, source=thiscds,
-                        color='blue', size=10)  # plot for this object
+                        color='#375a7f', size=20)  # plot for this object
     all_results_mostfull = results_concat(all_results_full, all_photo, all_plx, thisbands)
     all_results_mostfull.dropna(axis=1, how='all', inplace=True)
     cdsfull = ColumnDataSource(data=all_results_mostfull)  # bokeh cds object
     fullplot = p.circle_x(x=xfullname, y=yfullname, source=cdsfull,
-                          color='gray', alpha=0.5, size=5)  # plot all objects
+                          color='ghostwhite', alpha=0.5, size=6)  # plot all objects
     fullplot.level = 'underlay'  # put full plot underneath this plot
     p.x_range = Range1d(all_results_mostfull[xfullname].min(), all_results_mostfull[xfullname].max())  # x limits
     p.y_range = Range1d(all_results_mostfull[yfullname].min(), all_results_mostfull[yfullname].max())  # y limits
@@ -426,7 +435,7 @@ def camdplot(query: str, everything: Inventory, all_bands: np.ndarray,
     p.xaxis.major_label_text_font_size = '1.5em'
     p.yaxis.major_label_text_font_size = '1.5em'
     taptool = p.select(type=TapTool)  # tapping
-    taptool.callback = OpenURL(url='/solo_result/@target')  # open new page on target when source tapped
+    taptool.callback = OpenURL(url='/load_solo/@target')  # open new page on target when source tapped
     buttonxflip = Toggle(label='X Flip')
     buttonxflip.js_on_click(CustomJS(code=jscallbacks.button_flip, args={'axrange': p.x_range}))
     buttonyflip = Toggle(label='Y Flip')

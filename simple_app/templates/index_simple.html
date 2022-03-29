@@ -3,21 +3,12 @@
 
 {% block content %}
 
-<div class='container'>
-    <h1 class="display-2">Welcome!</h1>
-    <p class="display-6">The SIMPLE Database is a cross-matched and curated collection of
-        astrometry, photometry, spectra, and image data for <strong>{{ source_count|safe }}</strong>
-        sources from the literature.
-        You can search the database, find out more about the database, or leave website feedback
-        using the menu above.
-    </p>
-</div>
 <div class="container">
     <form method="post" action="{{ url_for('search') }}" id="searchform">
         {{ form.csrf_token }}
         <fieldset class="mb-3">
             {{ form.search.label(class_="form-label") }}
-            {{ form.search(size=30, placeholder="object name", class_="form-control") }}
+            {{ form.search(size=30, placeholder="source", class_="form-control") }}
         </fieldset>
         {% if form.search.errors %}
         <fieldset class="mb-4">
@@ -30,6 +21,21 @@
         {% endif %}
         {{ form.submit(class_="btn btn-primary") }}
     </form>
+</div>
+<div class='container'>
+    <h1 class="display-2">Welcome!</h1>
+    <p class="display-6">The SIMPLE Database is a cross-matched and curated collection of
+        astrometry, photometry, spectra, and image data for <strong>{{ source_count|safe }}</strong>
+        sources from the literature.<br>
+        You can search the database through either an <a href="{{ url_for('search') }}">object search</a>,
+        a <a href="{{ url_for('fulltextsearch') }}">free text search</a> or a
+        <a href="{{ url_for('coordquery') }}">coordinate query</a>.
+        You can also view the positions and photometry of the entire database via our
+        <a href="{{ url_for('load_multiplot') }}">interactive viewer</a>!<br>
+        Navigation can be performed through the use of the header bar, whilst details of our GitHub respositories are
+        available through the footer.
+        We welcome contributions from the entire community and greatly appreciate any feedback (including bug reports)!
+    </p>
 </div>
 <script>
     $(function() {
