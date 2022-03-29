@@ -23,7 +23,6 @@ jobs:
       run: |
         python -m pip install --upgrade pip
         pip install pytest
-        pip install git+https://github.com/dr-rodriguez/AstrodbKit2
         if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
         wget -O SIMPLE.db https://raw.githubusercontent.com/SIMPLE-AstroDB/SIMPLE-binary/main/SIMPLE.db
     - name: Test with pytest
