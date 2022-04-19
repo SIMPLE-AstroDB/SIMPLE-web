@@ -59,7 +59,12 @@
         <h2 class="display-3">Results for: {{ query|safe }}</h2>
         {% for tabname, df in results.items() %}
             <div class="container-fluid">
+                {% if query != '' %}
+                <h3 class="display-4"><a href="{{ url_for('create_file_for_fulldownload', key=tabname) }}">
+                    {{ tabname|safe }}</a></h3>
+                {% else %}
                 <h3 class="display-4">{{ tabname|safe }}</h3>
+                {% endif %}
                 <p class="display-6">{{ df|safe }}</p>
             </div>
         {% endfor %}

@@ -35,6 +35,8 @@ def search():
         refquery = ''
     if (query := form.search.data) is None:  # content in main searchbar
         query = ''
+    curdoc().template_variables['query'] = query  # add query to bokeh curdoc
+    curdoc().template_variables['refquery'] = refquery  # add query to bokeh curdoc
     db = SimpleDB(db_file, connection_arguments={'check_same_thread': False})  # open database
     try:
         results: Optional[pd.DataFrame] = db.search_object(query, fmt='pandas')  # get the results for that object
@@ -62,6 +64,7 @@ def coordquery():
     if form.validate_on_submit():
         if (query := form.query.data) is None:  # content in main searchbar
             query = ''
+        curdoc().template_variables['query'] = query  # add query to bokeh curdoc
         db = SimpleDB(db_file, connection_arguments={'check_same_thread': False})  # open database
         ra, dec, radius = multi_param_str_parse(query)
         ra, dec, unit = ra_dec_unit_parse(ra, dec)
@@ -70,7 +73,7 @@ def coordquery():
         stringed_results = onedfquery(results)
         return render_template('coordquery.html', form=form, query=query, results=stringed_results)
     else:
-        return render_template('coordquery.html', form=form, results=None)
+        return render_template('coordquery.html', form=form, results=None, query='')
 
 
 @app_simple.route('/fulltextsearch', methods=['GET', 'POST'])
@@ -81,6 +84,7 @@ def fulltextsearch():
     form = LooseSearchForm()  # main searchbar
     if (query := form.search.data) is None:  # content in main searchbar
         query = ''
+    curdoc().template_variables['query'] = query  # add query to bokeh curdoc
     db = SimpleDB(db_file, connection_arguments={'check_same_thread': False})  # open database
     results: Dict[str, pd.DataFrame] = db.search_string(query, fmt='pandas', verbose=False)  # search
     resultsout = multidfquery(results)
@@ -98,6 +102,7 @@ def raw_query():
     if form.validate_on_submit():
         if (query := form.sqlfield.data) is None:  # content in main searchbar
             query = ''
+        curdoc().template_variables['query'] = query  # add query to bokeh curdoc
         try:
             results: Optional[pd.DataFrame] = db.sql_query(query, fmt='pandas')
         except (ResourceClosedError, OperationalError, IndexError, SqliteWarning, BadSQLError):
@@ -105,7 +110,7 @@ def raw_query():
         stringed_results = onedfquery(results)
         return render_template('rawquery.html', form=form, results=stringed_results)
     else:
-        return render_template('rawquery.html', form=form, results=None)
+        return render_template('rawquery.html', form=form, results=None, query='')
 
 
 @app_simple.route('/solo_result/<query>')
@@ -167,7 +172,7 @@ def autocomplete():
 @app_simple.route('/write/<key>', methods=['GET', 'POST'])
 def create_file_for_download(key: str) -> Optional[str]:
     """
-    Creates and downloads the shown dataframe
+    Creates and downloads the shown dataframe from solo results
 
     Parameters
     ----------
@@ -180,9 +185,73 @@ def create_file_for_download(key: str) -> Optional[str]:
     everything = Inventory(resultdict, args, rtnmk=False)
     if key in resultdict:
         results: pd.DataFrame = getattr(everything, key.lower())
-        fname = write_file(results, query, key).split('/')[-1]
+        fname = write_file(results).split('/')[-1]
         return redirect(url_for('download_file', filename=fname))
     return None
+
+
+@app_simple.route('/write_filt', methods=['GET', 'POST'])
+def create_file_for_filtdownload() -> Optional[str]:
+    """
+    Creates and downloads the shown dataframe when in filtered search
+    """
+    query = curdoc().template_variables['query']
+    refquery = curdoc().template_variables['refquery']
+    db = SimpleDB(db_file, connection_arguments={'check_same_thread': False})  # open database
+    results: Optional[pd.DataFrame] = db.search_object(query, fmt='pandas')  # get the results for that object
+    refresults: Optional[dict] = db.search_string(refquery, fmt='pandas', verbose=False)  # search all the strings
+    refsources: pd.DataFrame = refresults['Sources']
+    filtered_results: Optional[pd.DataFrame] = results.merge(refsources, on='source', suffixes=(None, 'extra'))
+    filtered_results.drop(columns=list(filtered_results.filter(regex='extra')), inplace=True)
+    fname = write_file(filtered_results).split('/')[-1]
+    return redirect(url_for('download_file', filename=fname))
+
+
+@app_simple.route('/write_coord', methods=['GET', 'POST'])
+def create_file_for_coorddownload() -> Optional[str]:
+    """
+    Creates and downloads the shown dataframe when in coordinate search
+    """
+    query = curdoc().template_variables['query']
+    db = SimpleDB(db_file, connection_arguments={'check_same_thread': False})  # open database
+    ra, dec, radius = multi_param_str_parse(query)
+    ra, dec, unit = ra_dec_unit_parse(ra, dec)
+    c = SkyCoord(ra=ra, dec=dec, unit=unit)
+    results: pd.DataFrame = db.query_region(c, fmt='pandas', radius=radius)  # query
+    fname = write_file(results).split('/')[-1]
+    return redirect(url_for('download_file', filename=fname))
+
+
+@app_simple.route('/write_full/<key>', methods=['GET', 'POST'])
+def create_file_for_fulldownload(key: str) -> Optional[str]:
+    """
+    Creates and downloads the shown dataframe when in unrestrained search
+
+    Parameters
+    ----------
+    key: str
+        The dataframe string
+    """
+    query = curdoc().template_variables['query']
+    db = SimpleDB(db_file, connection_arguments={'check_same_thread': False})  # open database
+    resultdict: Dict[str, pd.DataFrame] = db.search_string(query, fmt='pandas', verbose=False)  # search
+    if key in resultdict:
+        results: pd.DataFrame = resultdict[key]
+        fname = write_file(results).split('/')[-1]
+        return redirect(url_for('download_file', filename=fname))
+    return None
+
+
+@app_simple.route('/write_sql', methods=['GET', 'POST'])
+def create_file_for_sqldownload() -> Optional[str]:
+    """
+    Creates and downloads the shown dataframe when in sql query
+    """
+    query = curdoc().template_variables['query']
+    db = SimpleDB(db_file, connection_arguments={'check_same_thread': False})  # open database
+    results: Optional[pd.DataFrame] = db.sql_query(query, fmt='pandas')
+    fname = write_file(results).split('/')[-1]
+    return redirect(url_for('download_file', filename=fname))
 
 
 @app_simple.route('/tmp/<path:filename>', methods=['GET', 'POST'])

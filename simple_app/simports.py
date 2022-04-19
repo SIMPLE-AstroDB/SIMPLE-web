@@ -33,5 +33,6 @@ from copy import deepcopy
 import os  # operating system
 from shutil import copy  # copying files
 import sys  # system arguments
+from time import strftime, localtime
 from typing import Tuple, Optional, List, Union, Dict  # type hinting (good in IDEs)
 from urllib.parse import quote  # handling strings into url friendly form

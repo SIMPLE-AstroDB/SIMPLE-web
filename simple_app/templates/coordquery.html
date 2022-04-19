@@ -44,7 +44,12 @@
     </script>
 
     <div class="container-fluid">
+        {% if query != '' %}
+        <h2 class="display-3"><a href="{{ url_for('create_file_for_coorddownload') }}">Results</a>
+             for: {{ query|safe }}</h2>
+        {% else %}
         <h2 class="display-3">Results for: {{ query|safe }}</h2>
+        {% endif %}
         <p class="display-6">{{ results|safe if results is not none }}</p>
     </div>
 

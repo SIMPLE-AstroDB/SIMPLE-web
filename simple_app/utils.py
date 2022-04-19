@@ -717,7 +717,7 @@ def get_filters(db_file: str) -> pd.DataFrame:
     return phot_filters
 
 
-def write_file(results: pd.DataFrame, query: str, key: str) -> str:
+def write_file(results: pd.DataFrame) -> str:
     """
     Creates an xml file ready for download
 
@@ -725,18 +725,14 @@ def write_file(results: pd.DataFrame, query: str, key: str) -> str:
     ----------
     results: pd.DataFrame
         The dataframe to be written
-    query: str
-        The query to become a filename
-    key: str
-        The key to be appended to filename
 
     Returns
     -------
     fname: str
         The filename
     """
-    fname = 'simple_app/tmp/' + query.replace(' ', '_') + '_' + key + '.csv'
-    # results.to_xml(fname, index=False)
+    nowtime = strftime("%Y-%m-%d--%H-%M-%S", localtime())
+    fname = 'simple_app/tmp/userquery-' + nowtime + '.csv'
     results.to_csv(fname, index=False)
     return fname
 
