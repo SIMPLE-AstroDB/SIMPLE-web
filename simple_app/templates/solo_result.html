@@ -2,7 +2,7 @@
 {% set active_page = "search" %}
 {% block content %}
     <div class="container">
-        <h1 class="display-2">{{ query|safe }}</h1>
+        <h1 class="display-2"><a href="{{ url_for('create_files_for_solodownload') }}">{{ query|safe }}</a></h1>
     </div>
     <div class="container flex-md-column">
         <div class="row">

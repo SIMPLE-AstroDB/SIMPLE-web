@@ -56,7 +56,12 @@
         };
     </script>
     <div class="container-fluid">
+        {% if query != '' %}
+        <h2 class="display-3"><a href="{{ url_for('create_files_for_multidownload') }}">
+            Results</a> for: {{ query|safe }}</h2>
+        {% else %}
         <h2 class="display-3">Results for: {{ query|safe }}</h2>
+        {% endif %}
         {% for tabname, df in results.items() %}
             <div class="container-fluid">
                 {% if query != '' %}

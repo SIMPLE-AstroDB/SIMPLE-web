@@ -1,6 +1,7 @@
 # No database binary files!
 *.db
 *.fits
+simple_app/tmp/user*
 
 # Pycharm stuff
 .idea*

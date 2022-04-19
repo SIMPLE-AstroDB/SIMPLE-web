@@ -170,7 +170,7 @@ def autocomplete():
 
 
 @app_simple.route('/write/<key>', methods=['GET', 'POST'])
-def create_file_for_download(key: str) -> Optional[str]:
+def create_file_for_download(key: str):
     """
     Creates and downloads the shown dataframe from solo results
 
@@ -190,8 +190,26 @@ def create_file_for_download(key: str) -> Optional[str]:
     return None
 
 
+@app_simple.route('/write_soloall', methods=['GET', 'POST'])
+def create_files_for_solodownload():
+    """
+    Creates and downloads all dataframes from solo results
+
+    """
+    query = curdoc().template_variables['query']
+    db = SimpleDB(db_file, connection_arguments={'check_same_thread': False})  # open database
+    resultdict: dict = db.inventory(query)  # get everything about that object
+    resultdictnew: Dict[str, pd.DataFrame] = {}
+    for key, obj in resultdict.items():
+        df: pd.DataFrame = pd.concat([pd.DataFrame(objrow, index=[i])  # create dataframe from found dict
+                                      for i, objrow in enumerate(obj)], ignore_index=True)  # every dict in the list
+        resultdictnew[key] = df
+    fname = write_multifiles(resultdictnew).split('/')[-1]
+    return redirect(url_for('download_file', filename=fname))
+
+
 @app_simple.route('/write_filt', methods=['GET', 'POST'])
-def create_file_for_filtdownload() -> Optional[str]:
+def create_file_for_filtdownload():
     """
     Creates and downloads the shown dataframe when in filtered search
     """
@@ -208,7 +226,7 @@ def create_file_for_filtdownload() -> Optional[str]:
 
 
 @app_simple.route('/write_coord', methods=['GET', 'POST'])
-def create_file_for_coorddownload() -> Optional[str]:
+def create_file_for_coorddownload():
     """
     Creates and downloads the shown dataframe when in coordinate search
     """
@@ -223,7 +241,7 @@ def create_file_for_coorddownload() -> Optional[str]:
 
 
 @app_simple.route('/write_full/<key>', methods=['GET', 'POST'])
-def create_file_for_fulldownload(key: str) -> Optional[str]:
+def create_file_for_fulldownload(key: str):
     """
     Creates and downloads the shown dataframe when in unrestrained search
 
@@ -242,8 +260,21 @@ def create_file_for_fulldownload(key: str) -> Optional[str]:
     return None
 
 
+@app_simple.route('/write_all', methods=['GET', 'POST'])
+def create_files_for_multidownload():
+    """
+    Creates and downloads all dataframes from full results
+
+    """
+    query = curdoc().template_variables['query']
+    db = SimpleDB(db_file, connection_arguments={'check_same_thread': False})  # open database
+    resultdict: Dict[str, pd.DataFrame] = db.search_string(query, fmt='pandas', verbose=False)  # search
+    fname = write_multifiles(resultdict).split('/')[-1]
+    return redirect(url_for('download_file', filename=fname))
+
+
 @app_simple.route('/write_sql', methods=['GET', 'POST'])
-def create_file_for_sqldownload() -> Optional[str]:
+def create_file_for_sqldownload():
     """
     Creates and downloads the shown dataframe when in sql query
     """

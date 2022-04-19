@@ -719,7 +719,7 @@ def get_filters(db_file: str) -> pd.DataFrame:
 
 def write_file(results: pd.DataFrame) -> str:
     """
-    Creates an xml file ready for download
+    Creates a csv file ready for download
 
     Parameters
     ----------
@@ -731,10 +731,40 @@ def write_file(results: pd.DataFrame) -> str:
     fname: str
         The filename
     """
-    [os.remove('simple_app/tmp/' + f) for f in os.listdir('simple_app/tmp/')]  # clear out directory first
+    [os.remove('simple_app/tmp/' + f) for f in os.listdir('simple_app/tmp/') if 'README' not in f]  # clear out
     nowtime = strftime("%Y-%m-%d--%H-%M-%S", localtime())
     fname = 'simple_app/tmp/userquery-' + nowtime + '.csv'
     results.to_csv(fname, index=False)
+    return fname
+
+
+def write_multifiles(resultsdict: Dict[str, pd.DataFrame]) -> str:
+    """
+    Creates a csv file ready for download
+
+    Parameters
+    ----------
+    resultsdict: Dict[str, pd.DataFrame]
+        The collection of dataframes
+
+    Returns
+    -------
+    fname: str
+        The filename
+    """
+    [os.remove('simple_app/tmp/' + f) for f in os.listdir('simple_app/tmp/') if 'README' not in f]  # clear out
+    nowtime = strftime("%Y-%m-%d--%H-%M-%S", localtime())
+    fname = 'simple_app/tmp/userquery-' + nowtime + '.zip'
+    for key, df in resultsdict.items():
+        csvname = fname.replace('.zip', f'_{key}.csv')
+        df.to_csv(csvname, index=False)
+    with ZipFile(fname, 'w') as zipper:
+        for dirname, subdirname, filenames in os.walk('simple_app/tmp'):
+            for csvname in filenames:
+                if nowtime not in csvname or 'csv' not in csvname:
+                    continue
+                fpath = os.path.join(dirname, csvname)
+                zipper.write(fpath, os.path.basename(csvname))
     return fname
 
 
