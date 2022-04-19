@@ -99,7 +99,7 @@ class Inventory:
         if dropsource:
             dropcols.append('source')
         df.drop(columns=dropcols, inplace=True, errors='ignore')
-        df['download'] = urlinks
+        df['<a href="/write_spectra" target="_blank">download</a>'] = urlinks
         df['observation_date'] = df['observation_date'].dt.date
         return df
 
@@ -125,7 +125,7 @@ class Inventory:
         if rtnmk:  # return markdown boolean
             if key == 'Spectra':
                 df = self.spectra_handle(df)
-            df.rename(columns={s: s.replace('_', ' ') for s in df.columns}, inplace=True)  # renaming columns
+            df.rename(columns={s: s.replace('_', ' ') for s in df.columns if 'download' not in s}, inplace=True)
             return markdown(df.to_html(index=False, escape=False,
                                        classes='table table-dark table-bordered table-striped'))  # html then markdown
         return df  # otherwise return dataframe as is
@@ -765,6 +765,39 @@ def write_multifiles(resultsdict: Dict[str, pd.DataFrame]) -> str:
                     continue
                 fpath = os.path.join(dirname, csvname)
                 zipper.write(fpath, os.path.basename(csvname))
+    return fname
+
+
+def write_fitsfiles(fitsfiles: List[str]) -> str:
+    """
+    Creates a csv file ready for download
+
+    Parameters
+    ----------
+    fitsfiles: List[str]
+        The urls to the fits files
+
+    Returns
+    -------
+    fname: str
+        The filename
+    """
+    [os.remove('simple_app/tmp/' + f) for f in os.listdir('simple_app/tmp/') if 'README' not in f]  # clear out
+    nowtime = strftime("%Y-%m-%d--%H-%M-%S", localtime())
+    fname = 'simple_app/tmp/userquery-' + nowtime + '.zip'
+    for i, fitsfile in enumerate(fitsfiles):
+        fitsname = fname.replace('.zip', f'_{i}.{fitsfile.split(".")[-1]}')
+        with open(fitsname, 'wb') as handle:
+            r = requests.get(fitsfile)
+            for data in r.iter_content():
+                handle.write(data)
+    with ZipFile(fname, 'w') as zipper:
+        for dirname, subdirname, filenames in os.walk('simple_app/tmp'):
+            for fitsname in filenames:
+                if nowtime not in fitsname or 'zip' in fitsname:
+                    continue
+                fpath = os.path.join(dirname, fitsname)
+                zipper.write(fpath, os.path.basename(fitsname))
     return fname
 
 

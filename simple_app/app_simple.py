@@ -190,11 +190,24 @@ def create_file_for_download(key: str):
     return None
 
 
+@app_simple.route('/write_spectra', methods=['GET', 'POST'])
+def create_spectrafile_for_download():
+    """
+    Downloads the spectra files and zips together
+    """
+    query = curdoc().template_variables['query']
+    db = SimpleDB(db_file, connection_arguments={'check_same_thread': False})  # open database
+    resultdict: dict = db.inventory(query)  # get everything about that object
+    everything = Inventory(resultdict, args, rtnmk=False)
+    results: pd.DataFrame = getattr(everything, 'spectra')
+    fname = write_fitsfiles(results.spectrum.values).split('/')[-1]
+    return redirect(url_for('download_file', filename=fname))
+
+
 @app_simple.route('/write_soloall', methods=['GET', 'POST'])
 def create_files_for_solodownload():
     """
     Creates and downloads all dataframes from solo results
-
     """
     query = curdoc().template_variables['query']
     db = SimpleDB(db_file, connection_arguments={'check_same_thread': False})  # open database
