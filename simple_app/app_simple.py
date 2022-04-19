@@ -9,6 +9,7 @@ from utils import *
 # initialise
 app_simple = Flask(__name__)  # start flask app
 app_simple.config['SECRET_KEY'] = os.urandom(32)  # need to generate csrf token as basic security for Flask
+app_simple.config['UPLOAD_FOLDER'] = 'tmp/'
 CORS(app_simple)  # makes CORS work (aladin notably)
 
 
@@ -161,6 +162,33 @@ def autocomplete():
     Autocompleting function, id linked to the jquery which does the heavy lifting
     """
     return jsonify(alljsonlist=all_results)  # wraps all of the object names as a list, into a .json for server use
+
+
+@app_simple.route('/write/<key>', methods=['GET', 'POST'])
+def create_file_for_download(key: str) -> Optional[str]:
+    """
+    Creates and downloads the shown dataframe
+
+    Parameters
+    ----------
+    key: str
+        The dataframe string
+    """
+    query = curdoc().template_variables['query']
+    db = SimpleDB(db_file, connection_arguments={'check_same_thread': False})  # open database
+    resultdict: dict = db.inventory(query)  # get everything about that object
+    everything = Inventory(resultdict, args, rtnmk=False)
+    if key in resultdict:
+        results: pd.DataFrame = getattr(everything, key.lower())
+        fname = write_file(results, query, key).split('/')[-1]
+        return redirect(url_for('download_file', filename=fname))
+    return None
+
+
+@app_simple.route('/tmp/<path:filename>', methods=['GET', 'POST'])
+def download_file(filename: str):
+    uploads = os.path.join(app_simple.root_path, app_simple.config['UPLOAD_FOLDER'])
+    return send_from_directory(uploads, filename)
 
 
 if __name__ == '__main__':

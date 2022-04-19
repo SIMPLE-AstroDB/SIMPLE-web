@@ -14,7 +14,7 @@ from bokeh.palettes import Colorblind8
 from bokeh.plotting import figure, curdoc  # bokeh plotting
 from bokeh.resources import CDN  # resources for webpage
 from bokeh.themes import built_in_themes, Theme  # appearance of bokeh glyphs
-from flask import Flask, render_template, jsonify  # website functionality
+from flask import Flask, render_template, jsonify, send_from_directory, redirect, url_for  # website functionality
 from flask_cors import CORS  # cross origin fix (aladin mostly)
 from flask_wtf import FlaskForm  # web forms
 from markdown2 import markdown  # using markdown formatting

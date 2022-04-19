@@ -47,7 +47,7 @@ class Inventory:
     ra: float = 0
     dec: float = 0
 
-    def __init__(self, resultdict: dict, args):
+    def __init__(self, resultdict: dict, args, **kwargs):
         """
         Constructor method for Inventory
 
@@ -63,7 +63,7 @@ class Inventory:
             if key in REFERENCE_TABLES:  # ignore the reference table ones
                 continue
             lowkey: str = key.lower()  # lower case of the key
-            mkdown_output: str = self.listconcat(key)  # get in markdown the dataframe value for given key
+            mkdown_output: str = self.listconcat(key, **kwargs)  # get in markdown the dataframe value for given key
             setattr(self, lowkey, mkdown_output)  # set the key attribute with the dataframe for given key
         try:
             srcs: pd.DataFrame = self.listconcat('Sources', rtnmk=False)  # open the Sources result
@@ -715,6 +715,30 @@ def get_filters(db_file: str) -> pd.DataFrame:
     db = SimpleDB(db_file, connection_arguments={'check_same_thread': False})
     phot_filters: pd.DataFrame = db.query(db.PhotometryFilters).pandas().set_index('band').T
     return phot_filters
+
+
+def write_file(results: pd.DataFrame, query: str, key: str) -> str:
+    """
+    Creates an xml file ready for download
+
+    Parameters
+    ----------
+    results: pd.DataFrame
+        The dataframe to be written
+    query: str
+        The query to become a filename
+    key: str
+        The key to be appended to filename
+
+    Returns
+    -------
+    fname: str
+        The filename
+    """
+    fname = 'simple_app/tmp/' + query.replace(' ', '_') + '_' + key + '.csv'
+    # results.to_xml(fname, index=False)
+    results.to_csv(fname, index=False)
+    return fname
 
 
 def mainutils():
