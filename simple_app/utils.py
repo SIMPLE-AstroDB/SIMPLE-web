@@ -731,6 +731,7 @@ def write_file(results: pd.DataFrame) -> str:
     fname: str
         The filename
     """
+    [os.remove('simple_app/tmp/' + f) for f in os.listdir('simple_app/tmp/')]  # clear out directory first
     nowtime = strftime("%Y-%m-%d--%H-%M-%S", localtime())
     fname = 'simple_app/tmp/userquery-' + nowtime + '.csv'
     results.to_csv(fname, index=False)
