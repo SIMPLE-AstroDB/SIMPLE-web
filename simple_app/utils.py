@@ -5,7 +5,7 @@ import sys
 # local packages
 
 sys.path.append('.')
-from simple_app.simports import *
+from simports import *
 
 
 def sysargs():

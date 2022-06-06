@@ -27,4 +27,5 @@ jobs:
         wget -O SIMPLE.db https://raw.githubusercontent.com/SIMPLE-AstroDB/SIMPLE-binary/main/SIMPLE.db
     - name: Test with pytest
       run: |
+        cd simple_app/
         pytest -vs

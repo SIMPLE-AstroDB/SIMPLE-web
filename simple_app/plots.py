@@ -6,7 +6,7 @@ import sys
 import numpy as np
 
 sys.path.append('.')
-from simple_app.utils import *
+from utils import *
 
 # feature labels taken from splat
 FEATURE_LABELS = {
