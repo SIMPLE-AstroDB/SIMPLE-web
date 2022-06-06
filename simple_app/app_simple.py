@@ -37,13 +37,19 @@ def search():
     db = SimpleDB(db_file, connection_arguments={'check_same_thread': False})  # open database
     try:
         results: Optional[pd.DataFrame] = db.search_object(query, fmt='pandas')  # get the results for that object
+        if not len(results):
+            raise IndexError('Empty dataframe from search')
+    except (IndexError, OperationalError):
+        stringed_results: Optional[str] = None
+        return render_template('search.html', form=form, refquery=refquery,
+                               results=stringed_results, query=query)
     except IndexError:
         results = pd.DataFrame()
     refresults: Optional[dict] = db.search_string(refquery, fmt='pandas', verbose=False)  # search all the strings
     try:
         refsources: pd.DataFrame = refresults['Sources']
     except KeyError:
-        stringed_results: Optional[str] = None
+        stringed_results = None
     else:
         filtered_results: Optional[pd.DataFrame] = results.merge(refsources, on='source', suffixes=(None, 'extra'))
         filtered_results.drop(columns=list(filtered_results.filter(regex='extra')), inplace=True)
