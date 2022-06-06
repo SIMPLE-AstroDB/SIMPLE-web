@@ -5,7 +5,7 @@ import sys
 # local packages
 import numpy as np
 
-sys.path.append('.')
+sys.path.append('rootpath/simple_app')
 from utils import *
 
 # feature labels taken from splat

@@ -2,15 +2,17 @@
 Testing the plot functions
 """
 # local packages
-from simple_app.plots import *
-from simple_app.tests.test_utils import *
+import sys
+sys.path.append('rootpath/simple_app')
+from plots import *
+from tests.test_utils import *
 
 
 @pytest.fixture(scope='session')
 def test_mainplots():
     nightskytheme, jscallbacks = mainplots()
     assert type(nightskytheme) == Theme
-    assert type(jscallbacks) == JSCallbacks
+    assert isinstance(jscallbacks, JSCallbacks)
     return nightskytheme, jscallbacks
 
 
@@ -59,4 +61,13 @@ def test_camdplot(db, test_mainplots, test_all_photometry, test_all_sources, tes
                                  allresultsfull, allplx, photfilters, allphoto, jscallbacks, nightskytheme)
     assert all([type(s) == str for s in (goodscript, gooddiv)])
     assert all([s is None for s in (badscript, baddiv)])
+    return
+
+
+def test_remove_database(db):
+    # Clean up temporary database
+    db.session.close()
+    db.engine.dispose()
+    if os.path.exists(db_name):
+        os.remove(db_name)
     return

@@ -63,9 +63,9 @@ WSGIScriptAlias / <your/path/to/root>/simple_app.wsgi
 Alias /static <your/path/to/root>/simple_app/static
 Alias /favicon.ico <your/path/to/root>/simple_app/static/favicon.ico
 ```
-Finally, in the `simple_app.wsgi` file, swap
+Finally, in the `rootpath` symlink, swap
 `
-/var/www/webroot/ROOT
+.
 `
 for
 `
