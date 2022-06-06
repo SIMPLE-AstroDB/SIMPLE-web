@@ -169,7 +169,8 @@ def autocomplete():
     return jsonify(alljsonlist=all_results)  # wraps all of the object names as a list, into a .json for server use
 
 
+args, db_file, photfilters, all_results, all_results_full, all_photo, all_bands, all_plx = mainutils()
+nightskytheme, jscallbacks = mainplots()
+
 if __name__ == '__main__':
-    args, db_file, photfilters, all_results, all_results_full, all_photo, all_bands, all_plx = mainutils()
-    nightskytheme, jscallbacks = mainplots()
     app_simple.run(host=args.host, port=args.port, debug=args.debug)  # generate the application on server side
