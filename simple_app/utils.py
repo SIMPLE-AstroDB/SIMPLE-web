@@ -4,7 +4,7 @@ The static functions for various calculations and required parameters
 import sys
 # local packages
 
-sys.path.append('simple_app')
+sys.path.append('rootpath/simple_app')
 from simports import *
 
 
