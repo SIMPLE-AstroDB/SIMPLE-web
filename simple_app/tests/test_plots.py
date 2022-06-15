@@ -3,7 +3,7 @@ Testing the plot functions
 """
 # local packages
 import sys
-sys.path.append('rootpath/simple_app')
+sys.path.append('simple_root/simple_app')
 from plots import *
 from tests.test_utils import *
 

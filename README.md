@@ -53,23 +53,23 @@ pip freeze > requirements.txt
 ## Apache Config
 The major requirement for running this program on Apache
 is [`mod_wsgi`](https://flask.palletsprojects.com/en/2.1.x/deploying/mod_wsgi/)
-You will need to edit `httpd.conf` by adding the line:
+You will need to edit `/etc/httpd/conf/httpd.conf` by adding the line:
 ```
 WSGIApplicationGroup %{GLOBAL}
 ```
-Additionally, edit `wsgi.conf` with the lines:
+Additionally, edit ` /etc/httpd/conf.d/wsgi.conf` with the lines:
 ```
-WSGIScriptAlias / <your/path/to/root>/simple_app.wsgi
-Alias /static <your/path/to/root>/simple_app/static
-Alias /favicon.ico <your/path/to/root>/simple_app/static/favicon.ico
+WSGIScriptAlias / <your/path/to/simple>/simple_app.wsgi
+Alias /static <your/path/to/simple>/simple_app/static
+Alias /favicon.ico <your/path/to/simple>/simple_app/static/favicon.ico
 ```
-Finally, in the `rootpath` symlink, swap
+Finally, in the `simple_root` symlink, swap
 `
 .
 `
 for
 `
-<your/path/to/root>
+<your/path/to/simple>
 `
 
 

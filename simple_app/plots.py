@@ -2,7 +2,7 @@
 File containing the 'workhorse' functions generating the various plots seen on the website
 """
 import sys
-sys.path.append('rootpath/simple_app')
+sys.path.append('simple_root/simple_app')
 
 # local packages
 from utils import *

@@ -3,7 +3,7 @@ This is the main script to be run from the directory root, it will start the Fla
 then connect to.
 """
 import sys
-sys.path.append('rootpath/simple_app')
+sys.path.append('simple_root/simple_app')
 # local packages
 from plots import *
 from utils import *
