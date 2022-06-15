@@ -602,7 +602,7 @@ def onedfquery(results: pd.DataFrame) -> Optional[str]:
                 srclnk = f'<a href="/load_solo/{urllnk}" target="_blank">{src}</a>'  # construct hyperlink
                 sourcelinks.append(srclnk)  # add that to list
             results['source'] = sourcelinks  # update dataframe with the linked ones
-        stringed_results = markdown(results.to_html(index=False, escape=False, max_rows=10,
+        stringed_results = markdown(results.to_html(index=False, escape=False, table_id='searchtable',
                                                     classes='table table-dark table-bordered table-striped'))
     else:
         stringed_results = None

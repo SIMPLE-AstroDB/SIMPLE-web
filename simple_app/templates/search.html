@@ -100,5 +100,10 @@
         {% endif %}
         <p class="display-6">{{ results|safe if results is not none }}</p>
     </div>
+    <script>
+        $(document).ready(function() {
+            $('#searchtable').DataTable();
+        } );
+    </script>
 
 {% endblock %}
