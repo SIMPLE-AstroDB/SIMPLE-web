@@ -3,7 +3,7 @@ Testing the plot functions
 """
 # local packages
 import sys
-sys.path.append('simple_root/simple_app')
+sys.path.append('simple_app')
 from plots import *
 from tests.test_utils import *
 
@@ -63,11 +63,3 @@ def test_camdplot(db, test_mainplots, test_all_photometry, test_all_sources, tes
     assert all([s is None for s in (badscript, baddiv)])
     return
 
-
-def test_remove_database(db):
-    # Clean up temporary database
-    db.session.close()
-    db.engine.dispose()
-    if os.path.exists(db_name):
-        os.remove(db_name)
-    return

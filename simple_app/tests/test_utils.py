@@ -8,7 +8,7 @@ absmags -- called by results_concat
 coordinate_project -- called by results_concat
 """
 import sys
-sys.path.append('simple_root/simple_app')
+sys.path.append('simple_app')
 # local packages
 from utils import *
 
