@@ -50,6 +50,30 @@ If updating requirements, update them with:
 pip freeze > requirements.txt
 ```
 
+## Apache Config
+The major requirement for running this program on Apache
+is [`mod_wsgi`](https://flask.palletsprojects.com/en/2.1.x/deploying/mod_wsgi/)
+You will need to edit `/etc/httpd/conf/httpd.conf` by adding the line:
+```
+WSGIApplicationGroup %{GLOBAL}
+```
+Additionally, edit ` /etc/httpd/conf.d/wsgi.conf` with the lines:
+```
+WSGIScriptAlias / <your/path/to/simple>/simple_app.wsgi
+Alias /static <your/path/to/simple>/simple_app/static
+Alias /favicon.ico <your/path/to/simple>/simple_app/static/favicon.ico
+```
+Finally, in the `simple_root` symlink, swap
+`
+.
+`
+for
+`
+<your/path/to/simple>
+`
+
+
+## Further Details
 For feedback, questions, or if you've found an error, 
 please [create an Issue here](https://github.com/SIMPLE-AstroDB/SIMPLE-web/issues).
 
