@@ -7,18 +7,20 @@ parse_photometry -- called by all_photometry
 absmags -- called by results_concat
 coordinate_project -- called by results_concat
 """
+import sys
+sys.path.append('simple_app')
 # local packages
-from simple_app.utils import *
+from utils import *
 
-db_name = 'temp.db'
-db_cs = 'sqlite:///temp.db'
+db_name = 'simple_root/temp.db'
+db_cs = f'sqlite:///{db_name}'
 
 
 @pytest.fixture(scope='module')
 def db():
     if os.path.exists(db_name):
         os.remove(db_name)
-    copy('SIMPLE.db', db_name)
+    copy('simple_root/SIMPLE.db', db_name)
     assert os.path.exists(db_name)
     # Connect to the new database and confirm it has the Sources table
     db = SimpleDB(db_cs)

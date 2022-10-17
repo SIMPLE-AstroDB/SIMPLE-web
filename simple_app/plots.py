@@ -2,11 +2,10 @@
 File containing the 'workhorse' functions generating the various plots seen on the website
 """
 import sys
-# local packages
-import numpy as np
+sys.path.append('simple_root/simple_app')
 
-sys.path.append('.')
-from simple_app.utils import *
+# local packages
+from utils import *
 
 # feature labels taken from splat
 FEATURE_LABELS = {

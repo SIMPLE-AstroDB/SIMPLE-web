@@ -2,6 +2,8 @@
 This is the main script to be run from the directory root, it will start the Flask application running which one can
 then connect to.
 """
+import sys
+sys.path.append('simple_root/simple_app')
 # local packages
 from plots import *
 from utils import *
@@ -40,13 +42,19 @@ def search():
     db = SimpleDB(db_file, connection_arguments={'check_same_thread': False})  # open database
     try:
         results: Optional[pd.DataFrame] = db.search_object(query, fmt='pandas')  # get the results for that object
+        if not len(results):
+            raise IndexError('Empty dataframe from search')
+    except (IndexError, OperationalError):
+        stringed_results: Optional[str] = None
+        return render_template('search.html', form=form, refquery=refquery,
+                               results=stringed_results, query=query)
     except IndexError:
         results = pd.DataFrame()
     refresults: Optional[dict] = db.search_string(refquery, fmt='pandas', verbose=False)  # search all the strings
     try:
         refsources: pd.DataFrame = refresults['Sources']
     except KeyError:
-        stringed_results: Optional[str] = None
+        stringed_results = None
     else:
         filtered_results: Optional[pd.DataFrame] = results.merge(refsources, on='source', suffixes=(None, 'extra'))
         filtered_results.drop(columns=list(filtered_results.filter(regex='extra')), inplace=True)
@@ -303,8 +311,8 @@ def download_file(filename: str):
     uploads = os.path.join(app_simple.root_path, app_simple.config['UPLOAD_FOLDER'])
     return send_from_directory(uploads, filename)
 
+args, db_file, photfilters, all_results, all_results_full, all_photo, all_bands, all_plx = mainutils()
+nightskytheme, jscallbacks = mainplots()
 
 if __name__ == '__main__':
-    args, db_file, photfilters, all_results, all_results_full, all_photo, all_bands, all_plx = mainutils()
-    nightskytheme, jscallbacks = mainplots()
     app_simple.run(host=args.host, port=args.port, debug=args.debug)  # generate the application on server side
