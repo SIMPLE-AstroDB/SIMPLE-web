@@ -93,7 +93,7 @@ class Inventory:
         for src in df.spectrum.values:  # over every source in table
             srclnk = f'<a href="{src}" target="_blank">Link</a>'  # construct hyperlink
             urlinks.append(srclnk)  # add that to list
-        df.drop(columns=[col for col in df.columns if any([substr in col for substr in ('wave', 'flux')])],
+        df.drop(columns=[col for col in df.columns if any([substr in col for substr in ('wave', 'flux', 'original')])],
                 inplace=True)
         dropcols = ['spectrum', 'local_spectrum', 'regime']
         if dropsource:
@@ -580,7 +580,7 @@ def coordinate_project(all_results_full: pd.DataFrame):
     return raproj, decproj
 
 
-def onedfquery(results: pd.DataFrame, tid: Optional[str] = None) -> Optional[str]:
+def onedfquery(results: pd.DataFrame, tid: Optional[str] = None, limmaxrows: bool = False) -> Optional[str]:
     """
     Handling the output from a query that returns only one dataframe
 
@@ -590,6 +590,8 @@ def onedfquery(results: pd.DataFrame, tid: Optional[str] = None) -> Optional[str
         The dataframe of results for the query
     tid
         The table id to be passed to html
+    limmaxrows
+        Limit max rows switch
 
     Returns
     -------
@@ -606,14 +608,18 @@ def onedfquery(results: pd.DataFrame, tid: Optional[str] = None) -> Optional[str
                 srclnk = f'<a href="/load_solo/{urllnk}" target="_blank">{src}</a>'  # construct hyperlink
                 sourcelinks.append(srclnk)  # add that to list
             results['source'] = sourcelinks  # update dataframe with the linked ones
-        stringed_results = markdown(results.to_html(index=False, escape=False, table_id=tid,
-                                                    classes='table table-dark table-bordered table-striped'))
+        if limmaxrows:
+            stringed_results = markdown(results.to_html(index=False, escape=False, table_id=tid, max_rows=50,
+                                                        classes='table table-dark table-bordered table-striped'))
+        else:
+            stringed_results = markdown(results.to_html(index=False, escape=False, table_id=tid,
+                                                        classes='table table-dark table-bordered table-striped'))
     else:
         stringed_results = None
     return stringed_results
 
 
-def multidfquery(results: Dict[str, pd.DataFrame]) -> Dict[str, Optional[str]]:
+def multidfquery(results: Dict[str, pd.DataFrame], limmaxrows: bool = False) -> Dict[str, Optional[str]]:
     """
     Handling the output from a query which returns multiple dataframes
 
@@ -621,6 +627,8 @@ def multidfquery(results: Dict[str, pd.DataFrame]) -> Dict[str, Optional[str]]:
     ----------
     results
         The dictionary of dataframes
+    limmaxrows
+        Limit max rows switch
 
     Returns
     -------
@@ -630,7 +638,7 @@ def multidfquery(results: Dict[str, pd.DataFrame]) -> Dict[str, Optional[str]]:
     resultsout = {}
     if len(results):
         for tabname, df in results.items():  # looping through dictionary
-            stringed_df = onedfquery(df, tabname.lower() + 'table')  # handle each dataframe
+            stringed_df = onedfquery(df, tabname.lower() + 'table', limmaxrows)  # handle each dataframe
             resultsout[tabname] = stringed_df
     return resultsout
 

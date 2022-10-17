@@ -90,14 +90,24 @@ def fulltextsearch():
     Wrapping the search string function to search through all tables and return them
     """
     form = LooseSearchForm()  # main searchbar
+    limmaxrows = False
     if (query := form.search.data) is None:  # content in main searchbar
         query = ''
+        limmaxrows = True
     curdoc().template_variables['query'] = query  # add query to bokeh curdoc
     db = SimpleDB(db_file, connection_arguments={'check_same_thread': False})  # open database
     results: Dict[str, pd.DataFrame] = db.search_string(query, fmt='pandas', verbose=False)  # search
-    resultsout = multidfquery(results)
+    resultsout = multidfquery(results, limmaxrows)
     return render_template('fulltextsearch.html', form=form,
                            results=resultsout, query=query)  # if everything not okay, return existing page
+
+
+@app_simple.route('/load_fulltext')
+def load_fulltext():
+    """
+    Loading full text search page
+    """
+    return render_template('load_fulltext.html')
 
 
 @app_simple.route('/raw_query', methods=['GET', 'POST'])
@@ -310,6 +320,7 @@ def create_file_for_sqldownload():
 def download_file(filename: str):
     uploads = os.path.join(app_simple.root_path, app_simple.config['UPLOAD_FOLDER'])
     return send_from_directory(uploads, filename)
+
 
 args, db_file, photfilters, all_results, all_results_full, all_photo, all_bands, all_plx = mainutils()
 nightskytheme, jscallbacks = mainplots()
