@@ -33,10 +33,10 @@
     {{ script|safe }}
 
     <!-- DataTables -->
-    <link rel="stylesheet" type="text/css" href="{{ url_for('static', filename='css/jquery.dataTables.min.js') }}"/>
-    <link rel="stylesheet" type="text/css" href="{{ url_for('static', filename='css/datatables.bootstrap5.min.css') }}"/>
+    <link rel="stylesheet" type="text/css" href="{{ url_for('static', filename='css/jquery.dataTables.min.css') }}"/>
+    <link rel="stylesheet" type="text/css" href="{{ url_for('static', filename='css/dataTables.bootstrap5.min.css') }}"/>
     <script type="text/javascript" src={{ url_for('static', filename='js/jquery.dataTables.min.js') }}></script>
-    <script type="text/javascript" src={{ url_for('static', filename='js/datatables.bootstrap5.min.js') }}></script>
+    <script type="text/javascript" src={{ url_for('static', filename='js/dataTables.bootstrap5.min.js') }}></script>
 
     <!-- Overwriting Styles -->
     <style>
@@ -50,6 +50,16 @@
         .bk-btn,
         .bk-input-group {font-size: 1.5rem !important; height: 30px !important; padding: 0 !important;}
         .sql-list li {margin-bottom: 5px; border-bottom: 2px solid ghostwhite !important;}
+        .ui-autocomplete {top: auto !important; left: auto !important;}
+        #searchtable_wrapper,
+        #searchtable_filter,
+        #searchtable_length,
+        .dataTables_wrapper,
+        .dataTables_filter,
+        .dataTables_length,
+        .dataTables_info,
+        .form-control.form-control-sm,
+        .form-select.form-select-sm {color: aliceblue !important;}
     </style>
 
     {{ resources|safe }}

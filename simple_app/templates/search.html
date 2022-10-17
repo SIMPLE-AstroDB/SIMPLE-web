@@ -43,7 +43,8 @@
                 }).done(function (data) {
                     $('#mainsearchfield').autocomplete({
                         source: data.alljsonlist,
-                        minLength: 2
+                        minLength: 2,
+                        appendTo: "#searchform"
                     });
                 });
             });
