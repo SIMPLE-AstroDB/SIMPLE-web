@@ -580,7 +580,7 @@ def coordinate_project(all_results_full: pd.DataFrame):
     return raproj, decproj
 
 
-def onedfquery(results: pd.DataFrame) -> Optional[str]:
+def onedfquery(results: pd.DataFrame, tid: Optional[str] = None) -> Optional[str]:
     """
     Handling the output from a query that returns only one dataframe
 
@@ -588,12 +588,16 @@ def onedfquery(results: pd.DataFrame) -> Optional[str]:
     ----------
     results
         The dataframe of results for the query
+    tid
+        The table id to be passed to html
 
     Returns
     -------
     stringed_results
         Results converted into markdown including links where there is a source
     """
+    if tid is None:
+        tid = 'searchtable'
     if len(results):
         if 'source' in results.columns:
             sourcelinks = []
@@ -602,7 +606,7 @@ def onedfquery(results: pd.DataFrame) -> Optional[str]:
                 srclnk = f'<a href="/load_solo/{urllnk}" target="_blank">{src}</a>'  # construct hyperlink
                 sourcelinks.append(srclnk)  # add that to list
             results['source'] = sourcelinks  # update dataframe with the linked ones
-        stringed_results = markdown(results.to_html(index=False, escape=False, table_id='searchtable',
+        stringed_results = markdown(results.to_html(index=False, escape=False, table_id=tid,
                                                     classes='table table-dark table-bordered table-striped'))
     else:
         stringed_results = None
@@ -626,7 +630,7 @@ def multidfquery(results: Dict[str, pd.DataFrame]) -> Dict[str, Optional[str]]:
     resultsout = {}
     if len(results):
         for tabname, df in results.items():  # looping through dictionary
-            stringed_df = onedfquery(df)  # handle each dataframe
+            stringed_df = onedfquery(df, tabname.lower() + 'table')  # handle each dataframe
             resultsout[tabname] = stringed_df
     return resultsout
 
