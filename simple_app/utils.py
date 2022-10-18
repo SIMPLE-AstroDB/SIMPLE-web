@@ -47,7 +47,7 @@ class Inventory:
     ra: float = 0
     dec: float = 0
 
-    def __init__(self, resultdict: dict, args):
+    def __init__(self, resultdict: dict, args, **kwargs):
         """
         Constructor method for Inventory
 
@@ -63,7 +63,7 @@ class Inventory:
             if key in REFERENCE_TABLES:  # ignore the reference table ones
                 continue
             lowkey: str = key.lower()  # lower case of the key
-            mkdown_output: str = self.listconcat(key)  # get in markdown the dataframe value for given key
+            mkdown_output: str = self.listconcat(key, **kwargs)  # get in markdown the dataframe value for given key
             setattr(self, lowkey, mkdown_output)  # set the key attribute with the dataframe for given key
         try:
             srcs: pd.DataFrame = self.listconcat('Sources', rtnmk=False)  # open the Sources result
@@ -93,13 +93,13 @@ class Inventory:
         for src in df.spectrum.values:  # over every source in table
             srclnk = f'<a href="{src}" target="_blank">Link</a>'  # construct hyperlink
             urlinks.append(srclnk)  # add that to list
-        df.drop(columns=[col for col in df.columns if any([substr in col for substr in ('wave', 'flux')])],
+        df.drop(columns=[col for col in df.columns if any([substr in col for substr in ('wave', 'flux', 'original')])],
                 inplace=True)
         dropcols = ['spectrum', 'local_spectrum', 'regime']
         if dropsource:
             dropcols.append('source')
         df.drop(columns=dropcols, inplace=True, errors='ignore')
-        df['download'] = urlinks
+        df['<a href="/write_spectra" target="_blank">download</a>'] = urlinks
         df['observation_date'] = df['observation_date'].dt.date
         return df
 
@@ -125,7 +125,7 @@ class Inventory:
         if rtnmk:  # return markdown boolean
             if key == 'Spectra':
                 df = self.spectra_handle(df)
-            df.rename(columns={s: s.replace('_', ' ') for s in df.columns}, inplace=True)  # renaming columns
+            df.rename(columns={s: s.replace('_', ' ') for s in df.columns if 'download' not in s}, inplace=True)
             return markdown(df.to_html(index=False, escape=False,
                                        classes='table table-dark table-bordered table-striped'))  # html then markdown
         return df  # otherwise return dataframe as is
@@ -580,7 +580,7 @@ def coordinate_project(all_results_full: pd.DataFrame):
     return raproj, decproj
 
 
-def onedfquery(results: pd.DataFrame) -> Optional[str]:
+def onedfquery(results: pd.DataFrame, tid: Optional[str] = None, limmaxrows: bool = False) -> Optional[str]:
     """
     Handling the output from a query that returns only one dataframe
 
@@ -588,12 +588,18 @@ def onedfquery(results: pd.DataFrame) -> Optional[str]:
     ----------
     results
         The dataframe of results for the query
+    tid
+        The table id to be passed to html
+    limmaxrows
+        Limit max rows switch
 
     Returns
     -------
     stringed_results
         Results converted into markdown including links where there is a source
     """
+    if tid is None:
+        tid = 'searchtable'
     if len(results):
         if 'source' in results.columns:
             sourcelinks = []
@@ -602,14 +608,18 @@ def onedfquery(results: pd.DataFrame) -> Optional[str]:
                 srclnk = f'<a href="/load_solo/{urllnk}" target="_blank">{src}</a>'  # construct hyperlink
                 sourcelinks.append(srclnk)  # add that to list
             results['source'] = sourcelinks  # update dataframe with the linked ones
-        stringed_results = markdown(results.to_html(index=False, escape=False, max_rows=10,
-                                                    classes='table table-dark table-bordered table-striped'))
+        if limmaxrows:
+            stringed_results = markdown(results.to_html(index=False, escape=False, table_id=tid, max_rows=50,
+                                                        classes='table table-dark table-bordered table-striped'))
+        else:
+            stringed_results = markdown(results.to_html(index=False, escape=False, table_id=tid,
+                                                        classes='table table-dark table-bordered table-striped'))
     else:
         stringed_results = None
     return stringed_results
 
 
-def multidfquery(results: Dict[str, pd.DataFrame]) -> Dict[str, Optional[str]]:
+def multidfquery(results: Dict[str, pd.DataFrame], limmaxrows: bool = False) -> Dict[str, Optional[str]]:
     """
     Handling the output from a query which returns multiple dataframes
 
@@ -617,6 +627,8 @@ def multidfquery(results: Dict[str, pd.DataFrame]) -> Dict[str, Optional[str]]:
     ----------
     results
         The dictionary of dataframes
+    limmaxrows
+        Limit max rows switch
 
     Returns
     -------
@@ -626,7 +638,7 @@ def multidfquery(results: Dict[str, pd.DataFrame]) -> Dict[str, Optional[str]]:
     resultsout = {}
     if len(results):
         for tabname, df in results.items():  # looping through dictionary
-            stringed_df = onedfquery(df)  # handle each dataframe
+            stringed_df = onedfquery(df, tabname.lower() + 'table', limmaxrows)  # handle each dataframe
             resultsout[tabname] = stringed_df
     return resultsout
 
@@ -715,6 +727,90 @@ def get_filters(db_file: str) -> pd.DataFrame:
     db = SimpleDB(db_file, connection_arguments={'check_same_thread': False})
     phot_filters: pd.DataFrame = db.query(db.PhotometryFilters).pandas().set_index('band').T
     return phot_filters
+
+
+def write_file(results: pd.DataFrame) -> str:
+    """
+    Creates a csv file ready for download
+
+    Parameters
+    ----------
+    results: pd.DataFrame
+        The dataframe to be written
+
+    Returns
+    -------
+    fname: str
+        The filename
+    """
+    [os.remove('simple_app/tmp/' + f) for f in os.listdir('simple_app/tmp/') if 'README' not in f]  # clear out
+    nowtime = strftime("%Y-%m-%d--%H-%M-%S", localtime())
+    fname = 'simple_app/tmp/userquery-' + nowtime + '.csv'
+    results.to_csv(fname, index=False)
+    return fname
+
+
+def write_multifiles(resultsdict: Dict[str, pd.DataFrame]) -> str:
+    """
+    Creates a csv file ready for download
+
+    Parameters
+    ----------
+    resultsdict: Dict[str, pd.DataFrame]
+        The collection of dataframes
+
+    Returns
+    -------
+    fname: str
+        The filename
+    """
+    [os.remove('simple_app/tmp/' + f) for f in os.listdir('simple_app/tmp/') if 'README' not in f]  # clear out
+    nowtime = strftime("%Y-%m-%d--%H-%M-%S", localtime())
+    fname = 'simple_app/tmp/userquery-' + nowtime + '.zip'
+    for key, df in resultsdict.items():
+        csvname = fname.replace('.zip', f'_{key}.csv')
+        df.to_csv(csvname, index=False)
+    with ZipFile(fname, 'w') as zipper:
+        for dirname, subdirname, filenames in os.walk('simple_app/tmp'):
+            for csvname in filenames:
+                if nowtime not in csvname or 'csv' not in csvname:
+                    continue
+                fpath = os.path.join(dirname, csvname)
+                zipper.write(fpath, os.path.basename(csvname))
+    return fname
+
+
+def write_fitsfiles(fitsfiles: List[str]) -> str:
+    """
+    Creates a csv file ready for download
+
+    Parameters
+    ----------
+    fitsfiles: List[str]
+        The urls to the fits files
+
+    Returns
+    -------
+    fname: str
+        The filename
+    """
+    [os.remove('simple_app/tmp/' + f) for f in os.listdir('simple_app/tmp/') if 'README' not in f]  # clear out
+    nowtime = strftime("%Y-%m-%d--%H-%M-%S", localtime())
+    fname = 'simple_app/tmp/userquery-' + nowtime + '.zip'
+    for i, fitsfile in enumerate(fitsfiles):
+        fitsname = fname.replace('.zip', f'_{i}.{fitsfile.split(".")[-1]}')
+        with open(fitsname, 'wb') as handle:
+            r = requests.get(fitsfile)
+            for data in r.iter_content():
+                handle.write(data)
+    with ZipFile(fname, 'w') as zipper:
+        for dirname, subdirname, filenames in os.walk('simple_app/tmp'):
+            for fitsname in filenames:
+                if nowtime not in fitsname or 'zip' in fitsname:
+                    continue
+                fpath = os.path.join(dirname, fitsname)
+                zipper.write(fpath, os.path.basename(fitsname))
+    return fname
 
 
 def mainutils():

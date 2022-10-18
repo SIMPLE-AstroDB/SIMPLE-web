@@ -18,7 +18,7 @@
     <link rel="shortcut icon" href="{{ url_for('static', filename='favicon.ico') }}">
 
     <!--Javascript/jquery-->
-    <script type="text/javascript" src="{{ url_for('static', filename='js/jquery-2.2.0.min.js') }}"></script>
+    <script type="text/javascript" src="{{ url_for('static', filename='js/jquery-3.6.0.min.js') }}"></script>
     <script type="text/javascript" src="{{ url_for('static', filename='js/jquery-ui.js') }}" ></script>
     <script type="text/javascript" src="{{ url_for('static', filename='js/bootstrap.js') }}"></script>
 
@@ -32,6 +32,12 @@
     <link rel="stylesheet" href="{{ url_for('static', filename='css/aladin.min.css') }}">
     {{ script|safe }}
 
+    <!-- DataTables -->
+    <link rel="stylesheet" type="text/css" href="{{ url_for('static', filename='css/jquery.dataTables.min.css') }}"/>
+    <link rel="stylesheet" type="text/css" href="{{ url_for('static', filename='css/dataTables.bootstrap5.min.css') }}"/>
+    <script type="text/javascript" src={{ url_for('static', filename='js/jquery.dataTables.min.js') }}></script>
+    <script type="text/javascript" src={{ url_for('static', filename='js/dataTables.bootstrap5.min.js') }}></script>
+
     <!-- Overwriting Styles -->
     <style>
         thead,
@@ -44,6 +50,16 @@
         .bk-btn,
         .bk-input-group {font-size: 1.5rem !important; height: 30px !important; padding: 0 !important;}
         .sql-list li {margin-bottom: 5px; border-bottom: 2px solid ghostwhite !important;}
+        .ui-autocomplete {top: auto !important; left: auto !important;}
+        #searchtable_wrapper,
+        #searchtable_filter,
+        #searchtable_length,
+        .dataTables_wrapper,
+        .dataTables_filter,
+        .dataTables_length,
+        .dataTables_info,
+        .form-control.form-control-sm,
+        .form-select.form-select-sm {color: aliceblue !important;}
     </style>
 
     {{ resources|safe }}
@@ -59,7 +75,7 @@
            ('/', 'home', 'Home'),
            ('/search', 'search', 'Search by Object'),
            ('/coordquery', 'coordquery', 'Query by Coordinates'),
-           ('/fulltextsearch', 'fulltextsearch', 'Full Text Search'),
+           ('/load_fulltext', 'fulltextsearch', 'Full Text Search'),
            ('/load_multiplot', 'view', 'View the Database')
         ] -%}
         {% set active_page = active_page|default('home') -%}

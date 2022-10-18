@@ -242,6 +242,7 @@ def multiplotbokeh(all_results_full: pd.DataFrame, all_bands: np.ndarray,
     """
     all_results_mostfull = results_concat(all_results_full, all_photo, all_plx, all_bands)
     all_results_mostfull.dropna(axis=1, how='all', inplace=True)
+    all_bands = all_bands[np.isin(all_bands, all_results_mostfull.columns)]
     fullcds = ColumnDataSource(all_results_mostfull)  # convert to CDS
     tooltips = [('Target', '@source')]  # tooltips for hover tool
     # sky plot

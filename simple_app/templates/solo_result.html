@@ -2,23 +2,25 @@
 {% set active_page = "search" %}
 {% block content %}
     <div class="container">
-        <h1 class="display-2">{{ query|safe }}</h1>
+        <h1 class="display-2"><a href="{{ url_for('create_files_for_solodownload') }}">{{ query|safe }}</a></h1>
     </div>
     <div class="container flex-md-column">
         <div class="row">
-            <h2 class="display-3">Sources</h2>
+            {% if everything.sources %}
+            <h2 class="display-3"><a href="{{ url_for('create_file_for_download', key='Sources') }}">Sources</a></h2>
             <p class="display-6">
-                {{ everything.sources|safe if everything.sources
-                   else 'No Sources for ' + query|safe }}
+                {{ everything.sources|safe }}
             </p>
+            {% endif %}
         </div>
         <div class="row">
             <div class="col-md-4">
-                <h2 class="display-3">Names</h2>
+                {% if everything.names %}
+                <h2 class="display-3"><a href="{{ url_for('create_file_for_download', key='Names') }}">Names</a></h2>
                 <p class="display-6">
-                    {{ everything.names|safe if everything.names
-                       else 'No Names for ' + query|safe }}
+                    {{ everything.names|safe }}
                 </p>
+                {% endif %}
             </div>
             <div class="col-md-8">
                 <div id="aladin-lite-div"
@@ -34,66 +36,88 @@
         </div>
 
         <div class="row">
-            <h2 class="display-3">Photometry</h2>
+            {% if everything.photometry %}
+            <h2 class="display-3"><a href="{{ url_for('create_file_for_download', key='Photometry') }}">
+                Photometry</a></h2>
             <p class="display-6">
-                {{ everything.photometry|safe if everything.photometry
-                   else 'No Photometry for ' + query|safe }}
+                {{ everything.photometry|safe }}
             </p>
             <div class="row" id="camdplot">
                 {{ divcmd|safe if divcmd is not none }}
             </div>
+            {% endif %}
         </div>
 
         <div class="row">
-            <h2 class="display-3">Spectra</h2>
+            {% if everything.spectra %}
+            <h2 class="display-3"><a href="{{ url_for('create_file_for_download', key='Spectra') }}">Spectra</a></h2>
             <p class="display-6">
-                {{ everything.spectra|safe if everything.spectra
-                   else 'No Spectra for ' + query|safe }}
+                {{ everything.spectra|safe }}
                 {{ failstr if everything.spectra and nfail }}
             </p>
             <div class="row" id="specplot">
                 {{ divspectra|safe if divspectra is not none }}
             </div>
+            {% endif %}
         </div>
 
         <div class="row">
-            <h2 class="display-3">Spectral Types</h2>
+            {% if everything.spectraltypes %}
+            <h2 class="display-3"><a href="{{ url_for('create_file_for_download', key='SpectralTypes') }}">
+                Spectral Types</a></h2>
             <p class="display-6">
-                {{ everything.spectraltypes|safe if everything.spectraltypes
-                   else 'No Spectral Types for ' + query|safe }}
+                {{ everything.spectraltypes|safe }}
             </p>
+            {% endif %}
         </div>
 
         <div class="row">
-            <h2 class="display-3">Radial Velocities</h2>
+            {% if everything.radialvelocities %}
+            <h2 class="display-3"><a href="{{ url_for('create_file_for_download', key='RadialVelocities') }}">
+                Radial Velocities</a></h2>
             <p class="display-6">
-                {{ everything.radialvelocities|safe if everything.radialvelocities
-                   else 'No Radial Velocities for ' + query|safe }}
+                {{ everything.radialvelocities|safe }}
             </p>
+            {% endif %}
         </div>
 
         <div class="row">
-            <h2 class="display-3">Parallaxes</h2>
+            {% if everything.parallaxes %}
+            <h2 class="display-3"><a href="{{ url_for('create_file_for_download', key='Parallaxes') }}">
+                Parallaxes</a></h2>
             <p class="display-6">
-                {{ everything.parallaxes|safe if everything.parallaxes
-                   else 'No Parallaxes for ' + query|safe }}
+                {{ everything.parallaxes|safe }}
             </p>
+            {% endif %}
         </div>
 
         <div class="row">
-            <h2 class="display-3">Proper Motions</h2>
+            {% if everything.propermotions %}
+            <h2 class="display-3"><a href="{{ url_for('create_file_for_download', key='ProperMotions') }}">
+                Proper Motions</a></h2>
             <p class="display-6">
-                {{ everything.propermotions|safe if everything.propermotions
-                   else 'No Proper Motions for ' + query|safe }}
+                {{ everything.propermotions|safe }}
             </p>
+            {% endif %}
         </div>
 
         <div class="row">
-            <h2 class="display-3">Gravities</h2>
+            {% if everything.gravities %}
+            <h2 class="display-3"><a href="{{ url_for('create_file_for_download', key='Gravities') }}">
+                Gravities</a></h2>
             <p class="display-6">
-                {{ everything.gravities|safe if everything.gravities else 'No Gravities for ' + query|safe }}
+                {{ everything.gravities|safe }}
             </p>
+            {% endif %}
         </div>
     </div>
+    <script>
+        $(document).ready(function() {
+            $("table").each(function() {
+                $(this).DataTable();
+            });
+            }
+        );
+    </script>
 
 {% endblock %}
