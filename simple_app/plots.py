@@ -122,7 +122,7 @@ def specplot(query: str, db_file: str,
     p.xaxis.axis_label = 'Wavelength [μm]'  # units for wavelength on x axis
     p.yaxis.axis_label = 'Normalised Flux'  # units for wavelength on y axis
     normfact, ld = None, 'solid'
-    i = 0
+    i, j = 0, 0
     cdslist, lineplots = [], []
     normminwave, normmaxwave = 0.81, 0.82
     fluxmin, fluxmax = np.inf, -np.inf
@@ -153,9 +153,11 @@ def specplot(query: str, db_file: str,
         fluxmax = np.max(normflux) if np.max(normflux) > fluxmax else fluxmax
         cds = ColumnDataSource(data=dict(wave=wave, flux=flux, normflux=normflux))
         cdslist.append(cds)
-        if j := i > len(Colorblind8):  # loop around colours if we have more than 8 spectra, and start line dashing
+        if j > len(Colorblind8):  # loop around colours if we have more than 8 spectra, and start line dashing
             j = 0
             ld = 'dashed'
+        else:
+            j = i
         lineplot = p.line(x='wave', y='normflux', source=cds, legend_label=label,
                           line_color=Colorblind8[j], line_dash=ld, line_width=2)  # create line plot
         lineplots.append(lineplot)
