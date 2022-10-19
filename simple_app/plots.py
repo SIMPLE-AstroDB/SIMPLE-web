@@ -408,7 +408,7 @@ def camdplot(query: str, everything: Inventory, all_bands: np.ndarray,
     except KeyError:  # don't worry if they're not there
         pass
     else:  # if they are though...
-        thisphoto['parallax'] = thisplx['parallax'].iloc[0]  # grab the first parallax (adopted might be better if key)
+        thisphoto['parallax'] = thisplx.loc[thisplx.adopted].parallax.iloc[0]  # grab the adopted parallax
         thisphoto = absmags(thisphoto, thisbands)  # get abs mags
     thisphoto.dropna(axis=1, how='all', inplace=True)
     colbands = [col for col in thisphoto.columns if any([colcheck in col for colcheck in ('-', 'M_')])]

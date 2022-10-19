@@ -450,7 +450,7 @@ def all_parallaxes(db_file: str):
     """
     db = SimpleDB(db_file, connection_arguments={'check_same_thread': False})  # open database
     allplx: pd.DataFrame = db.query(db.Parallaxes).pandas()  # get all photometry
-    allplx = allplx[['source', 'parallax']]
+    allplx = allplx[['source', 'parallax', 'adopted']]
     return allplx
 
 
