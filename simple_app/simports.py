@@ -9,11 +9,12 @@ from astropy.table import Table  # tables in astropy
 from bokeh.embed import components  # converting python bokeh to javascript
 from bokeh.layouts import row, column  # bokeh displaying nicely
 from bokeh.models import ColumnDataSource, Range1d, CustomJS,\
-    Select, Toggle, TapTool, OpenURL, HoverTool, Span, RangeSlider, Label  # bokeh models
-from bokeh.palettes import Colorblind8
+    Select, Toggle, TapTool, OpenURL, HoverTool, Span, RangeSlider, Label, ColorBar, FixedTicker  # bokeh models
+from bokeh.palettes import Colorblind8, Turbo256  # plotting palettes
 from bokeh.plotting import figure, curdoc  # bokeh plotting
 from bokeh.resources import CDN  # resources for webpage
 from bokeh.themes import built_in_themes, Theme  # appearance of bokeh glyphs
+from bokeh.transform import linear_cmap  # making colour maps
 from flask import Flask, render_template, jsonify, send_from_directory, redirect, url_for  # website functionality
 from flask_cors import CORS  # cross origin fix (aladin mostly)
 from flask_wtf import FlaskForm  # web forms

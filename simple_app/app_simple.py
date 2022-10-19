@@ -146,7 +146,7 @@ def solo_result(query: str):
     db = SimpleDB(db_file, connection_arguments={'check_same_thread': False})  # open database
     resultdict: dict = db.inventory(query)  # get everything about that object
     everything = Inventory(resultdict, args)  # parsing the inventory into markdown
-    scriptcmd, divcmd = camdplot(query, everything, all_bands, all_results_full, all_plx, photfilters,
+    scriptcmd, divcmd = camdplot(query, everything, all_bands, all_results_full, all_plx, all_spts, photfilters,
                                  all_photo, jscallbacks, nightskytheme)
     scriptspectra, divspectra, nfail, failstr = specplot(query, db_file, nightskytheme, jscallbacks)
     query = query.upper()  # convert query to all upper case
@@ -168,7 +168,8 @@ def multiplotpage():
     """
     The page for all the plots
     """
-    scriptmulti, divmulti = multiplotbokeh(all_results_full, all_bands, all_photo, all_plx, jscallbacks, nightskytheme)
+    scriptmulti, divmulti = multiplotbokeh(all_results_full, all_bands, all_photo, all_plx, all_spts,
+                                           jscallbacks, nightskytheme)
     return render_template('multiplot.html', scriptmulti=scriptmulti, divmulti=divmulti, resources=CDN.render(),
                            version_str=version_str)
 
@@ -324,7 +325,8 @@ def download_file(filename: str):
     return send_from_directory(uploads, filename)
 
 
-args, db_file, photfilters, all_results, all_results_full, version_str, all_photo, all_bands, all_plx = mainutils()
+args, db_file, photfilters, all_results, all_results_full, version_str,\
+    all_photo, all_bands, all_plx, all_spts = mainutils()
 nightskytheme, jscallbacks = mainplots()
 
 if __name__ == '__main__':

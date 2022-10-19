@@ -40,6 +40,7 @@ class SimpleDB(Database):  # this keeps pycharm happy about unresolved reference
     Spectra = None
     PhotometryFilters = None
     Versions = None
+    SpectralTypes = None
 
 
 class Inventory:
@@ -454,6 +455,22 @@ def all_parallaxes(db_file: str):
     return allplx
 
 
+def all_spectraltypes(db_file: str):
+    """
+    Get the parallaxes from the database for every object
+
+    Returns
+    -------
+    allspts: pd.DataFrame
+        The dataframe of all the spectral type numbers
+    """
+    db = SimpleDB(db_file, connection_arguments={'check_same_thread': False})  # open database
+    allspts: pd.DataFrame = db.query(db.SpectralTypes).pandas()  # get all photometry
+    allspts = allspts[['source', 'spectral_type_code', 'adopted']]
+    allspts.rename(columns={'spectral_type_code': 'sptnum'}, inplace=True)
+    return allspts
+
+
 def absmags(df: pd.DataFrame, all_bands: np.ndarray) -> pd.DataFrame:
     """
     Calculate all the absolute magnitudes in a given dataframe
@@ -499,7 +516,7 @@ def absmags(df: pd.DataFrame, all_bands: np.ndarray) -> pd.DataFrame:
 
 
 def results_concat(all_results_full: pd.DataFrame, all_photo: pd.DataFrame,
-                   all_plx: pd.DataFrame, all_bands: np.ndarray) -> pd.DataFrame:
+                   all_plx: pd.DataFrame, all_spts: pd.DataFrame, all_bands: np.ndarray) -> pd.DataFrame:
     """
     Gets parallax, photometry and projected positions into one dataframe
     Parameters
@@ -510,6 +527,8 @@ def results_concat(all_results_full: pd.DataFrame, all_photo: pd.DataFrame,
         All the photometry
     all_plx
         All the parallaxes
+    all_spts
+        All spectral types
     all_bands
         All the photometric bands
 
@@ -525,6 +544,7 @@ def results_concat(all_results_full: pd.DataFrame, all_photo: pd.DataFrame,
     all_results_mostfull: pd.DataFrame = pd.merge(all_results_full_cut, all_photo,
                                                   left_on='source', right_on='target', how='left')
     all_results_mostfull = pd.merge(all_results_mostfull, all_plx, on='source')
+    all_results_mostfull = pd.merge(all_results_mostfull, all_spts, on='source')
     all_results_mostfull = absmags(all_results_mostfull, all_bands)  # find the absolute mags
     all_results_mostfull.drop_duplicates('source', inplace=True)
     return all_results_mostfull
@@ -850,10 +870,11 @@ def mainutils():
     _versionstr = get_version(_db_file)  # get version
     _all_photo, _all_bands = all_photometry(_db_file, _phot_filters)  # get all the photometry
     _all_plx = all_parallaxes(_db_file)  # get all the parallaxes
+    _all_spts = all_spectraltypes(_db_file)  # get all the spectral type numbers
     return _args, _db_file, _phot_filters, _all_results, _all_results_full, _versionstr, \
-        _all_photo, _all_bands, _all_plx
+        _all_photo, _all_bands, _all_plx, _all_spts
 
 
 if __name__ == '__main__':
     ARGS, DB_FILE, PHOTOMETRIC_FILTERS, ALL_RESULTS, ALL_RESULTS_FULL, VERSION_STR, \
-        ALL_PHOTO, ALL_BANDS, ALL_PLX = mainutils()
+        ALL_PHOTO, ALL_BANDS, ALL_PLX, ALL_SPTS = mainutils()
