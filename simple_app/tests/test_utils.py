@@ -61,6 +61,23 @@ def test_all_parallaxes(db):
 
 
 @pytest.fixture(scope='module')
+def test_get_version(db):
+    assert db
+    vstr = get_version(db_cs)
+    assert type(vstr) == str
+    return vstr
+
+
+@pytest.fixture(scope='module')
+def test_all_spectraltypes(db):
+    assert db
+    allspts = all_spectraltypes(db_cs)
+    assert len(allspts)
+    assert type(allspts) == pd.DataFrame
+    return allspts
+
+
+@pytest.fixture(scope='module')
 def test_get_filters(db):
     assert db
     photfilters = get_filters(db_cs)
@@ -97,12 +114,13 @@ def test_find_colours(db, test_all_photometry, test_get_filters):
     return
 
 
-def test_results_concat(db, test_all_photometry, test_all_sources, test_all_parallaxes):
+def test_results_concat(db, test_all_photometry, test_all_sources, test_all_parallaxes, test_all_spectraltypes):
     assert db
     allphoto, allbands = test_all_photometry
     allresults, fullresults = test_all_sources
     allplx = test_all_parallaxes
-    allresultsconcat = results_concat(fullresults, allphoto, allplx, allbands)
+    allspts = test_all_spectraltypes
+    allresultsconcat = results_concat(fullresults, allphoto, allplx, allspts, allbands)
     assert all([col in allresultsconcat.columns for col in ('dist', 'raproj', 'decproj')])
     assert all([f'M_{band}' in allresultsconcat.columns for band in allbands])
     return

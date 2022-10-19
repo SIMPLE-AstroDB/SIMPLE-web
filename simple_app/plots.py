@@ -431,7 +431,8 @@ def camdplot(query: str, everything: Inventory, all_bands: np.ndarray,
     except KeyError:
         thisspt = pd.DataFrame.from_dict(dict(spectral_type_code=[np.nan, ], adopted=[np.nan, ]))
     if thisspt.adopted.isna().all():
-        thisspt.loc['adopted', 0] = True
+        thisspt.loc[:, 'adopted'] = False
+        thisspt.loc[0, 'adopted'] = True
     thisphoto = parse_photometry(thisphoto, all_bands)
     thisbands: np.ndarray = np.unique(thisphoto.columns)  # the columns
     thisphoto: pd.DataFrame = find_colours(thisphoto, thisbands, photfilters)  # get the colours
