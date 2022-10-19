@@ -2,6 +2,7 @@
 The static functions for various calculations and required parameters
 """
 import sys
+
 # local packages
 
 sys.path.append('simple_root/simple_app')
@@ -38,6 +39,7 @@ class SimpleDB(Database):  # this keeps pycharm happy about unresolved reference
     Parallaxes = None
     Spectra = None
     PhotometryFilters = None
+    Versions = None
 
 
 class Inventory:
@@ -269,6 +271,28 @@ def all_sources(db_file: str):
     return allresults, fullresults
 
 
+def get_version(db_file: str) -> str:
+    """
+    Get the version and affiliated data
+
+    Parameters
+    ----------
+    db_file
+        The string pointing to the database file
+
+    Returns
+    -------
+    vstr
+        The stringified version formatted
+    """
+    db = SimpleDB(db_file, connection_arguments={'check_same_thread': False})  # open database
+    v: pd.DataFrame = db.query(db.Versions).pandas()
+    vactive: pd.Series = v.iloc[-2]  # -1 is "latest" or main
+    vstr = f'Version {vactive.version}, updated last: {pd.Timestamp(vactive.start_date).strftime("%d %b %Y")} ' \
+           f'({vactive.description})'
+    return vstr
+
+
 def find_colours(photodf: pd.DataFrame, allbands: np.ndarray, photfilters: pd.DataFrame):
     """
     Find all the colours using available photometry
@@ -446,6 +470,7 @@ def absmags(df: pd.DataFrame, all_bands: np.ndarray) -> pd.DataFrame:
     df: pd.DataFrame
         The output dataframe with absolute mags calculated
     """
+
     def pogsonlaw(m: Union[float, np.ndarray], dist: Union[float, np.ndarray]) -> Union[float, np.ndarray]:
         """
         Distance modulus equation
@@ -516,6 +541,7 @@ def coordinate_project(all_results_full: pd.DataFrame):
     decproj: np.ndarray
         The projected DEC coordinates
     """
+
     def fnewton_solve(thetan: float, phi: float, acc: float = 1e-4) -> float:
         """
         Solves the numerical transformation to project coordinate
@@ -821,10 +847,13 @@ def mainutils():
     _db_file = f'sqlite:///{_args.file}'  # the database file
     _phot_filters = get_filters(_db_file)  # the photometric filters
     _all_results, _all_results_full = all_sources(_db_file)  # find all the objects once
+    _versionstr = get_version(_db_file)  # get version
     _all_photo, _all_bands = all_photometry(_db_file, _phot_filters)  # get all the photometry
     _all_plx = all_parallaxes(_db_file)  # get all the parallaxes
-    return _args, _db_file, _phot_filters, _all_results, _all_results_full, _all_photo, _all_bands, _all_plx
+    return _args, _db_file, _phot_filters, _all_results, _all_results_full, _versionstr, \
+        _all_photo, _all_bands, _all_plx
 
 
 if __name__ == '__main__':
-    ARGS, DB_FILE, PHOTOMETRIC_FILTERS, ALL_RESULTS, ALL_RESULTS_FULL, ALL_PHOTO, ALL_BANDS, ALL_PLX = mainutils()
+    ARGS, DB_FILE, PHOTOMETRIC_FILTERS, ALL_RESULTS, ALL_RESULTS_FULL, VERSION_STR, \
+        ALL_PHOTO, ALL_BANDS, ALL_PLX = mainutils()
