@@ -267,7 +267,12 @@ def multiplotbokeh(all_results_full: pd.DataFrame, all_bands: np.ndarray,
                  active_scroll='wheel_zoom', active_drag='box_zoom',
                  tools='pan,wheel_zoom,box_zoom,box_select,hover,tap,reset', tooltips=tooltips,
                  sizing_mode='stretch_width')  # bokeh figure
-    colbands = [col for col in all_results_mostfull.columns if '-' in col]
+    colbands = np.array([col for col in all_results_mostfull.columns if '-' in col])
+    badcols = []
+    for col in colbands:
+        if not all_results_mostfull[col].count() > 1:
+            badcols.append(col)
+    colbands = colbands[~np.isin(colbands, badcols)]
     just_colours = all_results_mostfull.loc[:, colbands].copy()
     xfullname = just_colours.columns[0]
     yfullname = just_colours.columns[1]
@@ -303,7 +308,12 @@ def multiplotbokeh(all_results_full: pd.DataFrame, all_bands: np.ndarray,
                                                    'yaxis': pcc.yaxis[0], 'yrange': pcc.y_range}))
     # colour absolute magnitude diagram
     just_mags: pd.DataFrame = all_results_mostfull[all_bands]
-    absmagnames = ["M_" + col for col in just_mags.columns]
+    absmagnames = np.array(["M_" + col for col in just_mags.columns])
+    badcols = []
+    for col in absmagnames:
+        if not all_results_mostfull[col].count() > 1:
+            badcols.append(col)
+    absmagnames = absmagnames[~np.isin(absmagnames, badcols)]
     dropmenumag = [*zip(absmagnames, absmagnames)]
     pcamd = figure(title='Colour-Absolute Magnitude Diagram', plot_height=500,
                    active_scroll='wheel_zoom', active_drag='box_zoom',
@@ -412,6 +422,13 @@ def camdplot(query: str, everything: Inventory, all_bands: np.ndarray,
         thisphoto = absmags(thisphoto, thisbands)  # get abs mags
     thisphoto.dropna(axis=1, how='all', inplace=True)
     colbands = [col for col in thisphoto.columns if any([colcheck in col for colcheck in ('-', 'M_')])]
+    colbandsall = [col for col in all_photo.columns if any([colcheck in col for colcheck in ('-', 'M_')])]
+    colbands = np.array(list(set(colbands).intersection(colbandsall)))
+    badcols = []
+    for col in colbands:
+        if not all_photo[col].count() > 1:
+            badcols.append(col)
+    colbands = colbands[~np.isin(colbands, badcols)]
     just_colours = thisphoto.loc[:, colbands].copy()  # cut dataframe to just colour and abs mags
     xfullname = just_colours.columns[0]
     yfullname = just_colours.columns[1]
