@@ -2,6 +2,7 @@
 The static functions for various calculations and required parameters
 """
 import sys
+
 # local packages
 
 sys.path.append('simple_root/simple_app')
@@ -38,6 +39,8 @@ class SimpleDB(Database):  # this keeps pycharm happy about unresolved reference
     Parallaxes = None
     Spectra = None
     PhotometryFilters = None
+    Versions = None
+    SpectralTypes = None
 
 
 class Inventory:
@@ -269,6 +272,27 @@ def all_sources(db_file: str):
     return allresults, fullresults
 
 
+def get_version(db_file: str) -> str:
+    """
+    Get the version and affiliated data
+
+    Parameters
+    ----------
+    db_file
+        The string pointing to the database file
+
+    Returns
+    -------
+    vstr
+        The stringified version formatted
+    """
+    db = SimpleDB(db_file, connection_arguments={'check_same_thread': False})  # open database
+    v: pd.DataFrame = db.query(db.Versions).pandas()
+    vactive: pd.Series = v.iloc[-2]  # -1 is "latest" or main
+    vstr = f'Version {vactive.version}, updated last: {pd.Timestamp(vactive.start_date).strftime("%d %b %Y")}'
+    return vstr
+
+
 def find_colours(photodf: pd.DataFrame, allbands: np.ndarray, photfilters: pd.DataFrame):
     """
     Find all the colours using available photometry
@@ -426,8 +450,24 @@ def all_parallaxes(db_file: str):
     """
     db = SimpleDB(db_file, connection_arguments={'check_same_thread': False})  # open database
     allplx: pd.DataFrame = db.query(db.Parallaxes).pandas()  # get all photometry
-    allplx = allplx[['source', 'parallax']]
+    allplx = allplx[['source', 'parallax', 'adopted']]
     return allplx
+
+
+def all_spectraltypes(db_file: str):
+    """
+    Get the parallaxes from the database for every object
+
+    Returns
+    -------
+    allspts: pd.DataFrame
+        The dataframe of all the spectral type numbers
+    """
+    db = SimpleDB(db_file, connection_arguments={'check_same_thread': False})  # open database
+    allspts: pd.DataFrame = db.query(db.SpectralTypes).pandas()  # get all photometry
+    allspts = allspts[['source', 'spectral_type_code', 'adopted']]
+    allspts.rename(columns={'spectral_type_code': 'sptnum'}, inplace=True)
+    return allspts
 
 
 def absmags(df: pd.DataFrame, all_bands: np.ndarray) -> pd.DataFrame:
@@ -446,6 +486,7 @@ def absmags(df: pd.DataFrame, all_bands: np.ndarray) -> pd.DataFrame:
     df: pd.DataFrame
         The output dataframe with absolute mags calculated
     """
+
     def pogsonlaw(m: Union[float, np.ndarray], dist: Union[float, np.ndarray]) -> Union[float, np.ndarray]:
         """
         Distance modulus equation
@@ -474,7 +515,7 @@ def absmags(df: pd.DataFrame, all_bands: np.ndarray) -> pd.DataFrame:
 
 
 def results_concat(all_results_full: pd.DataFrame, all_photo: pd.DataFrame,
-                   all_plx: pd.DataFrame, all_bands: np.ndarray) -> pd.DataFrame:
+                   all_plx: pd.DataFrame, all_spts: pd.DataFrame, all_bands: np.ndarray) -> pd.DataFrame:
     """
     Gets parallax, photometry and projected positions into one dataframe
     Parameters
@@ -485,6 +526,8 @@ def results_concat(all_results_full: pd.DataFrame, all_photo: pd.DataFrame,
         All the photometry
     all_plx
         All the parallaxes
+    all_spts
+        All spectral types
     all_bands
         All the photometric bands
 
@@ -500,6 +543,7 @@ def results_concat(all_results_full: pd.DataFrame, all_photo: pd.DataFrame,
     all_results_mostfull: pd.DataFrame = pd.merge(all_results_full_cut, all_photo,
                                                   left_on='source', right_on='target', how='left')
     all_results_mostfull = pd.merge(all_results_mostfull, all_plx, on='source')
+    all_results_mostfull = pd.merge(all_results_mostfull, all_spts, on='source')
     all_results_mostfull = absmags(all_results_mostfull, all_bands)  # find the absolute mags
     all_results_mostfull.drop_duplicates('source', inplace=True)
     return all_results_mostfull
@@ -516,6 +560,7 @@ def coordinate_project(all_results_full: pd.DataFrame):
     decproj: np.ndarray
         The projected DEC coordinates
     """
+
     def fnewton_solve(thetan: float, phi: float, acc: float = 1e-4) -> float:
         """
         Solves the numerical transformation to project coordinate
@@ -821,10 +866,14 @@ def mainutils():
     _db_file = f'sqlite:///{_args.file}'  # the database file
     _phot_filters = get_filters(_db_file)  # the photometric filters
     _all_results, _all_results_full = all_sources(_db_file)  # find all the objects once
+    _versionstr = get_version(_db_file)  # get version
     _all_photo, _all_bands = all_photometry(_db_file, _phot_filters)  # get all the photometry
     _all_plx = all_parallaxes(_db_file)  # get all the parallaxes
-    return _args, _db_file, _phot_filters, _all_results, _all_results_full, _all_photo, _all_bands, _all_plx
+    _all_spts = all_spectraltypes(_db_file)  # get all the spectral type numbers
+    return _args, _db_file, _phot_filters, _all_results, _all_results_full, _versionstr, \
+        _all_photo, _all_bands, _all_plx, _all_spts
 
 
 if __name__ == '__main__':
-    ARGS, DB_FILE, PHOTOMETRIC_FILTERS, ALL_RESULTS, ALL_RESULTS_FULL, ALL_PHOTO, ALL_BANDS, ALL_PLX = mainutils()
+    ARGS, DB_FILE, PHOTOMETRIC_FILTERS, ALL_RESULTS, ALL_RESULTS_FULL, VERSION_STR, \
+        ALL_PHOTO, ALL_BANDS, ALL_PLX, ALL_SPTS = mainutils()

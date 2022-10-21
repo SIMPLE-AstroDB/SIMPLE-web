@@ -122,7 +122,7 @@ def specplot(query: str, db_file: str,
     p.xaxis.axis_label = 'Wavelength [μm]'  # units for wavelength on x axis
     p.yaxis.axis_label = 'Normalised Flux'  # units for wavelength on y axis
     normfact, ld = None, 'solid'
-    i = 0
+    i, j = 0, 0
     cdslist, lineplots = [], []
     normminwave, normmaxwave = 0.81, 0.82
     fluxmin, fluxmax = np.inf, -np.inf
@@ -153,9 +153,11 @@ def specplot(query: str, db_file: str,
         fluxmax = np.max(normflux) if np.max(normflux) > fluxmax else fluxmax
         cds = ColumnDataSource(data=dict(wave=wave, flux=flux, normflux=normflux))
         cdslist.append(cds)
-        if j := i > len(Colorblind8):  # loop around colours if we have more than 8 spectra, and start line dashing
+        if j > len(Colorblind8):  # loop around colours if we have more than 8 spectra, and start line dashing
             j = 0
             ld = 'dashed'
+        else:
+            j = i
         lineplot = p.line(x='wave', y='normflux', source=cds, legend_label=label,
                           line_color=Colorblind8[j], line_dash=ld, line_width=2)  # create line plot
         lineplots.append(lineplot)
@@ -213,7 +215,7 @@ def specplot(query: str, db_file: str,
 
 
 def multiplotbokeh(all_results_full: pd.DataFrame, all_bands: np.ndarray,
-                   all_photo: pd.DataFrame, all_plx: pd.DataFrame,
+                   all_photo: pd.DataFrame, all_plx: pd.DataFrame, all_spts: pd.DataFrame,
                    jscallbacks: JSCallbacks, nightskytheme: Theme) -> Tuple[str, str]:
     """
     The workhorse generating the multiple plots view page
@@ -228,6 +230,8 @@ def multiplotbokeh(all_results_full: pd.DataFrame, all_bands: np.ndarray,
         All the photometry
     all_plx: pd.DataFrame
         All the parallaxes
+    all_spts: pd.DataFrame
+        All spectral types
     jscallbacks: JSCallbacks
         The javascript callbacks for bokeh
     nightskytheme: Theme
@@ -240,10 +244,11 @@ def multiplotbokeh(all_results_full: pd.DataFrame, all_bands: np.ndarray,
     div: str
         the html to be inserted in dom
     """
-    all_results_mostfull = results_concat(all_results_full, all_photo, all_plx, all_bands)
+    all_results_mostfull = results_concat(all_results_full, all_photo, all_plx, all_spts, all_bands)
     all_results_mostfull.dropna(axis=1, how='all', inplace=True)
     all_bands = all_bands[np.isin(all_bands, all_results_mostfull.columns)]
     fullcds = ColumnDataSource(all_results_mostfull)  # convert to CDS
+    cmap = linear_cmap('sptnum', Turbo256, 60, 100)
     tooltips = [('Target', '@source')]  # tooltips for hover tool
     # sky plot
     thishover = HoverTool(names=['circle', ], tooltips=tooltips)  # hovertool
@@ -267,13 +272,23 @@ def multiplotbokeh(all_results_full: pd.DataFrame, all_bands: np.ndarray,
                  active_scroll='wheel_zoom', active_drag='box_zoom',
                  tools='pan,wheel_zoom,box_zoom,box_select,hover,tap,reset', tooltips=tooltips,
                  sizing_mode='stretch_width')  # bokeh figure
-    colbands = [col for col in all_results_mostfull.columns if '-' in col]
+    colbands = np.array([col for col in all_results_mostfull.columns if '-' in col])
+    badcols = []
+    for col in colbands:
+        if not all_results_mostfull[col].count() > 1:
+            badcols.append(col)
+    colbands = colbands[~np.isin(colbands, badcols)]
     just_colours = all_results_mostfull.loc[:, colbands].copy()
     xfullname = just_colours.columns[0]
     yfullname = just_colours.columns[1]
     xvisname = xfullname.replace('-', ' - ')
     yvisname = yfullname.replace('-', ' - ')
-    fullplot = pcc.circle(x=xfullname, y=yfullname, source=fullcds, size=6, color='ghostwhite')  # plot all objects
+    fullplot = pcc.circle(x=xfullname, y=yfullname, source=fullcds, size=6, color=cmap)  # plot all objects
+    cbar = ColorBar(color_mapper=cmap['transform'], label_standoff=12,
+                    ticker=FixedTicker(ticks=np.arange(60, 100, 10), minor_ticks=np.arange(60, 100, 5)),
+                    major_label_overrides={60: 'M', 70: 'L', 80: 'T', 90: 'Y'},
+                    major_label_text_font_size='1.5em')
+    pcc.add_layout(cbar, 'right')
     pcc.x_range = Range1d(all_results_mostfull[xfullname].min(), all_results_mostfull[xfullname].max())  # x
     pcc.y_range = Range1d(all_results_mostfull[yfullname].min(), all_results_mostfull[yfullname].max())  # y
     pcc.xaxis.axis_label = xvisname  # x label
@@ -303,14 +318,24 @@ def multiplotbokeh(all_results_full: pd.DataFrame, all_bands: np.ndarray,
                                                    'yaxis': pcc.yaxis[0], 'yrange': pcc.y_range}))
     # colour absolute magnitude diagram
     just_mags: pd.DataFrame = all_results_mostfull[all_bands]
-    absmagnames = ["M_" + col for col in just_mags.columns]
+    absmagnames = np.array(["M_" + col for col in just_mags.columns])
+    badcols = []
+    for col in absmagnames:
+        if not all_results_mostfull[col].count() > 1:
+            badcols.append(col)
+    absmagnames = absmagnames[~np.isin(absmagnames, badcols)]
     dropmenumag = [*zip(absmagnames, absmagnames)]
     pcamd = figure(title='Colour-Absolute Magnitude Diagram', plot_height=500,
                    active_scroll='wheel_zoom', active_drag='box_zoom',
                    tools='pan,wheel_zoom,box_zoom,box_select,hover,tap,reset', tooltips=tooltips,
                    sizing_mode='stretch_width')  # bokeh figure
     yfullname = absmagnames[0]
-    fullmagplot = pcamd.circle(x=xfullname, y=yfullname, source=fullcds, size=6, color='ghostwhite')  # plot all objects
+    fullmagplot = pcamd.circle(x=xfullname, y=yfullname, source=fullcds, size=6, color=cmap)  # plot all objects
+    cbar = ColorBar(color_mapper=cmap['transform'], label_standoff=12,
+                    ticker=FixedTicker(ticks=np.arange(60, 100, 10), minor_ticks=np.arange(60, 100, 5)),
+                    major_label_overrides={60: 'M', 70: 'L', 80: 'T', 90: 'Y'},
+                    major_label_text_font_size='1.5em')
+    pcamd.add_layout(cbar, 'right')
     pcamd.x_range = Range1d(all_results_mostfull[xfullname].min(), all_results_mostfull[xfullname].max())  # x
     pcamd.y_range = Range1d(all_results_mostfull[yfullname].max(), all_results_mostfull[yfullname].min())  # y limits
     pcamd.xaxis.axis_label = xvisname  # x label
@@ -356,7 +381,7 @@ def multiplotbokeh(all_results_full: pd.DataFrame, all_bands: np.ndarray,
 
 
 def camdplot(query: str, everything: Inventory, all_bands: np.ndarray,
-             all_results_full: pd.DataFrame, all_plx: pd.DataFrame, photfilters: pd.DataFrame,
+             all_results_full: pd.DataFrame, all_plx: pd.DataFrame, all_spts: pd.DataFrame, photfilters: pd.DataFrame,
              all_photo: pd.DataFrame, jscallbacks: JSCallbacks, nightskytheme: Theme) -> Tuple[Optional[str],
                                                                                                Optional[str]]:
     """
@@ -374,6 +399,8 @@ def camdplot(query: str, everything: Inventory, all_bands: np.ndarray,
         Every object and its basic information
     all_plx: pd.DataFrame
         All of the parallaxes
+    all_spts: pd.DataFrame
+        All spectral types
     photfilters: pd.DataFrame
         All of the filters to check
     all_photo: pd.DataFrame
@@ -399,33 +426,54 @@ def camdplot(query: str, everything: Inventory, all_bands: np.ndarray,
         thisphoto: pd.DataFrame = everything.listconcat('Photometry', False)  # the photometry for this object
     except KeyError:  # no photometry for this object
         return None, None
+    try:
+        thisspt: pd.DataFrame = everything.listconcat('SpectralTypes', False)
+    except KeyError:
+        thisspt = pd.DataFrame.from_dict(dict(spectral_type_code=[np.nan, ], adopted=[np.nan, ]))
+    if thisspt.adopted.isna().all():
+        thisspt.loc[:, 'adopted'] = False
+        thisspt.loc[0, 'adopted'] = True
     thisphoto = parse_photometry(thisphoto, all_bands)
     thisbands: np.ndarray = np.unique(thisphoto.columns)  # the columns
     thisphoto: pd.DataFrame = find_colours(thisphoto, thisbands, photfilters)  # get the colours
     thisphoto['target'] = query
+    thisphoto['sptnum'] = thisspt.loc[thisspt.adopted].spectral_type_code.iloc[0]
     try:
         thisplx: pd.DataFrame = everything.listconcat('Parallaxes', False)  # try to grab parallaxes
     except KeyError:  # don't worry if they're not there
         pass
     else:  # if they are though...
-        thisphoto['parallax'] = thisplx['parallax'].iloc[0]  # grab the first parallax (adopted might be better if key)
+        thisphoto['parallax'] = thisplx.loc[thisplx.adopted].parallax.iloc[0]  # grab the adopted parallax
         thisphoto = absmags(thisphoto, thisbands)  # get abs mags
     thisphoto.dropna(axis=1, how='all', inplace=True)
     colbands = [col for col in thisphoto.columns if any([colcheck in col for colcheck in ('-', 'M_')])]
+    colbandsall = [col for col in all_photo.columns if any([colcheck in col for colcheck in ('-', 'M_')])]
+    colbands = np.array(list(set(colbands).intersection(colbandsall)))
+    badcols = []
+    for col in colbands:
+        if not all_photo[col].count() > 1:
+            badcols.append(col)
+    colbands = colbands[~np.isin(colbands, badcols)]
     just_colours = thisphoto.loc[:, colbands].copy()  # cut dataframe to just colour and abs mags
     xfullname = just_colours.columns[0]
     yfullname = just_colours.columns[1]
     xvisname = xfullname.replace('-', ' - ')
     yvisname = yfullname.replace('-', ' - ')
+    cmap = linear_cmap('sptnum', Turbo256, 60, 100)
     thiscds = ColumnDataSource(data=thisphoto)  # this object cds
-    thisplot = p.circle(x=xfullname, y=yfullname, source=thiscds,
-                        color='#375a7f', size=20)  # plot for this object
-    all_results_mostfull = results_concat(all_results_full, all_photo, all_plx, thisbands)
+    thisplot = p.square(x=xfullname, y=yfullname, source=thiscds,
+                        color=cmap, size=20)  # plot for this object
+    all_results_mostfull = results_concat(all_results_full, all_photo, all_plx, all_spts, thisbands)
     all_results_mostfull.dropna(axis=1, how='all', inplace=True)
     cdsfull = ColumnDataSource(data=all_results_mostfull)  # bokeh cds object
-    fullplot = p.circle_x(x=xfullname, y=yfullname, source=cdsfull,
-                          color='ghostwhite', alpha=0.5, size=6)  # plot all objects
+    fullplot = p.circle(x=xfullname, y=yfullname, source=cdsfull,
+                        color=cmap, alpha=0.5, size=6)  # plot all objects
     fullplot.level = 'underlay'  # put full plot underneath this plot
+    cbar = ColorBar(color_mapper=cmap['transform'], label_standoff=12,
+                    ticker=FixedTicker(ticks=np.arange(60, 100, 10), minor_ticks=np.arange(60, 100, 5)),
+                    major_label_overrides={60: 'M', 70: 'L', 80: 'T', 90: 'Y'},
+                    major_label_text_font_size='1.5em')
+    p.add_layout(cbar, 'right')
     p.x_range = Range1d(all_results_mostfull[xfullname].min(), all_results_mostfull[xfullname].max())  # x limits
     p.y_range = Range1d(all_results_mostfull[yfullname].min(), all_results_mostfull[yfullname].max())  # y limits
     p.xaxis.axis_label = xvisname  # x label
@@ -472,5 +520,6 @@ def mainplots():
 
 
 if __name__ == '__main__':
-    ARGS, DB_FILE, PHOTOMETRIC_FILTERS, ALL_RESULTS, ALL_RESULTS_FULL, ALL_PHOTO, ALL_BANDS, ALL_PLX = mainutils()
+    ARGS, DB_FILE, PHOTOMETRIC_FILTERS, ALL_RESULTS, ALL_RESULTS_FULL, VERSION_STR,\
+        ALL_PHOTO, ALL_BANDS, ALL_PLX, ALL_SPTS = mainutils()
     NIGHTSKYTHEME, JSCALLBACKS = mainplots()

@@ -24,7 +24,7 @@ def index_page():
     """
     source_count = len(all_results)  # count the number of sources
     form = BasicSearchForm()  # main searchbar
-    return render_template('index_simple.html', source_count=source_count, form=form)
+    return render_template('index_simple.html', source_count=source_count, form=form, version_str=version_str)
 
 
 @app_simple.route('/search', methods=['GET', 'POST'])
@@ -47,7 +47,7 @@ def search():
     except (IndexError, OperationalError):
         stringed_results: Optional[str] = None
         return render_template('search.html', form=form, refquery=refquery,
-                               results=stringed_results, query=query)
+                               results=stringed_results, query=query, version_str=version_str)
     except IndexError:
         results = pd.DataFrame()
     refresults: Optional[dict] = db.search_string(refquery, fmt='pandas', verbose=False)  # search all the strings
@@ -59,7 +59,7 @@ def search():
         filtered_results: Optional[pd.DataFrame] = results.merge(refsources, on='source', suffixes=(None, 'extra'))
         filtered_results.drop(columns=list(filtered_results.filter(regex='extra')), inplace=True)
         stringed_results = onedfquery(filtered_results)
-    return render_template('search.html', form=form, refquery=refquery,
+    return render_template('search.html', form=form, refquery=refquery, version_str=version_str,
                            results=stringed_results, query=query)  # if everything not okay, return existing page as is
 
 
@@ -79,9 +79,10 @@ def coordquery():
         c = SkyCoord(ra=ra, dec=dec, unit=unit)
         results: pd.DataFrame = db.query_region(c, fmt='pandas', radius=radius)  # query
         stringed_results = onedfquery(results)
-        return render_template('coordquery.html', form=form, query=query, results=stringed_results)
+        return render_template('coordquery.html', form=form, query=query, results=stringed_results,
+                               version_str=version_str)
     else:
-        return render_template('coordquery.html', form=form, results=None, query='')
+        return render_template('coordquery.html', form=form, results=None, query='', version_str=version_str)
 
 
 @app_simple.route('/fulltextsearch', methods=['GET', 'POST'])
@@ -98,7 +99,7 @@ def fulltextsearch():
     db = SimpleDB(db_file, connection_arguments={'check_same_thread': False})  # open database
     results: Dict[str, pd.DataFrame] = db.search_string(query, fmt='pandas', verbose=False)  # search
     resultsout = multidfquery(results, limmaxrows)
-    return render_template('fulltextsearch.html', form=form,
+    return render_template('fulltextsearch.html', form=form, version_str=version_str,
                            results=resultsout, query=query)  # if everything not okay, return existing page
 
 
@@ -107,7 +108,7 @@ def load_fulltext():
     """
     Loading full text search page
     """
-    return render_template('load_fulltext.html')
+    return render_template('load_fulltext.html', version_str=version_str)
 
 
 @app_simple.route('/raw_query', methods=['GET', 'POST'])
@@ -126,9 +127,9 @@ def raw_query():
         except (ResourceClosedError, OperationalError, IndexError, SqliteWarning, BadSQLError):
             results = pd.DataFrame()
         stringed_results = onedfquery(results)
-        return render_template('rawquery.html', form=form, results=stringed_results)
+        return render_template('rawquery.html', form=form, results=stringed_results, version_str=version_str)
     else:
-        return render_template('rawquery.html', form=form, results=None, query='')
+        return render_template('rawquery.html', form=form, results=None, query='', version_str=version_str)
 
 
 @app_simple.route('/solo_result/<query>')
@@ -145,13 +146,13 @@ def solo_result(query: str):
     db = SimpleDB(db_file, connection_arguments={'check_same_thread': False})  # open database
     resultdict: dict = db.inventory(query)  # get everything about that object
     everything = Inventory(resultdict, args)  # parsing the inventory into markdown
-    scriptcmd, divcmd = camdplot(query, everything, all_bands, all_results_full, all_plx, photfilters,
+    scriptcmd, divcmd = camdplot(query, everything, all_bands, all_results_full, all_plx, all_spts, photfilters,
                                  all_photo, jscallbacks, nightskytheme)
     scriptspectra, divspectra, nfail, failstr = specplot(query, db_file, nightskytheme, jscallbacks)
     query = query.upper()  # convert query to all upper case
     return render_template('solo_result.html', resources=CDN.render(), scriptcmd=scriptcmd, divcmd=divcmd,
                            scriptspectra=scriptspectra, divspectra=divspectra, nfail=nfail, failstr=failstr,
-                           query=query, resultdict=resultdict, everything=everything)
+                           query=query, resultdict=resultdict, everything=everything, version_str=version_str)
 
 
 @app_simple.route('/load_solo/<query>')
@@ -159,7 +160,7 @@ def load_solopage(query: str):
     """
     Loading solo result page
     """
-    return render_template('load_solo.html', query=query)
+    return render_template('load_solo.html', query=query, version_str=version_str)
 
 
 @app_simple.route('/multiplot')
@@ -167,8 +168,10 @@ def multiplotpage():
     """
     The page for all the plots
     """
-    scriptmulti, divmulti = multiplotbokeh(all_results_full, all_bands, all_photo, all_plx, jscallbacks, nightskytheme)
-    return render_template('multiplot.html', scriptmulti=scriptmulti, divmulti=divmulti, resources=CDN.render())
+    scriptmulti, divmulti = multiplotbokeh(all_results_full, all_bands, all_photo, all_plx, all_spts,
+                                           jscallbacks, nightskytheme)
+    return render_template('multiplot.html', scriptmulti=scriptmulti, divmulti=divmulti, resources=CDN.render(),
+                           version_str=version_str)
 
 
 @app_simple.route('/load_multiplot')
@@ -176,7 +179,7 @@ def load_multiplot():
     """
     Loading multiplot page
     """
-    return render_template('load_multiplot.html')
+    return render_template('load_multiplot.html', version_str=version_str)
 
 
 @app_simple.route('/autocomplete', methods=['GET'])
@@ -322,7 +325,8 @@ def download_file(filename: str):
     return send_from_directory(uploads, filename)
 
 
-args, db_file, photfilters, all_results, all_results_full, all_photo, all_bands, all_plx = mainutils()
+args, db_file, photfilters, all_results, all_results_full, version_str,\
+    all_photo, all_bands, all_plx, all_spts = mainutils()
 nightskytheme, jscallbacks = mainplots()
 
 if __name__ == '__main__':

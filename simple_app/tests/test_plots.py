@@ -16,13 +16,15 @@ def test_mainplots():
     return nightskytheme, jscallbacks
 
 
-def test_multiplotbokeh(db, test_all_sources, test_all_photometry, test_all_parallaxes, test_mainplots):
+def test_multiplotbokeh(db, test_all_sources, test_all_photometry, test_all_parallaxes,
+                        test_all_spectraltypes, test_mainplots):
     assert db
     allphoto, allbands = test_all_photometry
     allresults, fullresults = test_all_sources
     allplx = test_all_parallaxes
+    allspts = test_all_spectraltypes
     nightskytheme, jscallbacks = test_mainplots
-    script, div = multiplotbokeh(fullresults, allbands, allphoto, allplx, jscallbacks, nightskytheme)
+    script, div = multiplotbokeh(fullresults, allbands, allphoto, allplx, allspts, jscallbacks, nightskytheme)
     assert all([type(s) == str for s in (script, div)])
     return
 
@@ -39,7 +41,8 @@ def test_specplot(db, test_mainplots):
     return
 
 
-def test_camdplot(db, test_mainplots, test_all_photometry, test_all_sources, test_all_parallaxes, test_get_filters):
+def test_camdplot(db, test_mainplots, test_all_photometry, test_all_sources,
+                  test_all_parallaxes, test_all_spectraltypes, test_get_filters):
     assert db
     allphoto, allbands = test_all_photometry
     photfilters = test_get_filters
@@ -55,11 +58,11 @@ def test_camdplot(db, test_mainplots, test_all_photometry, test_all_sources, tes
     badeverything = Inventory(resultdict, args)
     allresults, allresultsfull = test_all_sources
     allplx = test_all_parallaxes
+    allspts = test_all_spectraltypes
     goodscript, gooddiv = camdplot(good_query, goodeverything, allbands,
-                                   allresultsfull, allplx, photfilters, allphoto, jscallbacks, nightskytheme)
+                                   allresultsfull, allplx, allspts, photfilters, allphoto, jscallbacks, nightskytheme)
     badscript, baddiv = camdplot(bad_query, badeverything, allbands,
-                                 allresultsfull, allplx, photfilters, allphoto, jscallbacks, nightskytheme)
+                                 allresultsfull, allplx, allspts, photfilters, allphoto, jscallbacks, nightskytheme)
     assert all([type(s) == str for s in (goodscript, gooddiv)])
     assert all([s is None for s in (badscript, baddiv)])
     return
-
