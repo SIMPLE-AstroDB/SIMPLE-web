@@ -1,5 +1,5 @@
 asdf==2.7.3
-git+https://github.com/dr-rodriguez/AstrodbKit2.git@main#egg=astrodbkit2
+astrodbkit2
 astropy==4.2.1
 astroquery==0.4.1
 attrs==20.3.0
