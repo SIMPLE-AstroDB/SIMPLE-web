@@ -336,23 +336,19 @@ def find_colours(photodf: pd.DataFrame, allbands: np.ndarray, photfilters: pd.Da
     return photodf
 
 
-def parse_photometry(photodf: pd.DataFrame, allbands: np.ndarray, multisource: bool = False) -> pd.DataFrame:
+def one_source_iter(onephotodf: pd.DataFrame):
     """
-    Parses the photometry dataframe handling multiple references for same magnitude
+    Parses the photometry dataframe handling multiple references for same magnitude for one object
 
     Parameters
     ----------
-    photodf: pd.DataFrame
-        The dataframe with all photometry in
-    allbands: np.ndarray
-        All the photometric bands
-    multisource: bool
-        Switch whether to iterate over initial dataframe with multiple sources
+    onephotodf: pd.DataFrame
+        The dataframe with all the photometry in it
 
     Returns
     -------
-    newphoto: pd.DataFrame
-        DataFrame of effectively transposed photometry
+    thisnewphot: pd.DataFrame
+        DataFrame of transposed photometry
     """
 
     def replacer(val: int) -> str:
@@ -373,27 +369,32 @@ def parse_photometry(photodf: pd.DataFrame, allbands: np.ndarray, multisource: b
             return ''
         return f'({val})'
 
-    def one_source_iter(onephotodf: pd.DataFrame):
-        """
-        Parses the photometry dataframe handling multiple references for same magnitude for one object
+    onephotodf.set_index('band', inplace=True)  # set the band as the index
+    thisnewphot: pd.DataFrame = onephotodf.loc[:, ['magnitude']].T  # flip the dataframe and keep only mags
+    s = pd.Series(thisnewphot.columns)  # the columns as series
+    scc = s.groupby(s).cumcount()  # number of duplicate bands
+    thisnewphot.columns += scc.map(replacer)  # fill the duplicate values as (N)
+    return thisnewphot
 
-        Parameters
-        ----------
-        onephotodf: pd.DataFrame
-            The dataframe with all the photometry in it
 
-        Returns
-        -------
-        thisnewphot: pd.DataFrame
-            DataFrame of transposed photometry
-        """
-        onephotodf.set_index('band', inplace=True)  # set the band as the index
-        thisnewphot: pd.DataFrame = onephotodf.loc[:, ['magnitude']].T  # flip the dataframe and keep only mags
-        s = pd.Series(thisnewphot.columns)  # the columns as series
-        scc = s.groupby(s).cumcount()  # number of duplicate bands
-        thisnewphot.columns += scc.map(replacer)  # fill the duplicate values as (N)
-        return thisnewphot
+def parse_photometry(photodf: pd.DataFrame, allbands: np.ndarray, multisource: bool = False) -> pd.DataFrame:
+    """
+    Parses the photometry dataframe handling multiple references for same magnitude
 
+    Parameters
+    ----------
+    photodf: pd.DataFrame
+        The dataframe with all photometry in
+    allbands: np.ndarray
+        All the photometric bands
+    multisource: bool
+        Switch whether to iterate over initial dataframe with multiple sources
+
+    Returns
+    -------
+    newphoto: pd.DataFrame
+        DataFrame of effectively transposed photometry
+    """
     if not multisource:
         newphoto = one_source_iter(photodf)
     else:
@@ -401,8 +402,10 @@ def parse_photometry(photodf: pd.DataFrame, allbands: np.ndarray, multisource: b
         newdict = {col: np.empty(len(photodfgrp)) for col in allbands}  # empty dict
         newdict['target'] = np.empty(len(photodfgrp), dtype=str)
         newphoto = pd.DataFrame(newdict)
+        p = mp.Pool(processes=mp.cpu_count() - 1 or 1)
+        sources = p.map(one_source_iter, [targetdf for (_, targetdf) in photodfgrp])
         for i, (target, targetdf) in tqdm(enumerate(photodfgrp), total=len(photodfgrp), desc='Photometry'):
-            specificphoto = one_source_iter(targetdf)  # get the dictionary for this object photometry
+            specificphoto = sources[i]  # get the dictionary for this object photometry
             for key in newphoto.columns:  # over all keys
                 if key == 'target':
                     newphoto.loc[i, key] = target
