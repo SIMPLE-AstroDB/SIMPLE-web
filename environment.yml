@@ -40,7 +40,7 @@ dependencies:
   - mkl_fft=1.3.1
   - mkl_random=1.2.2
   - ncurses=6.3
-  - numpy-base=1.23.4
+  - numpy-base=1.22.4
   - olefile=0.46
   - openssl=1.1.1s
   - packaging=21.3

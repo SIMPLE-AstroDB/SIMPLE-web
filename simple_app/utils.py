@@ -4,6 +4,8 @@ The static functions for various calculations and required parameters
 import sys
 
 # local packages
+import numpy as np
+import pandas as pd
 
 sys.path.append('simple_root/simple_app')
 from simports import *
@@ -311,6 +313,7 @@ def find_colours(photodf: pd.DataFrame, allbands: np.ndarray, photfilters: pd.Da
     photodf: pd.DataFrame
         The dataframe with all photometry and colours in
     """
+    dcols: Dict[str, np.ndarray] = {}
     for band in allbands:  # loop over all bands
         bandtrue = band
         if '(' in band:  # duplicate bands
@@ -329,9 +332,10 @@ def find_colours(photodf: pd.DataFrame, allbands: np.ndarray, photfilters: pd.Da
                     photfilters.at['effective_wavelength', nextbandtrue]:  # if not blue-red
                 continue
             try:
-                photodf[f'{band}-{nextband}'] = photodf[band] - photodf[nextband]  # colour
+                dcols[f'{band}-{nextband}'] = photodf[band] - photodf[nextband]  # colour
             except KeyError:
-                photodf[f'{band}-{nextband}'] = photodf[bandtrue] - photodf[nextband]  # colour for full sample
+                dcols[f'{band}-{nextband}'] = photodf[bandtrue] - photodf[nextband]  # colour for full sample
+    photodf = pd.concat([photodf, pd.DataFrame.from_dict(dcols)], axis=1)
     return photodf
 
 
@@ -404,12 +408,12 @@ def parse_photometry(photodf: pd.DataFrame, allbands: np.ndarray, multisource: b
             specificphoto = one_source_iter(targetdf)  # get the dictionary for this object photometry
             for key in newphoto.columns:  # over all keys
                 if key == 'target':
-                    newphoto.at[i, key] = target
+                    newphoto.loc[i, key] = target
                 else:
                     try:
-                        newphoto.at[i, key] = specificphoto.at['magnitude', key]  # append the list for given key
+                        newphoto.loc[i, key] = specificphoto.loc['magnitude', key]  # append the list for given key
                     except KeyError:  # if that key wasn't present for the object
-                        newphoto.at[i, key] = None  # use None as filler
+                        newphoto.loc[i, key] = None  # use None as filler
     return newphoto
 
 
@@ -505,12 +509,14 @@ def absmags(df: pd.DataFrame, all_bands: np.ndarray) -> pd.DataFrame:
         return np.where(dist > 0, m - 5 * np.log10(dist, where=dist > 0) + 5, np.nan)
 
     df['dist'] = np.divide(1000, df.parallax, where=df.parallax > 0)
+    dmags: Dict[str, np.ndarray] = {}
     for mag in all_bands:
         abs_mag = "M_" + mag
         try:
-            df[abs_mag] = pogsonlaw(df[mag], df['dist'])
+            dmags[abs_mag] = pogsonlaw(df[mag], df['dist'])
         except KeyError:
-            df[abs_mag] = pogsonlaw(df[mag[:mag.find('(')]], df['dist'])
+            dmags[abs_mag] = pogsonlaw(df[mag[:mag.find('(')]], df['dist'])
+    df = pd.concat([df, pd.DataFrame.from_dict(dmags)], axis=1)
     return df
 
 
@@ -767,7 +773,7 @@ def get_filters(db_file: str) -> pd.DataFrame:
     Returns
     -------
     phot_filters: pd.DataFrame
-        All of the filters, access as: phot_filters.at['effective_wavelength', <bandname>]
+        All of the filters, access as: phot_filters.loc['effective_wavelength', <bandname>]
     """
     db = SimpleDB(db_file, connection_arguments={'check_same_thread': False})
     phot_filters: pd.DataFrame = db.query(db.PhotometryFilters).pandas().set_index('band').T
