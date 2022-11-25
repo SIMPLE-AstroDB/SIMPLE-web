@@ -4,9 +4,6 @@ The static functions for various calculations and required parameters
 import sys
 
 # local packages
-import numpy as np
-import pandas as pd
-
 sys.path.append('simple_root/simple_app')
 from simports import *
 
