@@ -180,11 +180,3 @@ def test_multidfquery(db):
     assert isinstance(resultsout['Sources'], str)
     return
 
-
-def test_remove_database(db):
-    # Clean up temporary database
-    db.session.close()
-    db.engine.dispose()
-    if os.path.exists(db_name):
-        os.remove(db_name)
-    return

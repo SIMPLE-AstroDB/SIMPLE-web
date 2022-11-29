@@ -110,7 +110,7 @@ def specplot(query: str, db_file: str,
     nfail, failstrlist = 0, []
     if not len(tspec):  # if there aren't any spectra, return nothing
         return None, None, None, None
-    p = figure(title='Spectra', plot_height=500,
+    p = figure(title='Spectra', outer_height=500,
                active_scroll='wheel_zoom', active_drag='box_zoom',
                tools='pan,wheel_zoom,box_zoom,save,reset', toolbar_location='left',
                sizing_mode='stretch_width')  # init figure
@@ -175,7 +175,8 @@ def specplot(query: str, db_file: str,
     p.legend.label_text_font_size = '1.5em'
     spmin = Span(location=0.81, dimension='height', line_color='white', line_dash='dashed')
     spmax = Span(location=0.82, dimension='height', line_color='white', line_dash='dashed')
-    spslide = RangeSlider(start=normminwave, end=normmaxwave, value=(0.81, 0.82), step=0.01, title='Normalisation')
+    spslide = RangeSlider(start=normminwave, end=normmaxwave, value=(0.81, 0.82), step=0.01, title='Normalisation',
+                          sizing_mode='stretch_width')
     p.js_on_event('reset', CustomJS(args=dict(spslide=spslide), code=jscallbacks.reset_slider))
     spslide.js_on_change('value', CustomJS(args=dict(spmin=spmin, spmax=spmax, cdslist=cdslist),
                                            code=jscallbacks.normslider))
@@ -206,7 +207,7 @@ def specplot(query: str, db_file: str,
                     lfeat.js_on_change('visible', CustomJS(args=dict(t=t),
                                                            code="""t.visible = cb_obj.visible;"""))
         toglist.append(feattoggle)
-    scriptdiv = components(column(row(p, column(*toglist, max_width=200)),
+    scriptdiv = components(column(row(p, column(*toglist, max_width=200), sizing_mode='stretch_width'),
                                   spslide, sizing_mode='stretch_width'),
                            theme=nightskytheme)  # convert bokeh plot into script and div
     script: str = scriptdiv[0]
@@ -251,16 +252,16 @@ def multiplotbokeh(all_results_full: pd.DataFrame, all_bands: np.ndarray,
     cmap = linear_cmap('sptnum', Turbo256, 60, 100)
     tooltips = [('Target', '@source')]  # tooltips for hover tool
     # sky plot
-    thishover = HoverTool(names=['circle', ], tooltips=tooltips)  # hovertool
-    thistap = TapTool(names=['circle', ])  # taptool
-    psky = figure(title='Sky Plot', plot_height=500,
+    psky = figure(title='Sky Plot', outer_height=500,
                   active_scroll='wheel_zoom', active_drag='box_zoom',
                   tools='pan,wheel_zoom,box_zoom,box_select,reset',
                   sizing_mode='stretch_width', x_range=[-180, 180], y_range=[-90, 90])  # bokeh figure
+    psky.ellipse(x=0, y=0, width=360, height=180, color='#444444', name='background')  # background ellipse
+    circle = psky.circle(source=fullcds, x='raproj', y='decproj', size=6, name='circle', color='ghostwhite')
+    thishover = HoverTool(renderers=[circle, ], tooltips=tooltips)  # hovertool
+    thistap = TapTool(renderers=[circle, ])  # taptool
     psky.add_tools(thishover)  # add hover tool to plot
     psky.add_tools(thistap)  # add tap tool to plot
-    psky.ellipse(x=0, y=0, width=360, height=180, color='#444444', name='background')  # background ellipse
-    psky.circle(source=fullcds, x='raproj', y='decproj', size=6, name='circle', color='ghostwhite')
     psky.xaxis.axis_label_text_font_size = '1.5em'
     psky.yaxis.axis_label_text_font_size = '1.5em'
     psky.xaxis.major_label_text_font_size = '1.5em'
@@ -268,7 +269,7 @@ def multiplotbokeh(all_results_full: pd.DataFrame, all_bands: np.ndarray,
     psky.title.text_font_size = '2em'
     thistap.callback = OpenURL(url='/load_solo/@source')  # open new page on target when source tapped
     # colour-colour
-    pcc = figure(title='Colour-Colour', plot_height=500,
+    pcc = figure(title='Colour-Colour', outer_height=500,
                  active_scroll='wheel_zoom', active_drag='box_zoom',
                  tools='pan,wheel_zoom,box_zoom,box_select,hover,tap,reset', tooltips=tooltips,
                  sizing_mode='stretch_width')  # bokeh figure
@@ -325,7 +326,7 @@ def multiplotbokeh(all_results_full: pd.DataFrame, all_bands: np.ndarray,
             badcols.append(col)
     absmagnames = absmagnames[~np.isin(absmagnames, badcols)]
     dropmenumag = [*zip(absmagnames, absmagnames)]
-    pcamd = figure(title='Colour-Absolute Magnitude Diagram', plot_height=500,
+    pcamd = figure(title='Colour-Absolute Magnitude Diagram', outer_height=500,
                    active_scroll='wheel_zoom', active_drag='box_zoom',
                    tools='pan,wheel_zoom,box_zoom,box_select,hover,tap,reset', tooltips=tooltips,
                    sizing_mode='stretch_width')  # bokeh figure
@@ -418,7 +419,7 @@ def camdplot(query: str, everything: Inventory, all_bands: np.ndarray,
         the html to be inserted in dom
     """
     tooltips = [('Target', '@target')]
-    p = figure(plot_height=500,
+    p = figure(outer_height=500,
                active_scroll='wheel_zoom', active_drag='box_zoom',
                tools='pan,wheel_zoom,box_zoom,hover,tap,reset', tooltips=tooltips,
                sizing_mode='stretch_width')  # bokeh figure
@@ -430,8 +431,8 @@ def camdplot(query: str, everything: Inventory, all_bands: np.ndarray,
         thisspt: pd.DataFrame = everything.listconcat('SpectralTypes', False)
     except KeyError:
         thisspt = pd.DataFrame.from_dict(dict(spectral_type_code=[np.nan, ], adopted=[np.nan, ]))
-    if thisspt.adopted.isna().all():
-        thisspt.loc[:, 'adopted'] = False
+    thisspt['adopted'] = thisspt.adopted.fillna(False)
+    if not thisspt.adopted.any():
         thisspt.loc[0, 'adopted'] = True
     thisphoto = parse_photometry(thisphoto, all_bands)
     thisbands: np.ndarray = np.unique(thisphoto.columns)  # the columns
@@ -443,6 +444,9 @@ def camdplot(query: str, everything: Inventory, all_bands: np.ndarray,
     except KeyError:  # don't worry if they're not there
         pass
     else:  # if they are though...
+        thisplx['adopted'] = thisplx.adopted.fillna(False)
+        if not thisplx.adopted.any():
+            thisplx.loc[0, 'adopted'] = True
         thisphoto['parallax'] = thisplx.loc[thisplx.adopted].parallax.iloc[0]  # grab the adopted parallax
         thisphoto = absmags(thisphoto, thisbands)  # get abs mags
     thisphoto.dropna(axis=1, how='all', inplace=True)
