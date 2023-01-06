@@ -73,7 +73,7 @@ requests==2.25.1
 scipy==1.6.2
 SecretStorage==3.3.1
 semantic-version==2.8.5
-setuptools==65.5.0
+setuptools==65.5.1
 six==1.16.0
 soupsieve==2.2.1
 specutils==1.9.1
