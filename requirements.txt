@@ -12,7 +12,7 @@ attrs==22.1.0
 backcall==0.2.0
 beautifulsoup4==4.9.3
 bokeh==3.0.2
-certifi==2022.9.24
+certifi==2022.12.7
 cffi==1.14.5
 chardet==4.0.0
 click==7.1.2
