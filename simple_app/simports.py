@@ -26,6 +26,7 @@ from specutils import Spectrum1D  # spectrum objects
 from sqlalchemy.exc import ResourceClosedError, OperationalError  # errors from sqlalchemy
 from sqlite3 import Warning as SqliteWarning  # errors from sqlite
 from tqdm import tqdm  # progress bars
+from werkzeug.exceptions import HTTPException  # underlying http
 from wtforms import StringField, SubmitField, TextAreaField, ValidationError  # web forms
 
 # internal packages

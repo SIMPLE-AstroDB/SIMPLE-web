@@ -190,6 +190,19 @@ def autocomplete():
     return jsonify(alljsonlist=all_results)  # wraps all of the object names as a list, into a .json for server use
 
 
+@app_simple.errorhandler(HTTPException)
+def bad_request(e):
+    """
+    Handling bad HTTP requests such as a 404 error
+
+    Parameters
+    ----------
+    e
+        The HTTP status code
+    """
+    return render_template('bad_request.html', e=e), 500
+
+
 @app_simple.route('/write/<key>', methods=['GET', 'POST'])
 def create_file_for_download(key: str):
     """
