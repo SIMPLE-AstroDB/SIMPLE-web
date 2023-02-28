@@ -4,7 +4,7 @@ asdf-coordinates-schemas==0.1.0
 asdf-standard==1.0.3
 asdf-transform-schemas==0.3.0
 asdf-wcs-schemas==0.1.1
-astrodbkit2==0.4
+astrodbkit2==0.4.2
 astropy==5.1.1
 astroquery==0.4.1
 asttokens==2.0.5
