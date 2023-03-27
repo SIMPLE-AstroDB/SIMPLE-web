@@ -491,7 +491,7 @@ def absmags(df: pd.DataFrame, all_bands: np.ndarray) -> pd.DataFrame:
         The output dataframe with absolute mags calculated
     """
 
-    def pogsonlaw(m: Union[float, np.ndarray], dist: Union[float, np.ndarray]) -> Union[float, np.ndarray]:
+    def pogsonlaw(m: Union[float, np.ndarray]) -> Union[float, np.ndarray]:
         """
         Distance modulus equation
 
@@ -499,23 +499,20 @@ def absmags(df: pd.DataFrame, all_bands: np.ndarray) -> pd.DataFrame:
         ----------
         m
             The apparent magnitude
-        dist
-            The distance in pc
         Returns
         -------
         _
             Absolute magnitude
         """
-        return np.where(dist > 0, m - 5 * np.log10(dist, where=dist > 0) + 5, np.nan)
+        return np.where(df.parallax > 0, m + 5 * np.log10(df.parallax, where=df.parallax > 0) - 10, np.nan)
 
-    df['dist'] = np.divide(1000, df.parallax, where=df.parallax > 0)
     dmags: Dict[str, np.ndarray] = {}
     for mag in all_bands:
         abs_mag = "M_" + mag
         try:
-            dmags[abs_mag] = pogsonlaw(df[mag], df['dist'])
+            dmags[abs_mag] = pogsonlaw(df[mag])
         except KeyError:
-            dmags[abs_mag] = pogsonlaw(df[mag[:mag.find('(')]], df['dist'])
+            dmags[abs_mag] = pogsonlaw(df[mag[:mag.find('(')]])
     dfabs = pd.DataFrame.from_dict(dmags)
     if 'magnitude' in df.index:
         dfabs.rename(index={0: 'magnitude'}, inplace=True)
