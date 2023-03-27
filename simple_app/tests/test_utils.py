@@ -121,7 +121,7 @@ def test_results_concat(db, test_all_photometry, test_all_sources, test_all_para
     allplx = test_all_parallaxes
     allspts = test_all_spectraltypes
     allresultsconcat = results_concat(fullresults, allphoto, allplx, allspts, allbands)
-    assert all([col in allresultsconcat.columns for col in ('dist', 'raproj', 'decproj')])
+    assert all([col in allresultsconcat.columns for col in ('raproj', 'decproj')])
     assert all([f'M_{band}' in allresultsconcat.columns for band in allbands])
     return
 

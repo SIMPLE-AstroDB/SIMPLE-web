@@ -491,32 +491,33 @@ def absmags(df: pd.DataFrame, all_bands: np.ndarray) -> pd.DataFrame:
         The output dataframe with absolute mags calculated
     """
 
-    def pogsonlaw(m: Union[float, np.ndarray], dist: Union[float, np.ndarray]) -> Union[float, np.ndarray]:
+    def pogsonlaw(m: Union[float, np.ndarray]) -> Union[float, np.ndarray]:
         """
-        Distance modulus equation
+        Distance modulus equation. Calculates the absolute magnitude only for sources with a positive parallax,
+        otherwise returns a NaN
 
         Parameters
         ----------
         m
             The apparent magnitude
-        dist
-            The distance in pc
         Returns
         -------
         _
             Absolute magnitude
         """
-        return np.where(dist > 0, m - 5 * np.log10(dist, where=dist > 0) + 5, np.nan)
+        return np.where(df.parallax > 0, m + 5 * np.log10(df.parallax, where=df.parallax > 0) - 10, np.nan)
 
-    df['dist'] = np.divide(1000, df.parallax, where=df.parallax > 0)
     dmags: Dict[str, np.ndarray] = {}
-    for mag in all_bands:
-        abs_mag = "M_" + mag
+    for band in all_bands:  # looking over all bands
+        abs_mag = "M_" + band  # creating abs mag name
         try:
-            dmags[abs_mag] = pogsonlaw(df[mag], df['dist'])
+            dmags[abs_mag] = pogsonlaw(df[band])  # work out absolute magnitude
         except KeyError:
-            dmags[abs_mag] = pogsonlaw(df[mag[:mag.find('(')]], df['dist'])
-    df = pd.concat([df, pd.DataFrame.from_dict(dmags)], axis=1)
+            dmags[abs_mag] = pogsonlaw(df[band[:band.find('(')]])  # work out absolute magnitude if duplicate band names
+    dfabs = pd.DataFrame.from_dict(dmags)  # creates dictionary of absolute mags
+    if 'magnitude' in df.index:  # for the single source call, the index is magnitude
+        dfabs.rename(index={0: 'magnitude'}, inplace=True)  # make new dataframe having matching index
+    df = pd.concat([df, dfabs], axis=1)  # so that they will concatenate nicely
     return df
 
 
