@@ -425,6 +425,8 @@ def camdplot(query: str, everything: Inventory, all_bands: np.ndarray,
                sizing_mode='stretch_width')  # bokeh figure
     try:
         thisphoto: pd.DataFrame = everything.listconcat('Photometry', False)  # the photometry for this object
+        if len(thisphoto) < 4:
+            raise KeyError('Not enough photometric entries')
     except KeyError:  # no photometry for this object
         return None, None
     try:
@@ -459,6 +461,8 @@ def camdplot(query: str, everything: Inventory, all_bands: np.ndarray,
             badcols.append(col)
     colbands = colbands[~np.isin(colbands, badcols)]
     just_colours = thisphoto.loc[:, colbands].copy()  # cut dataframe to just colour and abs mags
+    if len(just_colours.columns) < 2:
+        return None, None
     xfullname = just_colours.columns[0]
     yfullname = just_colours.columns[1]
     xvisname = xfullname.replace('-', ' - ')
