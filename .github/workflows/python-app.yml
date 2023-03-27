@@ -22,7 +22,6 @@ jobs:
     - name: Install dependencies
       run: |
         python -m pip install --upgrade pip
-        pip install pytest
         if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
         wget -O SIMPLE.db https://raw.githubusercontent.com/SIMPLE-AstroDB/SIMPLE-binary/main/SIMPLE.db
     - name: Test with pytest
