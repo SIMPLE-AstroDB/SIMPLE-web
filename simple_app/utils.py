@@ -516,7 +516,10 @@ def absmags(df: pd.DataFrame, all_bands: np.ndarray) -> pd.DataFrame:
             dmags[abs_mag] = pogsonlaw(df[mag], df['dist'])
         except KeyError:
             dmags[abs_mag] = pogsonlaw(df[mag[:mag.find('(')]], df['dist'])
-    df = pd.concat([df, pd.DataFrame.from_dict(dmags)], axis=1)
+    dfabs = pd.DataFrame.from_dict(dmags)
+    if 'magnitude' in df.index:
+        dfabs.rename(index={0: 'magnitude'}, inplace=True)
+    df = pd.concat([df, dfabs], axis=1)
     return df
 
 

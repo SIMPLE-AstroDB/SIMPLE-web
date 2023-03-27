@@ -452,12 +452,14 @@ def camdplot(query: str, everything: Inventory, all_bands: np.ndarray,
         thisphoto['parallax'] = thisplx.loc[thisplx.adopted].parallax.iloc[0]  # grab the adopted parallax
         thisphoto = absmags(thisphoto, thisbands)  # get abs mags
     thisphoto.dropna(axis=1, how='all', inplace=True)
+    all_results_mostfull = results_concat(all_results_full, all_photo, all_plx, all_spts, thisbands)
+    all_results_mostfull.dropna(axis=1, how='all', inplace=True)
     colbands = [col for col in thisphoto.columns if any([colcheck in col for colcheck in ('-', 'M_')])]
-    colbandsall = [col for col in all_photo.columns if any([colcheck in col for colcheck in ('-', 'M_')])]
+    colbandsall = [col for col in all_results_mostfull.columns if any([colcheck in col for colcheck in ('-', 'M_')])]
     colbands = np.array(list(set(colbands).intersection(colbandsall)))
     badcols = []
     for col in colbands:
-        if not all_photo[col].count() > 1:
+        if not all_results_mostfull[col].count() > 1:
             badcols.append(col)
     colbands = colbands[~np.isin(colbands, badcols)]
     just_colours = thisphoto.loc[:, colbands].copy()  # cut dataframe to just colour and abs mags
@@ -471,8 +473,6 @@ def camdplot(query: str, everything: Inventory, all_bands: np.ndarray,
     thiscds = ColumnDataSource(data=thisphoto)  # this object cds
     thisplot = p.square(x=xfullname, y=yfullname, source=thiscds,
                         color=cmap, size=20)  # plot for this object
-    all_results_mostfull = results_concat(all_results_full, all_photo, all_plx, all_spts, thisbands)
-    all_results_mostfull.dropna(axis=1, how='all', inplace=True)
     cdsfull = ColumnDataSource(data=all_results_mostfull)  # bokeh cds object
     fullplot = p.circle(x=xfullname, y=yfullname, source=cdsfull,
                         color=cmap, alpha=0.5, size=6)  # plot all objects
