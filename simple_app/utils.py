@@ -790,16 +790,15 @@ def write_file(results: pd.DataFrame) -> str:
     results: pd.DataFrame
         The dataframe to be written
 
-    Returns
+    Yields
     -------
-    fname: str
-        The filename
+    _
+        Each line of the outputted csv
     """
-    [os.remove('simple_app/tmp/' + f) for f in os.listdir('simple_app/tmp/') if 'README' not in f]  # clear out
-    nowtime = strftime("%Y-%m-%d--%H-%M-%S", localtime())
-    fname = 'simple_app/tmp/userquery-' + nowtime + '.csv'
-    results.to_csv(fname, index=False)
-    return fname
+    yield f"{','.join(results.columns)}\n"
+    for i, _row in results.iterrows():
+        row_pack = [str(val) for val in _row.tolist()]
+        yield f"{','.join(row_pack)}\n"
 
 
 def write_multifiles(resultsdict: Dict[str, pd.DataFrame]) -> str:

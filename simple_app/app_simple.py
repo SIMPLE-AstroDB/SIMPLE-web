@@ -203,7 +203,7 @@ def bad_request(e):
     return render_template('bad_request.html', e=e), 500
 
 
-@app_simple.route('/write/<key>', methods=['GET', 'POST'])
+@app_simple.route('/write/<key>.csv', methods=['GET', 'POST'])
 def create_file_for_download(key: str):
     """
     Creates and downloads the shown dataframe from solo results
@@ -219,9 +219,8 @@ def create_file_for_download(key: str):
     everything = Inventory(resultdict, args, rtnmk=False)
     if key in resultdict:
         results: pd.DataFrame = getattr(everything, key.lower())
-        fname = write_file(results).split('/')[-1]
-        return redirect(url_for('download_file', filename=fname))
-    return None
+        return write_file(results), {"Content-Type": "text/csv"}
+    return None, None
 
 
 @app_simple.route('/write_spectra', methods=['GET', 'POST'])
