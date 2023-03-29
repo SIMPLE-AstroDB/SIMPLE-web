@@ -101,7 +101,7 @@ class Inventory:
         if dropsource:
             dropcols.append('source')
         df.drop(columns=dropcols, inplace=True, errors='ignore')
-        df['download'] = urlinks
+        df['<a href="/write_spectra" target="_blank">download</a>'] = urlinks
         df['observation_date'] = df['observation_date'].dt.date
         return df
 
@@ -861,6 +861,40 @@ def write_multifiles(resultsdict: Dict[str, pd.DataFrame]) -> BytesIO:
     with ZipFile(zip_mem, 'w') as zipper:
         for key, csv_data in csv_dict.items():
             zipper.writestr(f"{key}.csv", csv_data.getvalue())
+    zip_mem.seek(0)
+    return zip_mem
+
+
+# noinspection PyTypeChecker
+# this is because pycharm isn't the smartest
+def write_fitsfiles(fitsfiles: List[str]) -> BytesIO:
+    """
+    Creates a zip file containing multiple csvs ready for download
+
+    Parameters
+    ----------
+    fitsfiles
+        The list of fits files for this object
+
+    Returns
+    -------
+    zip_mem
+        The zipped file in memory
+    """
+    fits_dict: Dict[str, BytesIO] = {}
+    for i, fitsfile in enumerate(fitsfiles):
+        fits_mem = BytesIO()
+        try:
+            with fits.open(fitsfile) as hdulist:
+                hdulist.writeto(fits_mem)
+        except OSError:  # spectra which can't be loaded properly
+            continue
+        fits_mem.seek(0)
+        fits_dict[f"spectra_{i}_" + os.path.basename(fitsfile)] = fits_mem
+    zip_mem = BytesIO()
+    with ZipFile(zip_mem, 'w') as zipper:
+        for key, fits_data in fits_dict.items():
+            zipper.writestr(f"{key}", fits_data.getvalue())
     zip_mem.seek(0)
     return zip_mem
 

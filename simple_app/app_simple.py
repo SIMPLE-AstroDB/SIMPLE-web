@@ -243,6 +243,21 @@ def create_files_for_solodownload():
     return response
 
 
+@app_simple.route('/write_spectra', methods=['GET', 'POST'])
+def create_spectrafile_for_download():
+    """
+    Downloads the spectra files and zips together
+    """
+    query = curdoc().template_variables['query']
+    db = SimpleDB(db_file, connection_arguments={'check_same_thread': False})  # open database
+    resultdict: dict = db.inventory(query)  # get everything about that object
+    everything = Inventory(resultdict, args, rtnmk=False)
+    results: pd.DataFrame = getattr(everything, 'spectra')
+    response = Response(write_fitsfiles(results.spectrum.values), mimetype='application/zip')
+    response = control_response(response, apptype='zip')
+    return response
+
+
 @app_simple.route('/write_filt', methods=['GET', 'POST'])
 def create_file_for_filtdownload():
     """

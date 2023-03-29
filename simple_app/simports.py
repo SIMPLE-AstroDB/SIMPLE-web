@@ -4,6 +4,7 @@ Importing all packages
 # external packages
 from astrodbkit2.astrodb import Database, REFERENCE_TABLES  # used for pulling out database and querying
 from astropy.coordinates import SkyCoord  # coordinates
+from astropy.io import fits  # handling fits files
 import astropy.units as u  # units
 from astropy.table import Table  # tables in astropy
 from bokeh.embed import components  # converting python bokeh to javascript
@@ -31,15 +32,13 @@ from wtforms import StringField, SubmitField, TextAreaField, ValidationError  # 
 
 # internal packages
 import argparse  # parsing the arguments given with file
-from copy import deepcopy
-from io import StringIO, BytesIO, BufferedIOBase
-import multiprocessing as mp
-import json
+from copy import deepcopy  # memory control
+from io import StringIO, BytesIO, BufferedIOBase  # writing files without saving to disk
+import multiprocessing as mp  # multiprocessing for efficiency
 import os  # operating system
-import requests
 from shutil import copy  # copying files
 import sys  # system arguments
-from time import strftime, localtime
+from time import strftime, localtime  # time stuff for naming files
 from typing import Tuple, Optional, List, Union, Dict  # type hinting (good in IDEs)
 from urllib.parse import quote  # handling strings into url friendly form
-from zipfile import ZipFile
+from zipfile import ZipFile  # zipping files together
