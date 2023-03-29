@@ -781,6 +781,31 @@ def get_filters(db_file: str) -> pd.DataFrame:
     return phot_filters
 
 
+def control_response(response: Response, key: str = '') -> Response:
+    """
+    Edits the headers of a flask response
+
+    Parameters
+    ----------
+    response
+        The response as streamed out
+    key
+        The key used in the query, to differentiate returned results
+
+    Returns
+    -------
+    response
+        The response with edited headers
+    """
+    if len(key):  # if something provided to append
+        key = '_' + key
+    response.headers['Content-Type'] = 'text/csv; charset=utf-8'  # content type in response header
+    nowtime = strftime("%Y-%m-%d--%H-%M-%S", localtime())  # current time as a string
+    fname = 'simplequery-' + nowtime + key + '.csv'  # filename out
+    response.headers['Content-Disposition'] = f"attachment; filename={fname}"  # filename in response header
+    return response
+
+
 def write_file(results: pd.DataFrame) -> str:
     """
     Creates a csv file ready for download

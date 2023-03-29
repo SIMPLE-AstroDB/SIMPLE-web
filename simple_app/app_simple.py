@@ -219,8 +219,10 @@ def create_file_for_download(key: str):
     everything = Inventory(resultdict, args, rtnmk=False)
     if key in resultdict:
         results: pd.DataFrame = getattr(everything, key.lower())
-        return write_file(results), {"Content-Type": "text/csv"}
-    return None, None
+        response = Response(write_file(results), mimetype='text/csv')
+        response = control_response(response, key)
+        return response
+    return None
 
 
 @app_simple.route('/write_spectra', methods=['GET', 'POST'])
@@ -267,8 +269,9 @@ def create_file_for_filtdownload():
     refsources: pd.DataFrame = refresults['Sources']
     filtered_results: Optional[pd.DataFrame] = results.merge(refsources, on='source', suffixes=(None, 'extra'))
     filtered_results.drop(columns=list(filtered_results.filter(regex='extra')), inplace=True)
-    fname = write_file(filtered_results).split('/')[-1]
-    return redirect(url_for('download_file', filename=fname))
+    response = Response(write_file(filtered_results), mimetype='text/csv')
+    response = control_response(response)
+    return response
 
 
 @app_simple.route('/write_coord', methods=['GET', 'POST'])
@@ -282,8 +285,9 @@ def create_file_for_coorddownload():
     ra, dec, unit = ra_dec_unit_parse(ra, dec)
     c = SkyCoord(ra=ra, dec=dec, unit=unit)
     results: pd.DataFrame = db.query_region(c, fmt='pandas', radius=radius)  # query
-    fname = write_file(results).split('/')[-1]
-    return redirect(url_for('download_file', filename=fname))
+    response = Response(write_file(results), mimetype='text/csv')
+    response = control_response(response)
+    return response
 
 
 @app_simple.route('/write_full/<key>', methods=['GET', 'POST'])
@@ -301,8 +305,9 @@ def create_file_for_fulldownload(key: str):
     resultdict: Dict[str, pd.DataFrame] = db.search_string(query, fmt='pandas', verbose=False)  # search
     if key in resultdict:
         results: pd.DataFrame = resultdict[key]
-        fname = write_file(results).split('/')[-1]
-        return redirect(url_for('download_file', filename=fname))
+        response = Response(write_file(results), mimetype='text/csv')
+        response = control_response(response)
+        return response
     return None
 
 
@@ -327,8 +332,9 @@ def create_file_for_sqldownload():
     query = curdoc().template_variables['query']
     db = SimpleDB(db_file, connection_arguments={'check_same_thread': False})  # open database
     results: Optional[pd.DataFrame] = db.sql_query(query, fmt='pandas')
-    fname = write_file(results).split('/')[-1]
-    return redirect(url_for('download_file', filename=fname))
+    response = Response(write_file(results), mimetype='text/csv')
+    response = control_response(response)
+    return response
 
 
 @app_simple.route('/tmp/<path:filename>', methods=['GET', 'POST'])
