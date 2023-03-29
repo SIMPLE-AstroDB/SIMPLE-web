@@ -101,7 +101,7 @@ class Inventory:
         if dropsource:
             dropcols.append('source')
         df.drop(columns=dropcols, inplace=True, errors='ignore')
-        df['<a href="/write_spectra" target="_blank">download</a>'] = urlinks
+        df['download'] = urlinks
         df['observation_date'] = df['observation_date'].dt.date
         return df
 
@@ -781,7 +781,7 @@ def get_filters(db_file: str) -> pd.DataFrame:
     return phot_filters
 
 
-def control_response(response: Response, key: str = '') -> Response:
+def control_response(response: Response, key: str = '', apptype: str = 'csv') -> Response:
     """
     Edits the headers of a flask response
 
@@ -791,6 +791,8 @@ def control_response(response: Response, key: str = '') -> Response:
         The response as streamed out
     key
         The key used in the query, to differentiate returned results
+    apptype
+        The type of application being returned
 
     Returns
     -------
@@ -799,9 +801,16 @@ def control_response(response: Response, key: str = '') -> Response:
     """
     if len(key):  # if something provided to append
         key = '_' + key
-    response.headers['Content-Type'] = 'text/csv; charset=utf-8'  # content type in response header
+    if apptype == 'csv':  # checking application/content/mime types
+        ctype = 'text/csv'
+    elif apptype == 'zip':
+        ctype = 'application/zip'
+    else:
+        ctype = 'text/plain'
+    suffix = '.' + apptype  # file type
+    response.headers['Content-Type'] = f"{ctype}; charset=utf-8"  # content type in response header
     nowtime = strftime("%Y-%m-%d--%H-%M-%S", localtime())  # current time as a string
-    fname = 'simplequery-' + nowtime + key + '.csv'  # filename out
+    fname = 'simplequery-' + nowtime + key + suffix  # filename out
     response.headers['Content-Disposition'] = f"attachment; filename={fname}"  # filename in response header
     return response
 
@@ -826,67 +835,34 @@ def write_file(results: pd.DataFrame) -> str:
         yield f"{','.join(row_pack)}\n"
 
 
-def write_multifiles(resultsdict: Dict[str, pd.DataFrame]) -> str:
+# noinspection PyTypeChecker
+# this is because pycharm isn't the smartest
+def write_multifiles(resultsdict: Dict[str, pd.DataFrame]) -> BytesIO:
     """
-    Creates a csv file ready for download
+    Creates a zip file containing multiple csvs ready for download
 
     Parameters
     ----------
-    resultsdict: Dict[str, pd.DataFrame]
+    resultsdict
         The collection of dataframes
 
     Returns
     -------
-    fname: str
-        The filename
+    zip_mem
+        The zipped file in memory
     """
-    [os.remove('simple_app/tmp/' + f) for f in os.listdir('simple_app/tmp/') if 'README' not in f]  # clear out
-    nowtime = strftime("%Y-%m-%d--%H-%M-%S", localtime())
-    fname = 'simple_app/tmp/userquery-' + nowtime + '.zip'
+    csv_dict: Dict[str, StringIO] = {}
     for key, df in resultsdict.items():
-        csvname = fname.replace('.zip', f'_{key}.csv')
-        df.to_csv(csvname, index=False)
-    with ZipFile(fname, 'w') as zipper:
-        for dirname, subdirname, filenames in os.walk('simple_app/tmp'):
-            for csvname in filenames:
-                if nowtime not in csvname or 'csv' not in csvname:
-                    continue
-                fpath = os.path.join(dirname, csvname)
-                zipper.write(fpath, os.path.basename(csvname))
-    return fname
-
-
-def write_fitsfiles(fitsfiles: List[str]) -> str:
-    """
-    Creates a csv file ready for download
-
-    Parameters
-    ----------
-    fitsfiles: List[str]
-        The urls to the fits files
-
-    Returns
-    -------
-    fname: str
-        The filename
-    """
-    [os.remove('simple_app/tmp/' + f) for f in os.listdir('simple_app/tmp/') if 'README' not in f]  # clear out
-    nowtime = strftime("%Y-%m-%d--%H-%M-%S", localtime())
-    fname = 'simple_app/tmp/userquery-' + nowtime + '.zip'
-    for i, fitsfile in enumerate(fitsfiles):
-        fitsname = fname.replace('.zip', f'_{i}.{fitsfile.split(".")[-1]}')
-        with open(fitsname, 'wb') as handle:
-            r = requests.get(fitsfile)
-            for data in r.iter_content():
-                handle.write(data)
-    with ZipFile(fname, 'w') as zipper:
-        for dirname, subdirname, filenames in os.walk('simple_app/tmp'):
-            for fitsname in filenames:
-                if nowtime not in fitsname or 'zip' in fitsname:
-                    continue
-                fpath = os.path.join(dirname, fitsname)
-                zipper.write(fpath, os.path.basename(fitsname))
-    return fname
+        csv_data = StringIO()
+        df.to_csv(csv_data, index=False)
+        csv_data.seek(0)
+        csv_dict[key] = csv_data
+    zip_mem = BytesIO()
+    with ZipFile(zip_mem, 'w') as zipper:
+        for key, csv_data in csv_dict.items():
+            zipper.writestr(f"{key}.csv", csv_data.getvalue())
+    zip_mem.seek(0)
+    return zip_mem
 
 
 def mainutils():

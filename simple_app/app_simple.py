@@ -225,20 +225,6 @@ def create_file_for_download(key: str):
     return None
 
 
-@app_simple.route('/write_spectra', methods=['GET', 'POST'])
-def create_spectrafile_for_download():
-    """
-    Downloads the spectra files and zips together
-    """
-    query = curdoc().template_variables['query']
-    db = SimpleDB(db_file, connection_arguments={'check_same_thread': False})  # open database
-    resultdict: dict = db.inventory(query)  # get everything about that object
-    everything = Inventory(resultdict, args, rtnmk=False)
-    results: pd.DataFrame = getattr(everything, 'spectra')
-    fname = write_fitsfiles(results.spectrum.values).split('/')[-1]
-    return redirect(url_for('download_file', filename=fname))
-
-
 @app_simple.route('/write_soloall', methods=['GET', 'POST'])
 def create_files_for_solodownload():
     """
@@ -252,8 +238,9 @@ def create_files_for_solodownload():
         df: pd.DataFrame = pd.concat([pd.DataFrame(objrow, index=[i])  # create dataframe from found dict
                                       for i, objrow in enumerate(obj)], ignore_index=True)  # every dict in the list
         resultdictnew[key] = df
-    fname = write_multifiles(resultdictnew).split('/')[-1]
-    return redirect(url_for('download_file', filename=fname))
+    response = Response(write_multifiles(resultdictnew), mimetype='application/zip')
+    response = control_response(response, apptype='zip')
+    return response
 
 
 @app_simple.route('/write_filt', methods=['GET', 'POST'])
@@ -306,7 +293,7 @@ def create_file_for_fulldownload(key: str):
     if key in resultdict:
         results: pd.DataFrame = resultdict[key]
         response = Response(write_file(results), mimetype='text/csv')
-        response = control_response(response)
+        response = control_response(response, key)
         return response
     return None
 
@@ -320,8 +307,9 @@ def create_files_for_multidownload():
     query = curdoc().template_variables['query']
     db = SimpleDB(db_file, connection_arguments={'check_same_thread': False})  # open database
     resultdict: Dict[str, pd.DataFrame] = db.search_string(query, fmt='pandas', verbose=False)  # search
-    fname = write_multifiles(resultdict).split('/')[-1]
-    return redirect(url_for('download_file', filename=fname))
+    response = Response(write_multifiles(resultdict), mimetype='application/zip')
+    response = control_response(response, apptype='zip')
+    return response
 
 
 @app_simple.route('/write_sql', methods=['GET', 'POST'])
@@ -335,12 +323,6 @@ def create_file_for_sqldownload():
     response = Response(write_file(results), mimetype='text/csv')
     response = control_response(response)
     return response
-
-
-@app_simple.route('/tmp/<path:filename>', methods=['GET', 'POST'])
-def download_file(filename: str):
-    uploads = os.path.join(app_simple.root_path, app_simple.config['UPLOAD_FOLDER'])
-    return send_from_directory(uploads, filename)
 
 
 args, db_file, photfilters, all_results, all_results_full, version_str,\
