@@ -222,7 +222,7 @@ def create_file_for_download(key: str):
         response = Response(write_file(results), mimetype='text/csv')
         response = control_response(response, key)
         return response
-    return None
+    abort(400, 'Could not write table')
 
 
 @app_simple.route('/write_soloall', methods=['GET', 'POST'])
@@ -253,9 +253,12 @@ def create_spectrafile_for_download():
     resultdict: dict = db.inventory(query)  # get everything about that object
     everything = Inventory(resultdict, args, rtnmk=False)
     results: pd.DataFrame = getattr(everything, 'spectra')
-    response = Response(write_fitsfiles(results.spectrum.values), mimetype='application/zip')
-    response = control_response(response, apptype='zip')
-    return response
+    zipped = write_fitsfiles(results.spectrum.values)
+    if zipped is not None:
+        response = Response(write_fitsfiles(results.spectrum.values), mimetype='application/zip')
+        response = control_response(response, apptype='zip')
+        return response
+    abort(400, 'Could not download fits')
 
 
 @app_simple.route('/write_filt', methods=['GET', 'POST'])
@@ -310,7 +313,7 @@ def create_file_for_fulldownload(key: str):
         response = Response(write_file(results), mimetype='text/csv')
         response = control_response(response, key)
         return response
-    return None
+    abort(400, 'Could not write table')
 
 
 @app_simple.route('/write_all', methods=['GET', 'POST'])

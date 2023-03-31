@@ -210,8 +210,10 @@ class SQLForm(FlaskForm):
             raise ValidationError('Empty field')
         try:
             querylow: str = query.lower()
-            if not querylow.startswith('select') or 'from' not in querylow:
-                raise BadSQLError('Queries must start with "select" and contain "from".')
+            if not querylow.startswith('select') or 'from' not in querylow or \
+                    ('join' in querylow and not any([substr in querylow for substr in ('using', 'on')])):
+                raise BadSQLError('Queries must start with "select" and contain "from".'
+                                  ' Also, if performing a join, you must provide either "using" or "on".')
             _: Optional[pd.DataFrame] = db.sql_query(query, fmt='pandas')
         except (ResourceClosedError, OperationalError, IndexError, SqliteWarning, BadSQLError) as e:
             raise ValidationError('Invalid SQL: ' + str(e))
@@ -887,16 +889,18 @@ def write_fitsfiles(fitsfiles: List[str]) -> BytesIO:
         try:
             with fits.open(fitsfile) as hdulist:
                 hdulist.writeto(fits_mem)
-        except OSError:  # spectra which can't be loaded properly
+        except (OSError, fits.verify.VerifyError):  # spectra which can't be loaded properly
             continue
         fits_mem.seek(0)
         fits_dict[f"spectra_{i}_" + os.path.basename(fitsfile)] = fits_mem
-    zip_mem = BytesIO()
-    with ZipFile(zip_mem, 'w') as zipper:
-        for key, fits_data in fits_dict.items():
-            zipper.writestr(f"{key}", fits_data.getvalue())
-    zip_mem.seek(0)
-    return zip_mem
+    if len(fits_dict):
+        zip_mem = BytesIO()
+        with ZipFile(zip_mem, 'w') as zipper:
+            for key, fits_data in fits_dict.items():
+                zipper.writestr(f"{key}", fits_data.getvalue())
+        zip_mem.seek(0)
+        return zip_mem
+    return None  # if no fits files extracted
 
 
 def mainutils():
