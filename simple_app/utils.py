@@ -290,7 +290,7 @@ def get_version(db_file: str) -> str:
     db = SimpleDB(db_file, connection_arguments={'check_same_thread': False})  # open database
     v: pd.DataFrame = db.query(db.Versions).pandas()
     vactive: pd.Series = v.iloc[-2]  # -1 is "latest" or main
-    vstr = f'Version {vactive.version}, updated last: {pd.Timestamp(vactive.start_date).strftime("%d %b %Y")}'
+    vstr = f'Version {vactive.version}, updated last: {pd.Timestamp(vactive.end_date).strftime("%d %b %Y")}'
     return vstr
 
 
