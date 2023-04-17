@@ -238,7 +238,7 @@ def create_files_for_solodownload():
         df: pd.DataFrame = pd.concat([pd.DataFrame(objrow, index=[i])  # create dataframe from found dict
                                       for i, objrow in enumerate(obj)], ignore_index=True)  # every dict in the list
         resultdictnew[key] = df
-    response = Response(write_multifiles(resultdictnew), mimetype='application/zip')
+    response = Response(write_multi_files(resultdictnew), mimetype='application/zip')
     response = control_response(response, apptype='zip')
     return response
 
@@ -253,7 +253,7 @@ def create_spectrafile_for_download():
     resultdict: dict = db.inventory(query)  # get everything about that object
     everything = Inventory(resultdict, args, rtnmk=False)
     results: pd.DataFrame = getattr(everything, 'spectra')
-    zipped = write_fitsfiles(results.spectrum.values)
+    zipped = write_spec_files(results.spectrum.values)
     if zipped is not None:
         response = Response(zipped, mimetype='application/zip')
         response = control_response(response, apptype='zip')
@@ -325,7 +325,7 @@ def create_files_for_multidownload():
     query = curdoc().template_variables['query']
     db = SimpleDB(db_file, connection_arguments={'check_same_thread': False})  # open database
     resultdict: Dict[str, pd.DataFrame] = db.search_string(query, fmt='pandas', verbose=False)  # search
-    response = Response(write_multifiles(resultdict), mimetype='application/zip')
+    response = Response(write_multi_files(resultdict), mimetype='application/zip')
     response = control_response(response, apptype='zip')
     return response
 

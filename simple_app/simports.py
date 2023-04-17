@@ -36,6 +36,7 @@ from copy import deepcopy  # memory control
 from io import StringIO, BytesIO, BufferedIOBase  # writing files without saving to disk
 import multiprocessing as mp  # multiprocessing for efficiency
 import os  # operating system
+import requests  # accessing internet
 from shutil import copy  # copying files
 import sys  # system arguments
 from time import strftime, localtime  # time stuff for naming files

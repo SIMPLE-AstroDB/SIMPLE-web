@@ -3,7 +3,6 @@ The static functions for various calculations and required parameters
 """
 import sys
 
-# local packages
 sys.path.append('simple_root/simple_app')
 from simports import *
 
@@ -839,7 +838,7 @@ def write_file(results: pd.DataFrame) -> str:
 
 # noinspection PyTypeChecker
 # this is because pycharm isn't the smartest
-def write_multifiles(resultsdict: Dict[str, pd.DataFrame]) -> BytesIO:
+def write_multi_files(resultsdict: Dict[str, pd.DataFrame]) -> BytesIO:
     """
     Creates a zip file containing multiple csvs ready for download
 
@@ -854,28 +853,32 @@ def write_multifiles(resultsdict: Dict[str, pd.DataFrame]) -> BytesIO:
         The zipped file in memory
     """
     csv_dict: Dict[str, StringIO] = {}
+
     for key, df in resultsdict.items():
         csv_data = StringIO()
         df.to_csv(csv_data, index=False)
         csv_data.seek(0)
         csv_dict[key] = csv_data
+
     zip_mem = BytesIO()
+
     with ZipFile(zip_mem, 'w') as zipper:
         for key, csv_data in csv_dict.items():
             zipper.writestr(f"{key}.csv", csv_data.getvalue())
-    zip_mem.seek(0)
+
+    zip_mem.seek(0)  # reset pointer to start of memory
     return zip_mem
 
 
 # noinspection PyTypeChecker
 # this is because pycharm isn't the smartest
-def write_fitsfiles(fitsfiles: List[str]) -> BytesIO:
+def write_spec_files(spec_files: List[str]) -> BytesIO:
     """
-    Creates a zip file containing multiple csvs ready for download
+    Creates a zip file containing multiple spectra ready for download
 
     Parameters
     ----------
-    fitsfiles
+    spec_files
         The list of fits files for this object
 
     Returns
@@ -883,24 +886,38 @@ def write_fitsfiles(fitsfiles: List[str]) -> BytesIO:
     zip_mem
         The zipped file in memory
     """
-    fits_dict: Dict[str, BytesIO] = {}
-    for i, fitsfile in enumerate(fitsfiles):
-        fits_mem = BytesIO()
-        try:
-            with fits.open(fitsfile) as hdulist:
-                hdulist.writeto(fits_mem, output_verify='ignore')
-        except (OSError, fits.verify.VerifyError):  # spectra which can't be loaded properly
-            continue
-        fits_mem.seek(0)
-        fits_dict[f"spectra_{i}_" + os.path.basename(fitsfile)] = fits_mem
-    if len(fits_dict):
+    spec_dict: Dict[str, Union[BytesIO, StringIO]] = {}
+
+    for i, spec_file in enumerate(spec_files):
+        if spec_file.endswith('fits'):  # fits files
+            file_mem = BytesIO()
+
+            try:
+                with fits.open(spec_file) as hdulist:  # opening fits with astropy
+                    hdulist.writeto(file_mem, output_verify='ignore')
+            except (OSError, fits.verify.VerifyError):  # spectra which can't be loaded properly
+                continue
+
+        else:  # text files
+            response = requests.get(spec_file)
+            if response.status_code != 200:  # i.e. could not download
+                continue
+            file_mem = StringIO(response.text)
+
+        file_mem.seek(0)  # push pointer to start of memory object
+        spec_dict[f"spectra_{i}_" + os.path.basename(spec_file)] = file_mem
+
+    if len(spec_dict):
         zip_mem = BytesIO()
+
         with ZipFile(zip_mem, 'w') as zipper:
-            for key, fits_data in fits_dict.items():
-                zipper.writestr(f"{key}", fits_data.getvalue())
+            for key, spec_data in spec_dict.items():
+                zipper.writestr(f"{key}", spec_data.getvalue())
+
         zip_mem.seek(0)
         return zip_mem
-    return None  # if no fits files extracted
+
+    return None  # if no spectra files extracted
 
 
 def mainutils():
