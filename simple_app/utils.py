@@ -888,7 +888,7 @@ def write_fitsfiles(fitsfiles: List[str]) -> BytesIO:
         fits_mem = BytesIO()
         try:
             with fits.open(fitsfile) as hdulist:
-                hdulist.writeto(fits_mem)
+                hdulist.writeto(fits_mem, output_verify='ignore')
         except (OSError, fits.verify.VerifyError):  # spectra which can't be loaded properly
             continue
         fits_mem.seek(0)

@@ -255,7 +255,7 @@ def create_spectrafile_for_download():
     results: pd.DataFrame = getattr(everything, 'spectra')
     zipped = write_fitsfiles(results.spectrum.values)
     if zipped is not None:
-        response = Response(write_fitsfiles(results.spectrum.values), mimetype='application/zip')
+        response = Response(zipped, mimetype='application/zip')
         response = control_response(response, apptype='zip')
         return response
     abort(400, 'Could not download fits')
