@@ -203,7 +203,7 @@ def bad_request(e):
     return render_template('bad_request.html', e=e), 500
 
 
-@app_simple.route('/write/<key>', methods=['GET', 'POST'])
+@app_simple.route('/write/<key>.csv', methods=['GET', 'POST'])
 def create_file_for_download(key: str):
     """
     Creates and downloads the shown dataframe from solo results
@@ -219,23 +219,10 @@ def create_file_for_download(key: str):
     everything = Inventory(resultdict, args, rtnmk=False)
     if key in resultdict:
         results: pd.DataFrame = getattr(everything, key.lower())
-        fname = write_file(results).split('/')[-1]
-        return redirect(url_for('download_file', filename=fname))
-    return None
-
-
-@app_simple.route('/write_spectra', methods=['GET', 'POST'])
-def create_spectrafile_for_download():
-    """
-    Downloads the spectra files and zips together
-    """
-    query = curdoc().template_variables['query']
-    db = SimpleDB(db_file, connection_arguments={'check_same_thread': False})  # open database
-    resultdict: dict = db.inventory(query)  # get everything about that object
-    everything = Inventory(resultdict, args, rtnmk=False)
-    results: pd.DataFrame = getattr(everything, 'spectra')
-    fname = write_fitsfiles(results.spectrum.values).split('/')[-1]
-    return redirect(url_for('download_file', filename=fname))
+        response = Response(write_file(results), mimetype='text/csv')
+        response = control_response(response, key)
+        return response
+    abort(400, 'Could not write table')
 
 
 @app_simple.route('/write_soloall', methods=['GET', 'POST'])
@@ -251,8 +238,27 @@ def create_files_for_solodownload():
         df: pd.DataFrame = pd.concat([pd.DataFrame(objrow, index=[i])  # create dataframe from found dict
                                       for i, objrow in enumerate(obj)], ignore_index=True)  # every dict in the list
         resultdictnew[key] = df
-    fname = write_multifiles(resultdictnew).split('/')[-1]
-    return redirect(url_for('download_file', filename=fname))
+    response = Response(write_multi_files(resultdictnew), mimetype='application/zip')
+    response = control_response(response, apptype='zip')
+    return response
+
+
+@app_simple.route('/write_spectra', methods=['GET', 'POST'])
+def create_spectrafile_for_download():
+    """
+    Downloads the spectra files and zips together
+    """
+    query = curdoc().template_variables['query']
+    db = SimpleDB(db_file, connection_arguments={'check_same_thread': False})  # open database
+    resultdict: dict = db.inventory(query)  # get everything about that object
+    everything = Inventory(resultdict, args, rtnmk=False)
+    results: pd.DataFrame = getattr(everything, 'spectra')
+    zipped = write_spec_files(results.spectrum.values)
+    if zipped is not None:
+        response = Response(zipped, mimetype='application/zip')
+        response = control_response(response, apptype='zip')
+        return response
+    abort(400, 'Could not download fits')
 
 
 @app_simple.route('/write_filt', methods=['GET', 'POST'])
@@ -268,8 +274,9 @@ def create_file_for_filtdownload():
     refsources: pd.DataFrame = refresults['Sources']
     filtered_results: Optional[pd.DataFrame] = results.merge(refsources, on='source', suffixes=(None, 'extra'))
     filtered_results.drop(columns=list(filtered_results.filter(regex='extra')), inplace=True)
-    fname = write_file(filtered_results).split('/')[-1]
-    return redirect(url_for('download_file', filename=fname))
+    response = Response(write_file(filtered_results), mimetype='text/csv')
+    response = control_response(response)
+    return response
 
 
 @app_simple.route('/write_coord', methods=['GET', 'POST'])
@@ -283,8 +290,9 @@ def create_file_for_coorddownload():
     ra, dec, unit = ra_dec_unit_parse(ra, dec)
     c = SkyCoord(ra=ra, dec=dec, unit=unit)
     results: pd.DataFrame = db.query_region(c, fmt='pandas', radius=radius)  # query
-    fname = write_file(results).split('/')[-1]
-    return redirect(url_for('download_file', filename=fname))
+    response = Response(write_file(results), mimetype='text/csv')
+    response = control_response(response)
+    return response
 
 
 @app_simple.route('/write_full/<key>', methods=['GET', 'POST'])
@@ -302,9 +310,10 @@ def create_file_for_fulldownload(key: str):
     resultdict: Dict[str, pd.DataFrame] = db.search_string(query, fmt='pandas', verbose=False)  # search
     if key in resultdict:
         results: pd.DataFrame = resultdict[key]
-        fname = write_file(results).split('/')[-1]
-        return redirect(url_for('download_file', filename=fname))
-    return None
+        response = Response(write_file(results), mimetype='text/csv')
+        response = control_response(response, key)
+        return response
+    abort(400, 'Could not write table')
 
 
 @app_simple.route('/write_all', methods=['GET', 'POST'])
@@ -316,8 +325,9 @@ def create_files_for_multidownload():
     query = curdoc().template_variables['query']
     db = SimpleDB(db_file, connection_arguments={'check_same_thread': False})  # open database
     resultdict: Dict[str, pd.DataFrame] = db.search_string(query, fmt='pandas', verbose=False)  # search
-    fname = write_multifiles(resultdict).split('/')[-1]
-    return redirect(url_for('download_file', filename=fname))
+    response = Response(write_multi_files(resultdict), mimetype='application/zip')
+    response = control_response(response, apptype='zip')
+    return response
 
 
 @app_simple.route('/write_sql', methods=['GET', 'POST'])
@@ -328,14 +338,9 @@ def create_file_for_sqldownload():
     query = curdoc().template_variables['query']
     db = SimpleDB(db_file, connection_arguments={'check_same_thread': False})  # open database
     results: Optional[pd.DataFrame] = db.sql_query(query, fmt='pandas')
-    fname = write_file(results).split('/')[-1]
-    return redirect(url_for('download_file', filename=fname))
-
-
-@app_simple.route('/tmp/<path:filename>', methods=['GET', 'POST'])
-def download_file(filename: str):
-    uploads = os.path.join(app_simple.root_path, app_simple.config['UPLOAD_FOLDER'])
-    return send_from_directory(uploads, filename)
+    response = Response(write_file(results), mimetype='text/csv')
+    response = control_response(response)
+    return response
 
 
 args, db_file, photfilters, all_results, all_results_full, version_str,\

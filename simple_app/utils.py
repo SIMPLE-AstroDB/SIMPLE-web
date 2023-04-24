@@ -3,7 +3,6 @@ The static functions for various calculations and required parameters
 """
 import sys
 
-# local packages
 sys.path.append('simple_root/simple_app')
 from simports import *
 
@@ -210,8 +209,10 @@ class SQLForm(FlaskForm):
             raise ValidationError('Empty field')
         try:
             querylow: str = query.lower()
-            if not querylow.startswith('select') or 'from' not in querylow:
-                raise BadSQLError('Queries must start with "select" and contain "from".')
+            if not querylow.startswith('select') or 'from' not in querylow or \
+                    ('join' in querylow and not any([substr in querylow for substr in ('using', 'on')])):
+                raise BadSQLError('Queries must start with "select" and contain "from".'
+                                  ' Also, if performing a join, you must provide either "using" or "on".')
             _: Optional[pd.DataFrame] = db.sql_query(query, fmt='pandas')
         except (ResourceClosedError, OperationalError, IndexError, SqliteWarning, BadSQLError) as e:
             raise ValidationError('Invalid SQL: ' + str(e))
@@ -288,7 +289,7 @@ def get_version(db_file: str) -> str:
     db = SimpleDB(db_file, connection_arguments={'check_same_thread': False})  # open database
     v: pd.DataFrame = db.query(db.Versions).pandas()
     vactive: pd.Series = v.iloc[-2]  # -1 is "latest" or main
-    vstr = f'Version {vactive.version}, updated last: {pd.Timestamp(vactive.start_date).strftime("%d %b %Y")}'
+    vstr = f'Version {vactive.version}, updated last: {pd.Timestamp(vactive.end_date).strftime("%d %b %Y")}'
     return vstr
 
 
@@ -781,6 +782,40 @@ def get_filters(db_file: str) -> pd.DataFrame:
     return phot_filters
 
 
+def control_response(response: Response, key: str = '', apptype: str = 'csv') -> Response:
+    """
+    Edits the headers of a flask response
+
+    Parameters
+    ----------
+    response
+        The response as streamed out
+    key
+        The key used in the query, to differentiate returned results
+    apptype
+        The type of application being returned
+
+    Returns
+    -------
+    response
+        The response with edited headers
+    """
+    if len(key):  # if something provided to append
+        key = '_' + key
+    if apptype == 'csv':  # checking application/content/mime types
+        ctype = 'text/csv'
+    elif apptype == 'zip':
+        ctype = 'application/zip'
+    else:
+        ctype = 'text/plain'
+    suffix = '.' + apptype  # file type
+    response.headers['Content-Type'] = f"{ctype}; charset=utf-8"  # content type in response header
+    nowtime = strftime("%Y-%m-%d--%H-%M-%S", localtime())  # current time as a string
+    fname = 'simplequery-' + nowtime + key + suffix  # filename out
+    response.headers['Content-Disposition'] = f"attachment; filename={fname}"  # filename in response header
+    return response
+
+
 def write_file(results: pd.DataFrame) -> str:
     """
     Creates a csv file ready for download
@@ -790,79 +825,99 @@ def write_file(results: pd.DataFrame) -> str:
     results: pd.DataFrame
         The dataframe to be written
 
-    Returns
+    Yields
     -------
-    fname: str
-        The filename
+    _
+        Each line of the outputted csv
     """
-    [os.remove('simple_app/tmp/' + f) for f in os.listdir('simple_app/tmp/') if 'README' not in f]  # clear out
-    nowtime = strftime("%Y-%m-%d--%H-%M-%S", localtime())
-    fname = 'simple_app/tmp/userquery-' + nowtime + '.csv'
-    results.to_csv(fname, index=False)
-    return fname
+    yield f"{','.join(results.columns)}\n"
+    for i, _row in results.iterrows():
+        row_pack = [str(val) for val in _row.tolist()]
+        yield f"{','.join(row_pack)}\n"
 
 
-def write_multifiles(resultsdict: Dict[str, pd.DataFrame]) -> str:
+# noinspection PyTypeChecker
+# this is because pycharm isn't the smartest
+def write_multi_files(resultsdict: Dict[str, pd.DataFrame]) -> BytesIO:
     """
-    Creates a csv file ready for download
+    Creates a zip file containing multiple csvs ready for download
 
     Parameters
     ----------
-    resultsdict: Dict[str, pd.DataFrame]
+    resultsdict
         The collection of dataframes
 
     Returns
     -------
-    fname: str
-        The filename
+    zip_mem
+        The zipped file in memory
     """
-    [os.remove('simple_app/tmp/' + f) for f in os.listdir('simple_app/tmp/') if 'README' not in f]  # clear out
-    nowtime = strftime("%Y-%m-%d--%H-%M-%S", localtime())
-    fname = 'simple_app/tmp/userquery-' + nowtime + '.zip'
+    csv_dict: Dict[str, StringIO] = {}
+
     for key, df in resultsdict.items():
-        csvname = fname.replace('.zip', f'_{key}.csv')
-        df.to_csv(csvname, index=False)
-    with ZipFile(fname, 'w') as zipper:
-        for dirname, subdirname, filenames in os.walk('simple_app/tmp'):
-            for csvname in filenames:
-                if nowtime not in csvname or 'csv' not in csvname:
-                    continue
-                fpath = os.path.join(dirname, csvname)
-                zipper.write(fpath, os.path.basename(csvname))
-    return fname
+        csv_data = StringIO()
+        df.to_csv(csv_data, index=False)
+        csv_data.seek(0)
+        csv_dict[key] = csv_data
+
+    zip_mem = BytesIO()
+
+    with ZipFile(zip_mem, 'w') as zipper:
+        for key, csv_data in csv_dict.items():
+            zipper.writestr(f"{key}.csv", csv_data.getvalue())
+
+    zip_mem.seek(0)  # reset pointer to start of memory
+    return zip_mem
 
 
-def write_fitsfiles(fitsfiles: List[str]) -> str:
+# noinspection PyTypeChecker
+# this is because pycharm isn't the smartest
+def write_spec_files(spec_files: List[str]) -> BytesIO:
     """
-    Creates a csv file ready for download
+    Creates a zip file containing multiple spectra ready for download
 
     Parameters
     ----------
-    fitsfiles: List[str]
-        The urls to the fits files
+    spec_files
+        The list of fits files for this object
 
     Returns
     -------
-    fname: str
-        The filename
+    zip_mem
+        The zipped file in memory
     """
-    [os.remove('simple_app/tmp/' + f) for f in os.listdir('simple_app/tmp/') if 'README' not in f]  # clear out
-    nowtime = strftime("%Y-%m-%d--%H-%M-%S", localtime())
-    fname = 'simple_app/tmp/userquery-' + nowtime + '.zip'
-    for i, fitsfile in enumerate(fitsfiles):
-        fitsname = fname.replace('.zip', f'_{i}.{fitsfile.split(".")[-1]}')
-        with open(fitsname, 'wb') as handle:
-            r = requests.get(fitsfile)
-            for data in r.iter_content():
-                handle.write(data)
-    with ZipFile(fname, 'w') as zipper:
-        for dirname, subdirname, filenames in os.walk('simple_app/tmp'):
-            for fitsname in filenames:
-                if nowtime not in fitsname or 'zip' in fitsname:
-                    continue
-                fpath = os.path.join(dirname, fitsname)
-                zipper.write(fpath, os.path.basename(fitsname))
-    return fname
+    spec_dict: Dict[str, Union[BytesIO, StringIO]] = {}
+
+    for i, spec_file in enumerate(spec_files):
+        if spec_file.endswith('fits'):  # fits files
+            file_mem = BytesIO()
+
+            try:
+                with fits.open(spec_file) as hdulist:  # opening fits with astropy
+                    hdulist.writeto(file_mem, output_verify='ignore')
+            except (OSError, fits.verify.VerifyError):  # spectra which can't be loaded properly
+                continue
+
+        else:  # text files
+            response = requests.get(spec_file)
+            if response.status_code != 200:  # i.e. could not download
+                continue
+            file_mem = StringIO(response.text)
+
+        file_mem.seek(0)  # push pointer to start of memory object
+        spec_dict[f"spectra_{i}_" + os.path.basename(spec_file)] = file_mem
+
+    if len(spec_dict):
+        zip_mem = BytesIO()
+
+        with ZipFile(zip_mem, 'w') as zipper:
+            for key, spec_data in spec_dict.items():
+                zipper.writestr(f"{key}", spec_data.getvalue())
+
+        zip_mem.seek(0)
+        return zip_mem
+
+    return None  # if no spectra files extracted
 
 
 def mainutils():
