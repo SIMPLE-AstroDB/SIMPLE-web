@@ -29,9 +29,12 @@
             <div class="col-5 m-lg-auto">
                 <h3 class="display-4">Examples:</h3>
                 <p class="display-6">
-                    <a href="https://github.com/SIMPLE-AstroDB/SIMPLE-db/tree/main/documentation" target="_blank">
-                        View the full schema.
+                    <a href="https://github.com/SIMPLE-AstroDB/SIMPLE-db#simple-database-schema" target="_blank">
+                        View the full schema
                     </a>
+                    or read the
+                    <a href="https://github.com/SIMPLE-AstroDB/SIMPLE-db/tree/main/documentation" target="_blank">
+                        documentation</a>.
                     <ul style="list-style-type: none" class="display-6 sql-list">
                         <li>
                             select * from Sources
@@ -47,6 +50,9 @@
                             where source like "%twa%"
                         </li>
                     </ul>
+                    Note that the query backend is SQLite, be aware of any
+                    <a href="https://www.sqlite.org/lang_keywords.html" target="_blank"> syntax differences</a>.
+                    You can also submit queries with Ctrl+Enter.
                 </p>
             </div>
         </div>
@@ -76,10 +82,9 @@
     </script>
     <div class="container-fluid">
         {% if query != '' %}
-        <h2 class="display-3"><a href="{{ url_for('create_file_for_sqldownload') }}">Results</a>
-              for: {{ query|safe }}</h2>
+            <h2 class="display-3"><a href="{{ url_for('create_file_for_sqldownload') }}">Results:</a></h2>
         {% else %}
-        <h2 class="display-3">Results for: {{ query|safe }}</h2>
+            <h2 class="display-3">Results:</h2>
         {% endif %}
         <p class="display-6">{{ results|safe if results is not none }}</p>
     </div>
