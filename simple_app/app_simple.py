@@ -27,6 +27,14 @@ def index_page():
     return render_template('index_simple.html', source_count=source_count, form=form, version_str=version_str)
 
 
+@app_simple.route('/about')
+def about():
+    """
+    The about page
+    """
+    return render_template('about.html')
+
+
 @app_simple.route('/search', methods=['GET', 'POST'])
 def search():
     """
