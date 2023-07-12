@@ -10,7 +10,7 @@ coordinate_project -- called by results_concat
 # local packages
 from ..utils import *
 
-db_name = 'simple_root/temp.db'
+db_name = 'temp.db'
 db_cs = f'sqlite:///{db_name}'
 
 
@@ -18,7 +18,7 @@ db_cs = f'sqlite:///{db_name}'
 def db():
     if os.path.exists(db_name):
         os.remove(db_name)
-    copy('simple_root/SIMPLE.db', db_name)
+    copy('SIMPLE.db', db_name)
     assert os.path.exists(db_name)
     # Connect to the new database and confirm it has the Sources table
     db = SimpleDB(db_cs)
