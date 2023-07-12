@@ -38,6 +38,41 @@
         We welcome contributions from the entire community and greatly appreciate any feedback (including bug reports)!
     </p>
 </div>
+<div class="container-fluid">
+    <h2 class="display-3">Figures</h2>
+    <div class="container-fluid">
+        <div class="row">
+            <div class="p-2 col-xxl-6 float-start">
+                <img src="{{ url_for('static', filename='images/color_spectra_counts.png') }}"
+                                      class="rounded img-fluid" alt="">
+            </div>
+            <div class="p-2 col-xxl-6 float-end">
+                <img src="{{ url_for('static', filename='images/colormag_counts.png') }}"
+                                      class="rounded img-fluid float-xxl-end" alt="">
+            </div>
+        </div>
+        <div class="row">
+            <div class="p-2 col-xxl-6 float-start">
+                <img src="{{ url_for('static', filename='images/photometry_counts.png') }}"
+                                      class="rounded img-fluid" alt="">
+            </div>
+            <div class="p-2 col-xxl-6 float-end">
+                <img src="{{ url_for('static', filename='images/spectra_ins_counts.png') }}"
+                                      class="rounded img-fluid float-xxl-end" alt="">
+            </div>
+        </div>
+        <div class="row">
+            <div class="p-2 col-xxl-6 float-start">
+                <img src="{{ url_for('static', filename='images/spectra_telins_counts.png') }}"
+                                      class="rounded img-fluid" alt="">
+            </div>
+            <div class="p-2 col-xxl-6 float-end">
+                <img src="{{ url_for('static', filename='images/sptypes_counts.png') }}"
+                                      class="rounded img-fluid float-xxl-end" alt="">
+            </div>
+        </div>
+    </div>
+</div>
 <script>
     $(function() {
         $.ajax({
