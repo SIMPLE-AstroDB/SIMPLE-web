@@ -13,22 +13,22 @@
         </div>
         <div class="row">
             {% if everything.sources %}
-            <h2 class="display-3"><a href="{{ url_for('create_file_for_download', key='Sources') }}">Sources</a></h2>
-            <p class="display-6">
-                {{ everything.sources|safe }}
-            </p>
+                <h2 class="display-3"><a href="{{ url_for('create_file_for_download', key='Sources') }}">Sources</a></h2>
+                <p class="display-6">
+                    {{ everything.sources|safe }}
+                </p>
             {% endif %}
         </div>
         <div class="row">
-            <div class="col-md-4">
+            <div class="col-md-6">
                 {% if everything.names %}
-                <h2 class="display-3"><a href="{{ url_for('create_file_for_download', key='Names') }}">Names</a></h2>
-                <p class="display-6">
-                    {{ everything.names|safe }}
-                </p>
+                    <h2 class="display-3"><a href="{{ url_for('create_file_for_download', key='Names') }}">Names</a></h2>
+                    <p class="display-6">
+                        {{ everything.names|safe }}
+                    </p>
                 {% endif %}
             </div>
-            <div class="col-md-8">
+            <div class="col-md-6">
                 <div id="aladin-lite-div"
                      style="width: 400px; height:400px; float: right"></div>
                 <script type="text/javascript"
@@ -43,77 +43,126 @@
 
         <div class="row">
             {% if everything.photometry %}
-            <h2 class="display-3"><a href="{{ url_for('create_file_for_download', key='Photometry') }}">
-                Photometry</a></h2>
-            <p class="display-6">
-                {{ everything.photometry|safe }}
-            </p>
-            <div class="row" id="camdplot">
-                {{ divcmd|safe if divcmd is not none }}
-            </div>
+                <h2 class="display-3"><a href="{{ url_for('create_file_for_download', key='Photometry') }}">
+                    Photometry</a></h2>
+                <p class="display-6">
+                    {{ everything.photometry|safe }}
+                </p>
+                <div class="row" id="camdplot">
+                    {{ divcmd|safe if divcmd is not none }}
+                </div>
+            {% else %}
+                <h2 class="display-4">Photometry</h2>
+                <p class="display-6">
+                    No Photometry for {{ query|safe }} in the SIMPLE Archive.
+                    If some exists and should be ingested, please open an
+                    <a href="https://github.com/SIMPLE-AstroDB/SIMPLE-db/issues/new/choose" target="_blank"> issue</a>.
+                </p>
             {% endif %}
         </div>
 
         <div class="row">
             {% if everything.spectra %}
-            <h2 class="display-3"><a href="{{ url_for('create_file_for_download', key='Spectra') }}">Spectra</a></h2>
-            <p class="display-6">
-                {{ everything.spectra|safe }}
-                {{ failstr if everything.spectra and nfail }}
-            </p>
-            <div class="row" id="specplot">
-                {{ divspectra|safe if divspectra is not none }}
-            </div>
+                <h2 class="display-3"><a href="{{ url_for('create_file_for_download', key='Spectra') }}">Spectra</a></h2>
+                <p class="display-6">
+                    {{ everything.spectra|safe }}
+                    {{ failstr if everything.spectra and nfail }}
+                </p>
+                <div class="row" id="specplot">
+                    {{ divspectra|safe if divspectra is not none }}
+                </div>
+            {% else %}
+                <h2 class="display-4">Spectra</h2>
+                <p class="display-6">
+                    No Spectra for {{ query|safe }} in the SIMPLE Archive.
+                    If some exist and should be ingested, please open an
+                    <a href="https://github.com/SIMPLE-AstroDB/SIMPLE-db/issues/new/choose" target="_blank"> issue</a>.
+                </p>
             {% endif %}
         </div>
 
         <div class="row">
             {% if everything.spectraltypes %}
-            <h2 class="display-3"><a href="{{ url_for('create_file_for_download', key='SpectralTypes') }}">
-                Spectral Types</a></h2>
-            <p class="display-6">
-                {{ everything.spectraltypes|safe }}
-            </p>
+                <h2 class="display-3"><a href="{{ url_for('create_file_for_download', key='SpectralTypes') }}">
+                    Spectral Types</a></h2>
+                <p class="display-6">
+                    {{ everything.spectraltypes|safe }}
+                </p>
+            {% else %}
+                <h2 class="display-4">Spectral Types</h2>
+                <p class="display-6">
+                    No Spectral Types for {{ query|safe }} in the SIMPLE Archive.
+                    If some exist and should be ingested, please open an
+                    <a href="https://github.com/SIMPLE-AstroDB/SIMPLE-db/issues/new/choose" target="_blank"> issue</a>.
+                </p>
             {% endif %}
         </div>
 
         <div class="row">
             {% if everything.radialvelocities %}
-            <h2 class="display-3"><a href="{{ url_for('create_file_for_download', key='RadialVelocities') }}">
-                Radial Velocities</a></h2>
-            <p class="display-6">
-                {{ everything.radialvelocities|safe }}
-            </p>
+                <h2 class="display-3"><a href="{{ url_for('create_file_for_download', key='RadialVelocities') }}">
+                    Radial Velocities</a></h2>
+                <p class="display-6">
+                    {{ everything.radialvelocities|safe }}
+                </p>
+            {% else %}
+                <h2 class="display-4">Radial Velocities</h2>
+                <p class="display-6">
+                    No Radial Velocities for {{ query|safe }} in the SIMPLE Archive.
+                    If some exist and should be ingested, please open an
+                    <a href="https://github.com/SIMPLE-AstroDB/SIMPLE-db/issues/new/choose" target="_blank"> issue</a>.
+                </p>
             {% endif %}
         </div>
 
         <div class="row">
             {% if everything.parallaxes %}
-            <h2 class="display-3"><a href="{{ url_for('create_file_for_download', key='Parallaxes') }}">
-                Parallaxes</a></h2>
-            <p class="display-6">
-                {{ everything.parallaxes|safe }}
-            </p>
+                <h2 class="display-3"><a href="{{ url_for('create_file_for_download', key='Parallaxes') }}">
+                    Parallaxes</a></h2>
+                <p class="display-6">
+                    {{ everything.parallaxes|safe }}
+                </p>
+            {% else %}
+                <h2 class="display-4">Parallaxes</h2>
+                <p class="display-6">
+                    No Parallaxes for {{ query|safe }} in the SIMPLE Archive.
+                    If some exist and should be ingested, please open an
+                    <a href="https://github.com/SIMPLE-AstroDB/SIMPLE-db/issues/new/choose" target="_blank"> issue</a>.
+                </p>
             {% endif %}
         </div>
 
         <div class="row">
             {% if everything.propermotions %}
-            <h2 class="display-3"><a href="{{ url_for('create_file_for_download', key='ProperMotions') }}">
-                Proper Motions</a></h2>
-            <p class="display-6">
-                {{ everything.propermotions|safe }}
-            </p>
+                <h2 class="display-3"><a href="{{ url_for('create_file_for_download', key='ProperMotions') }}">
+                    Proper Motions</a></h2>
+                <p class="display-6">
+                    {{ everything.propermotions|safe }}
+                </p>
+            {% else %}
+                <h2 class="display-4">Proper Motions</h2>
+                <p class="display-6">
+                    No Proper Motions for {{ query|safe }} in the SIMPLE Archive.
+                    If some exist and should be ingested, please open an
+                    <a href="https://github.com/SIMPLE-AstroDB/SIMPLE-db/issues/new/choose" target="_blank"> issue</a>.
+                </p>
             {% endif %}
         </div>
 
         <div class="row">
             {% if everything.gravities %}
-            <h2 class="display-3"><a href="{{ url_for('create_file_for_download', key='Gravities') }}">
-                Gravities</a></h2>
-            <p class="display-6">
-                {{ everything.gravities|safe }}
-            </p>
+                <h2 class="display-3"><a href="{{ url_for('create_file_for_download', key='Gravities') }}">
+                    Gravities</a></h2>
+                <p class="display-6">
+                    {{ everything.gravities|safe }}
+                </p>
+            {% else %}
+                <h2 class="display-4">Gravities</h2>
+                <p class="display-6">
+                    No Gravities for {{ query|safe }} in the SIMPLE Archive.
+                    If some exists and should be ingested, please open an
+                    <a href="https://github.com/SIMPLE-AstroDB/SIMPLE-db/issues/new/choose" target="_blank"> issue</a>.
+                </p>
             {% endif %}
         </div>
     </div>
