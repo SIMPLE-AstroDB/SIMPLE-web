@@ -2,10 +2,8 @@
 Testing the plot functions
 """
 # local packages
-import sys
-sys.path.append('simple_app')
-from plots import *
-from tests.test_utils import *
+from ..plots import *
+from .test_utils import *
 
 
 @pytest.fixture(scope='session')

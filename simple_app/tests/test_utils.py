@@ -7,10 +7,8 @@ parse_photometry -- called by all_photometry
 absmags -- called by results_concat
 coordinate_project -- called by results_concat
 """
-import sys
-sys.path.append('simple_app')
 # local packages
-from utils import *
+from ..utils import *
 
 db_name = 'simple_root/temp.db'
 db_cs = f'sqlite:///{db_name}'

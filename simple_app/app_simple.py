@@ -2,11 +2,8 @@
 This is the main script to be run from the directory root, it will start the Flask application running which one can
 then connect to.
 """
-import sys
-sys.path.append('simple_root/simple_app')
 # local packages
-from plots import *
-from utils import *
+from .plots import *
 
 # initialise
 app_simple = Flask(__name__)  # start flask app

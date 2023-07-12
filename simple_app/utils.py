@@ -1,10 +1,7 @@
 """
 The static functions for various calculations and required parameters
 """
-import sys
-
-sys.path.append('simple_root/simple_app')
-from simports import *
+from .simports import *
 
 
 def sysargs():

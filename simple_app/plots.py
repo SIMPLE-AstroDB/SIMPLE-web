@@ -1,11 +1,8 @@
 """
 File containing the 'workhorse' functions generating the various plots seen on the website
 """
-import sys
-sys.path.append('simple_root/simple_app')
-
 # local packages
-from utils import *
+from .utils import *
 
 # feature labels taken from splat
 FEATURE_LABELS = {
