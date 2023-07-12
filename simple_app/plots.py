@@ -138,7 +138,7 @@ def specplot(query: str, db_file: str,
                 raise ValueError
         except (u.UnitConversionError, AttributeError, ValueError):  # check astrodbkit2 has loaded spectra
             nfail += 1
-            if spec["mode"] is None:
+            if spec["mode"] == 'Missing':
                 failstrlist.append(f'{spec["telescope"]}/{spec["instrument"]} '
                                    f' ({spec["reference"]})')
             else:
