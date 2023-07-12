@@ -1,10 +1,16 @@
 {% extends "base.html" %}
 {% set active_page = "search" %}
 {% block content %}
-    <div class="container">
-        <h1 class="display-2"><a href="{{ url_for('create_files_for_solodownload') }}">{{ query|safe }}</a></h1>
-    </div>
     <div class="container flex-md-column">
+        <div class="row">
+            <div class="col-md-11">
+                <h1 class="display-2"><a href="{{ url_for('create_files_for_solodownload') }}">{{ query|safe }}</a></h1>
+            </div>
+            <div class="col-md-1">
+                <button onclick="share()" type="button" class="btn btn-success"
+                        style="float: right" title="Copy link to object">Share</button>
+            </div>
+        </div>
         <div class="row">
             {% if everything.sources %}
             <h2 class="display-3"><a href="{{ url_for('create_file_for_download', key='Sources') }}">Sources</a></h2>
@@ -118,6 +124,18 @@
             });
             }
         );
+    </script>
+    <script>
+        function share() {
+            let dummy = document.createElement('input'),
+                text = window.location.href;
+            text = text.replace('solo_result', 'load_solo');
+            document.body.appendChild(dummy);
+            dummy.value = text;
+            dummy.select();
+            document.execCommand('copy');
+            document.body.removeChild(dummy);
+        }
     </script>
 
 {% endblock %}
