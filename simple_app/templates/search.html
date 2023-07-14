@@ -12,8 +12,8 @@
                 {{ form.search(size=30, placeholder="source", class_="form-control") }}
             </fieldset>
             <fieldset class="mb-3">
-                {{ form.refsearch.label(class_="form-label") }}
-                {{ form.refsearch(size=30, placeholder="free text search", class_="form-control") }}
+                {{ form.ref_search.label(class_="form-label") }}
+                {{ form.ref_search(size=30, placeholder="free text search", class_="form-control") }}
             </fieldset>
             {% if form.search.errors %}
             <fieldset class="mb-4">
@@ -24,9 +24,9 @@
                 {% endfor %}
             </fieldset>
             {% endif %}
-            {% if form.refsearch.errors %}
+            {% if form.ref_search.errors %}
             <fieldset class="mb-4">
-                {% for error in form.refsearch.errors %}
+                {% for error in form.ref_search.errors %}
                     <p class="display-6" style="color: #5f6988">
                         {{ error }}
                     </p>
@@ -94,7 +94,7 @@
     </script>
     <div class="container-fluid">
         {% if query != '' %}
-        <h2 class="display-3"><a href="{{ url_for('create_file_for_filtdownload') }}">Results</a>
+        <h2 class="display-3"><a href="{{ url_for('create_file_for_filtered_download') }}">Results</a>
             for: {{ query|safe }}</h2>
         {% else %}
         <h2 class="display-3">Results for: {{ query|safe }}</h2>

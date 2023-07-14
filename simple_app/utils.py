@@ -4,7 +4,7 @@ The static functions for various calculations and required parameters
 from .simports import *
 
 
-def sysargs():
+def sys_args():
     """
     These are the system arguments given after calling this python script
 
@@ -29,7 +29,8 @@ class SimpleDB(Database):  # this keeps pycharm happy about unresolved reference
     """
     Wrapper class for astrodbkit2.Database specific to SIMPLE
     """
-    Sources = None  # initialise class attribute
+    # all class attributes are initialised here
+    Sources = None
     Photometry = None
     Parallaxes = None
     Spectra = None
@@ -45,33 +46,39 @@ class Inventory:
     ra: float = 0
     dec: float = 0
 
-    def __init__(self, resultdict: dict, args, **kwargs):
+    def __init__(self, d_result: Dict[str, List[Dict[str, List[Union[str, float, int]]]]], **kwargs):
         """
         Constructor method for Inventory
 
         Parameters
         ----------
-        resultdict: dict
+        d_result: Dict[str, List[Dict[str, List[Union[str, float, int]]]
             The dictionary of all the key: values in a given object inventory
         """
-        self.results: dict = resultdict  # given inventory for a target
+        self.results: Dict[str, List[Dict[str, List[Union[str, float, int]]]]] = d_result
+
+        # look through each table in inventory
         for key in self.results:  # over every key in inventory
-            if args.debug:
-                print(key)
+
+            # ignore reference tables like PhotometryFilters
             if key in REFERENCE_TABLES:  # ignore the reference table ones
                 continue
-            lowkey: str = key.lower()  # lower case of the key
-            mkdown_output: str = self.listconcat(key, **kwargs)  # get in markdown the dataframe value for given key
-            setattr(self, lowkey, mkdown_output)  # set the key attribute with the dataframe for given key
+
+            # convert the table result to Markdown
+            low_key: str = key.lower()
+            markdown_output: str = self.list_concat(key, **kwargs)
+            setattr(self, low_key, markdown_output)
+
+        # retrieve ra and dec from the Sources table, if present
         try:
-            srcs: pd.DataFrame = self.listconcat('Sources', rtnmk=False)  # open the Sources result
-            self.ra, self.dec = srcs.ra[0], srcs.dec[0]
+            sources: pd.DataFrame = self.list_concat('Sources', return_markdown=False)
+            self.ra, self.dec = sources.ra[0], sources.dec[0]
         except (KeyError, AttributeError):
             pass
         return
 
     @staticmethod
-    def spectra_handle(df: pd.DataFrame, dropsource: bool = True):
+    def spectra_handle(df: pd.DataFrame, drop_source: bool = True):
         """
         Handles spectra, converting files to links
 
@@ -79,7 +86,7 @@ class Inventory:
         ----------
         df: pd.DataFrame
             The table for the spectra
-        dropsource: bool
+        drop_source: bool
             Switch to keep source in the dataframe
 
         Returns
@@ -87,21 +94,28 @@ class Inventory:
         df: pd.DataFrame
             The edited table
         """
-        urlinks = []
-        for src in df.spectrum.values:  # over every source in table
-            srclnk = f'<a href="{src}" target="_blank">Link</a>'  # construct hyperlink
-            urlinks.append(srclnk)  # add that to list
-        df.drop(columns=[col for col in df.columns if any([substr in col for substr in ('wave', 'flux', 'original')])],
+
+        # convert links to spectra files from plaintext to hyperlinks
+        url_links = []
+        for source in df.spectrum.values:
+            source_link = f'<a href="{source}" target="_blank">Link</a>'
+            url_links.append(source_link)
+
+        # removing excess columns which aren't pretty on the website
+        df.drop(columns=[col for col in df.columns if
+                         any([sub_string in col for sub_string in ('wave', 'flux', 'original')])],
                 inplace=True)
-        dropcols = ['spectrum', 'local_spectrum', 'regime']
-        if dropsource:
-            dropcols.append('source')
-        df.drop(columns=dropcols, inplace=True, errors='ignore')
-        df['<a href="/write_spectra" target="_blank">download</a>'] = urlinks
+        drop_cols = ['spectrum', 'local_spectrum', 'regime']
+        if drop_source:
+            drop_cols.append('source')
+        df.drop(columns=drop_cols, inplace=True, errors='ignore')
+
+        # editing dataframe with nicely formatted columns
+        df['<a href="/write_spectra" target="_blank">download</a>'] = url_links
         df['observation_date'] = df['observation_date'].dt.date
         return df
 
-    def listconcat(self, key: str, rtnmk: bool = True) -> Union[pd.DataFrame, str]:
+    def list_concat(self, key: str, return_markdown: bool = True) -> Union[pd.DataFrame, str]:
         """
         Concatenates the list for a given key
 
@@ -109,7 +123,7 @@ class Inventory:
         ----------
         key: str
             The key corresponding to the inventory
-        rtnmk: bool
+        return_markdown: bool
             Switch for whether to return either a markdown string or a dataframe
 
         Returns
@@ -117,30 +131,33 @@ class Inventory:
         df: Union[pd.DataFrame, str]
             Either the dataframe for a given key or the markdown parsed string
         """
-        obj: List[dict] = self.results[key]  # the value for the given key
-        df: pd.DataFrame = pd.concat([pd.DataFrame(objrow, index=[i])  # create dataframe from found dict
-                                      for i, objrow in enumerate(obj)], ignore_index=True)  # every dict in the list
-        if rtnmk:  # return markdown boolean
+        # construct dataframe for a given key corresponding to a table
+        obj = self.results[key]
+        df: pd.DataFrame = pd.concat([pd.DataFrame(objrow, index=[i])
+                                      for i, objrow in enumerate(obj)], ignore_index=True)
+
+        # switch whether to have a Markdown version of the table, or a normal DataFrame
+        if return_markdown:
             if key == 'Spectra':
                 df = self.spectra_handle(df)
             df.rename(columns={s: s.replace('_', ' ') for s in df.columns if 'download' not in s}, inplace=True)
             return markdown(df.to_html(index=False, escape=False,
-                                       classes='table table-dark table-bordered table-striped'))  # html then markdown
-        return df  # otherwise return dataframe as is
+                                       classes='table table-dark table-bordered table-striped'))
+        return df
 
 
 class SearchForm(FlaskForm):
     """
-    Searchbar class
+    Basic search, combined with full text filtering
     """
     search = StringField('Search for an object:', id='mainsearchfield')  # searchbar
-    refsearch = StringField('Filter by full text search:', id='refsearchfield')
+    ref_search = StringField('Filter by full text search:', id='refsearchfield')  # full text search
     submit = SubmitField('Search', id='querybutton')  # clicker button to send request
 
 
 class BasicSearchForm(FlaskForm):
     """
-    Searchbar class
+    Most basic searchbar
     """
     search = StringField('Search for an object:', id='mainsearchfield')  # searchbar
     submit = SubmitField('Search', id='querybutton')  # clicker button to send request
@@ -148,7 +165,7 @@ class BasicSearchForm(FlaskForm):
 
 class CoordQueryForm(FlaskForm):
     """
-    Searchbar class
+    Class for searching by coordinate
     """
     query = StringField('Query by coordinate within radius:', id='mainsearchfield')  # searchbar
     submit = SubmitField('Query', id='querybutton')  # clicker button to send request
@@ -158,16 +175,114 @@ class CoordQueryForm(FlaskForm):
         self.db_file: str = kwargs['db_file']
         return
 
+    @staticmethod
+    def multi_param_str_parse(s: str) -> Optional[Tuple[str, str, float]]:
+        """
+        Parses a string to split into two or three parameters separated by N spaces
+
+        Parameters
+        ----------
+        s: str
+            Input string
+
+        Returns
+        -------
+        a
+            First output
+        b
+            Second output
+        c
+            Third output (optional)
+        """
+        # split up the string by empty space
+        try:
+            query_split: np.ndarray = np.array(s.replace('\t', ' ').lower().strip().split(' '))
+            query_split = query_split[np.logical_not(query_split == '')]
+            query_length = len(query_split)
+
+            # check length is 2 or 3
+            if query_length < 2 or query_length > 3:
+                raise ValueError
+
+            # check last input is numeric
+            elif query_length == 3:
+                _ = float(query_split[2])
+
+        # main catch if inputs can't be parsed as expected
+        except ValueError:
+            return '', '', 10.
+
+        # unpack the query
+        if query_length == 3:
+            a, b, c = query_split
+            c = float(c)
+        else:
+            a, b = query_split
+            c = 10.
+        return a, b, c
+
+    @staticmethod
+    def ra_dec_unit_parse(ra: str, dec: str) -> Tuple[Union[str, float], Union[str, float], str]:
+        """
+        Parses ra and dec values into either string (hms) or float (deg)
+
+        Parameters
+        ----------
+        ra: str
+            RA from string
+        dec: str
+            Dec from string
+
+        Returns
+        -------
+        ra
+            RA either string or float
+        dec
+            Dec either string or float
+        unit
+            Unit as a string
+        """
+        # try to make ra and dec numeric
+        try:
+            ra = float(ra)
+            dec = float(dec)
+
+        # in the case of hms, dms, set unit as so
+        except ValueError:
+            unit = 'hourangle,deg'
+
+        # degree coordinates are fine though
+        else:
+            unit = 'deg'
+
+        return ra, dec, unit
+
     def validate_query(self, field):
+        """
+        Validates the query to be understandable ra, dec
+
+        Parameters
+        ----------
+        field
+            The data within the searchbar
+
+        """
+        # split search bar into 3 components (ra, dec, radius)
         db = SimpleDB(self.db_file, connection_arguments={'check_same_thread': False})  # open database
-        ra, dec, radius = multi_param_str_parse(field.data)
+        ra, dec, radius = self.multi_param_str_parse(field.data)
+
         if not ra:  # i.e. empty string, bad parse
             raise ValidationError('Input must be two or three inputs separated by " "')
-        ra, dec, unit = ra_dec_unit_parse(ra, dec)
+
+        # convert given values into understandable values (astropy units)
+        ra, dec, unit = self.ra_dec_unit_parse(ra, dec)
         try:
             c = SkyCoord(ra=ra, dec=dec, unit=unit)
+
         except ValueError:
             raise ValidationError('Cannot parse coordinates, check astropy SkyCoord documentation')
+
+        # attempt to query the region around given coordinates
         try:
             _ = db.query_region(c, fmt='pandas', radius=radius)
         except Exception as e:
@@ -176,7 +291,7 @@ class CoordQueryForm(FlaskForm):
 
 class LooseSearchForm(FlaskForm):
     """
-    Searchbar class
+    Searching by full text
     """
     search = StringField('Search by full text:', id='mainsearchfield')  # searchbar
     submit = SubmitField('Search', id='querybutton')  # clicker button to send request
@@ -201,19 +316,45 @@ class SQLForm(FlaskForm):
         return
 
     def validate_sqlfield(self, field):
+        """
+        Validating SQL queries before they can be submitted
+        Parameters
+        ----------
+        field
+            The data within the query form
+        """
+        forbidden = ('update', 'drop', 'truncate', 'grant', 'commit', 'create', 'replace', 'alter', 'insert')
         db = SimpleDB(self.db_file, connection_arguments={'check_same_thread': False})  # open database
+
+        # check query field has data within
         if (query := field.data) is None or query.strip() == '':  # content in main searchbar
             raise ValidationError('Empty field')
+
+        # check for anything which would be problematic for sql to deal with
         try:
-            querylow: str = query.lower()
-            if not querylow.startswith('select') or 'from' not in querylow or \
-                    ('join' in querylow and not any([substr in querylow for substr in ('using', 'on')])):
-                raise BadSQLError('Queries must start with "select" and contain "from".'
-                                  ' Also, if performing a join, you must provide either "using" or "on".')
+            query_low: str = query.lower()
+
+            # select and from required
+            if not query_low.startswith('select') or 'from' not in query_low:
+                raise BadSQLError('Queries must start with "select" and contain "from".')
+
+            # checking joins are done correctly
+            if 'join' in query_low and not any([sub_string in query_low for sub_string in ('using', 'on')]):
+                raise BadSQLError('When performing a join, you must provide either "using" or "on".')
+
+            # look for malicious commands (David)
+            if any([sub_string in query_low for sub_string in forbidden]):
+                raise BadSQLError('Forbidden keyword detected.')
+
+            # only then, attempt query
             _: Optional[pd.DataFrame] = db.sql_query(query, fmt='pandas')
+
+        # catch these expected errors
         except (ResourceClosedError, OperationalError, IndexError, SqliteWarning, BadSQLError) as e:
             raise ValidationError('Invalid SQL: ' + str(e))
-        except Exception as e:  # ugly but safe
+
+        # any unexpected errors
+        except Exception as e:
             raise ValidationError('Uncaught Error: ' + str(e))
 
 
@@ -221,33 +362,50 @@ class JSCallbacks:
     """
     Converts javascript callbacks into python triple quoted strings
     """
+    # initialised some empty strings to be filled with js functions
     dropdownx_js = ''
     dropdowny_js = ''
     button_flip = ''
-    normslider = ''
+    normalisation_slider = ''
     reset_slider = ''
 
     def __init__(self):
-        jsfuncnames = ('dropdownx_js', 'dropdowny_js', 'button_flip', 'normslider', 'reset_slider')
-        with open('simple_app/simple_callbacks.js', 'r') as fcall:
-            whichvar = ''
-            outstr = """"""
-            for line in fcall:
-                for funcname in jsfuncnames:
-                    if funcname in line:
-                        whichvar = funcname
-                        outstr = """"""
+        """
+        Loads simple_callbacks and unpacks the js functions within, to the python variables into instance attributes
+        """
+        # open js functions script
+        js_func_names = ('dropdownx_js', 'dropdowny_js', 'button_flip', 'normalisation_slider', 'reset_slider')
+        with open('simple_app/simple_callbacks.js', 'r') as func_call:
+            which_var = ''
+            out_string = """"""
+
+            # reading through file as plaintext
+            for line in func_call:
+
+                # check each function name
+                for func_name in js_func_names:
+
+                    # ensure correct instance attribute is being written to
+                    if func_name in line:
+                        which_var = func_name
+                        out_string = """"""
                         break
+
+                # all functions in js script need to end with '}', this defines our attribute end
                 else:
+
+                    # set the instance attribute which has been written through previous lines and reset
                     if line.startswith('}'):
-                        setattr(self, whichvar, outstr)
-                        whichvar = ''
-                        outstr = """"""
+                        setattr(self, which_var, out_string)
+                        which_var = ''
+                        out_string = """"""
                         continue
-                    outstr = '\n'.join([outstr, line.strip('\n')])
+
+                    # if the line is not defining a function start or end, write the line to the instance attribute
+                    out_string = '\n'.join([out_string, line.strip('\n')])
 
 
-def all_sources(db_file: str):
+def get_all_sources(db_file: str):
     """
     Queries the full table to get all the sources
 
@@ -258,15 +416,17 @@ def all_sources(db_file: str):
 
     Returns
     -------
-    allresults
+    all_results
         Just the main IDs
-    fullresults
+    full_results
         The full dataframe of all the sources
     """
-    db = SimpleDB(db_file, connection_arguments={'check_same_thread': False})  # open database
-    fullresults: pd.DataFrame = db.query(db.Sources).pandas()
-    allresults: list = fullresults['source'].tolist()  # gets all the main IDs in the database
-    return allresults, fullresults
+    db = SimpleDB(db_file, connection_arguments={'check_same_thread': False})
+
+    # get the full Sources table and just the main id list
+    full_results: pd.DataFrame = db.query(db.Sources).pandas()
+    all_results: list = full_results['source'].tolist()
+    return all_results, full_results
 
 
 def get_version(db_file: str) -> str:
@@ -283,69 +443,104 @@ def get_version(db_file: str) -> str:
     vstr
         The stringified version formatted
     """
-    db = SimpleDB(db_file, connection_arguments={'check_same_thread': False})  # open database
+    db = SimpleDB(db_file, connection_arguments={'check_same_thread': False})
+
+    # query Versions table and extract active version before pretty-printing
     v: pd.DataFrame = db.query(db.Versions).pandas()
-    vactive: pd.Series = v.iloc[-2]  # -1 is "latest" or main
-    vstr = f'Version {vactive.version}, updated last: {pd.Timestamp(vactive.end_date).strftime("%d %b %Y")}'
-    return vstr
+    v_active: pd.Series = v.iloc[-2]  # -1 is "latest" or main, hence -2
+    v_str = f'Version {v_active.version}, updated last: {pd.Timestamp(v_active.end_date).strftime("%d %b %Y")}'
+    return v_str
 
 
-def find_colours(photodf: pd.DataFrame, allbands: np.ndarray, photfilters: pd.DataFrame):
+def find_colours(photometry_df: pd.DataFrame, all_bands: np.ndarray, photometric_filters: pd.DataFrame):
     """
     Find all the colours using available photometry
 
     Parameters
     ----------
-    photodf: pd.DataFrame
+    photometry_df: pd.DataFrame
         The dataframe with all photometry in
-    allbands: np.ndarray
+    all_bands: np.ndarray
         All the photometric bands
-    photfilters: pd.DataFrame
+    photometric_filters: pd.DataFrame
         The filters
 
     Returns
     -------
-    photodf: pd.DataFrame
+    photometry_df: pd.DataFrame
         The dataframe with all photometry and colours in
     """
-    dcols: Dict[str, np.ndarray] = {}
-    for band in allbands:  # loop over all bands
-        bandtrue = band
-        if '(' in band:  # duplicate bands
-            bandtrue = band[:band.find('(')]
-        if bandtrue not in photfilters.columns:  # check if we have this in the dictionary
-            raise KeyError(f'{bandtrue} not yet a supported filter')
-        for nextband in allbands:  # over all bands
-            if band == nextband:  # don't make a colour of same band (0)
+    def band_validate(checking_band: str):
+        """
+        Validates the given band that it is in our PhotometryFilters
+
+        Parameters
+        ----------
+        checking_band
+            Band to validate
+
+        Returns
+        -------
+        checking_band_true
+            Validated band
+        """
+        # check the true band name (ignoring if duplicated)
+        checking_band_true = checking_band
+        if '(' in checking_band:
+            checking_band_true = checking_band[:checking_band.find('(')]
+
+        # fail if checking_band is not in our PhotometryFilters
+        if checking_band_true not in photometric_filters.columns:
+            raise KeyError(f'{checking_band_true} not yet a supported filter')
+        return checking_band_true
+
+    # looking at each band given in turn
+    d_cols: Dict[str, np.ndarray] = {}
+    for band in all_bands:
+
+        # validate band
+        band_true = band_validate(band)
+
+        # looking at all other bands
+        for next_band in all_bands:  # over all bands
+
+            # don't make a colour of same band
+            if band == next_band:
                 continue
-            nextbandtrue = nextband
-            if '(' in nextband:  # duplicate bands
-                nextbandtrue = nextband[:nextband.find('(')]
-            if nextbandtrue not in photfilters.columns:  # check if we have this in dictionary
-                raise KeyError(f'{nextbandtrue} not yet a supported filter')
-            if photfilters.at['effective_wavelength', bandtrue] >= \
-                    photfilters.at['effective_wavelength', nextbandtrue]:  # if not blue-red
+
+            # validate band
+            next_band_true = band_validate(next_band)
+
+            # make sure we are only constructing blue-red colours
+            if photometric_filters.at['effective_wavelength', band_true] >= \
+                    photometric_filters.at['effective_wavelength', next_band_true]:
                 continue
+
+            # construct colour
             try:
-                dcols[f'{band}-{nextband}'] = photodf[band] - photodf[nextband]  # colour
+                d_cols[f'{band}-{next_band}'] = photometry_df[band] - photometry_df[next_band]
+
+            # in the case of duplicate bands (multiple measurements for one object)
             except KeyError:
-                dcols[f'{band}-{nextband}'] = photodf[bandtrue] - photodf[nextband]  # colour for full sample
-    photodf = pd.concat([photodf, pd.DataFrame.from_dict(dcols)], axis=1)
-    return photodf
+                d_cols[f'{band}-{next_band}'] = photometry_df[band_true] - photometry_df[next_band_true]
+
+    # rearrange colours as extra columns in the input photometry dataframe
+    photometry_df = pd.concat([photometry_df, pd.DataFrame.from_dict(d_cols)], axis=1)
+    return photometry_df
 
 
-def one_source_iter(onephotodf: pd.DataFrame):
+def one_source_iter(one_photometry_df: pd.DataFrame):
     """
     Parses the photometry dataframe handling multiple references for same magnitude for one object
 
     Parameters
     ----------
-    onephotodf: pd.DataFrame
+    one_photometry_df: pd.DataFrame
         The dataframe with all the photometry in it
 
     Returns
     -------
-    thisnewphot: pd.DataFrame
+    this_new_phot: pd.DataFrame
         DataFrame of transposed photometry
     """
 
@@ -367,112 +562,141 @@ def one_source_iter(onephotodf: pd.DataFrame):
             return ''
         return f'({val})'
 
-    onephotodf.set_index('band', inplace=True)  # set the band as the index
-    thisnewphot: pd.DataFrame = onephotodf.loc[:, ['magnitude']].T  # flip the dataframe and keep only mags
-    s = pd.Series(thisnewphot.columns)  # the columns as series
-    scc = s.groupby(s).cumcount()  # number of duplicate bands
-    thisnewphot.columns += scc.map(replacer)  # fill the duplicate values as (N)
-    return thisnewphot
+    # create dataframe of bands against only magnitudes, with different bands as columns
+    one_photometry_df.set_index('band', inplace=True)
+    this_new_phot: pd.DataFrame = one_photometry_df.loc[:, ['magnitude']].T
+
+    # replace any duplicate columns with numeric, e.g. WISE W1(1), WISE W1(2)
+    s = pd.Series(this_new_phot.columns)
+    scc = s.groupby(s).cumcount()
+    this_new_phot.columns += scc.map(replacer)
+    return this_new_phot
 
 
-def parse_photometry(photodf: pd.DataFrame, allbands: np.ndarray, multisource: bool = False) -> pd.DataFrame:
+def parse_photometry(photometry_df: pd.DataFrame, all_bands: np.ndarray, multi_source: bool = False) -> pd.DataFrame:
     """
     Parses the photometry dataframe handling multiple references for same magnitude
 
     Parameters
     ----------
-    photodf: pd.DataFrame
+    photometry_df: pd.DataFrame
         The dataframe with all photometry in
-    allbands: np.ndarray
+    all_bands: np.ndarray
         All the photometric bands
-    multisource: bool
+    multi_source: bool
         Switch whether to iterate over initial dataframe with multiple sources
 
     Returns
     -------
-    newphoto: pd.DataFrame
+    df_new_photometry: pd.DataFrame
         DataFrame of effectively transposed photometry
     """
-    if not multisource:
-        newphoto = one_source_iter(photodf)
+    # handle if looking at multiple objects at once or not
+    if not multi_source:
+        df_new_photometry = one_source_iter(photometry_df)
+
+    # for multiple objects
     else:
-        photodfgrp = photodf.groupby('source')
-        newdict = {col: np.empty(len(photodfgrp)) for col in allbands}  # empty dict
-        newdict['target'] = np.empty(len(photodfgrp), dtype=str)
-        newphoto = pd.DataFrame(newdict)
+        # initialise a DataFrame grouped by each target
+        df_group_photometry = photometry_df.groupby('source')
+        d_new_photometry = {col: np.empty(len(df_group_photometry)) for col in all_bands}
+        d_new_photometry['target'] = np.empty(len(df_group_photometry), dtype=str)
+        df_new_photometry = pd.DataFrame(d_new_photometry)
+
+        # process the photometry of each source
         p = mp.Pool(processes=mp.cpu_count() - 1 or 1)
-        sources = p.map(one_source_iter, [targetdf for (_, targetdf) in photodfgrp])
-        for i, (target, targetdf) in tqdm(enumerate(photodfgrp), total=len(photodfgrp), desc='Photometry'):
-            specificphoto = sources[i]  # get the dictionary for this object photometry
-            for key in newphoto.columns:  # over all keys
+        sources = p.map(one_source_iter, [targetdf for (_, targetdf) in df_group_photometry])
+
+        # rearrange columns
+        for i, (target, targetdf) in tqdm(enumerate(df_group_photometry), total=len(df_group_photometry),
+                                          desc='Photometry'):
+
+            specificphoto = sources[i]
+            for key in df_new_photometry.columns:  # over all keys
+
                 if key == 'target':
-                    newphoto.loc[i, key] = target
+                    df_new_photometry.loc[i, key] = target
+
+                # for the magnitude columns
                 else:
+
                     try:
-                        newphoto.loc[i, key] = specificphoto.loc['magnitude', key]  # append the list for given key
-                    except KeyError:  # if that key wasn't present for the object
-                        newphoto.loc[i, key] = None  # use None as filler
-    return newphoto
+                        df_new_photometry.loc[i, key] = specificphoto.loc['magnitude', key]
+
+                    # use None as filler value
+                    except KeyError:
+                        df_new_photometry.loc[i, key] = None
+    return df_new_photometry
 
 
-def all_photometry(db_file: str, photfilters: pd.DataFrame):
+def get_all_photometry(db_file: str, photometric_filters: pd.DataFrame):
     """
-    Get all the photometric data from the database to be used in later CMD as background
+    Get all of the photometric data from the database to be used in later CMD as background
 
     Parameters
     ----------
     db_file: str
         The connection string to the database
-    photfilters: pd.DataFrame
+    photometric_filters: pd.DataFrame
         The dataframe of the filters
 
     Returns
     -------
-    allphoto: pd.DataFrame
+    all_photometry: pd.DataFrame
         All the photometry in a dataframe
-    allbands: np.ndarray
+    all_bands: np.ndarray
         The unique passbands to create dropdowns by
     """
-    db = SimpleDB(db_file, connection_arguments={'check_same_thread': False})  # open database
-    allphoto: pd.DataFrame = db.query(db.Photometry).pandas()  # get all photometry
-    allbands: np.ndarray = allphoto.band.unique()  # the unique bands
-    allphoto: pd.DataFrame = parse_photometry(allphoto, allbands, True)  # transpose photometric table
-    allphoto = find_colours(allphoto, allbands, photfilters)  # get the colours
-    return allphoto, allbands
+    db = SimpleDB(db_file, connection_arguments={'check_same_thread': False})
+
+    # query all photometry and extract the unique bands
+    all_photometry: pd.DataFrame = db.query(db.Photometry).pandas()
+    all_bands: np.ndarray = all_photometry.band.unique()
+
+    # process magnitudes and extract colours
+    print('Processing photometry.')
+    all_photometry: pd.DataFrame = parse_photometry(all_photometry, all_bands, True)
+    all_photometry = find_colours(all_photometry, all_bands, photometric_filters)
+    print('Done.')
+    return all_photometry, all_bands
 
 
-def all_parallaxes(db_file: str):
+def get_all_parallaxes(db_file: str):
     """
     Get the parallaxes from the database for every object
 
     Returns
     -------
-    allplx: pd.DataFrame
+    all_parallax: pd.DataFrame
         The dataframe of all the parallaxes
     """
-    db = SimpleDB(db_file, connection_arguments={'check_same_thread': False})  # open database
-    allplx: pd.DataFrame = db.query(db.Parallaxes).pandas()  # get all photometry
-    allplx = allplx[['source', 'parallax', 'adopted']]
-    return allplx
+    db = SimpleDB(db_file, connection_arguments={'check_same_thread': False})
+
+    # query the database for the parallaxes and only take necessary columns
+    all_parallaxes: pd.DataFrame = db.query(db.Parallaxes).pandas()
+    all_parallaxes = all_parallaxes[['source', 'parallax', 'adopted']]
+    return all_parallaxes
 
 
-def all_spectraltypes(db_file: str):
+def get_all_spectral_types(db_file: str):
     """
     Get the parallaxes from the database for every object
 
     Returns
     -------
-    allspts: pd.DataFrame
+    all_spts: pd.DataFrame
         The dataframe of all the spectral type numbers
     """
-    db = SimpleDB(db_file, connection_arguments={'check_same_thread': False})  # open database
-    allspts: pd.DataFrame = db.query(db.SpectralTypes).pandas()  # get all photometry
-    allspts = allspts[['source', 'spectral_type_code', 'adopted']]
-    allspts.rename(columns={'spectral_type_code': 'sptnum'}, inplace=True)
-    return allspts
+    db = SimpleDB(db_file, connection_arguments={'check_same_thread': False})
+
+    # query the database for the spectral types and only take necessary columns
+    all_spts: pd.DataFrame = db.query(db.SpectralTypes).pandas()
+    all_spts = all_spts[['source', 'spectral_type_code', 'adopted']]
+    all_spts.rename(columns={'spectral_type_code': 'sptnum'}, inplace=True)
+    return all_spts
 
 
-def absmags(df: pd.DataFrame, all_bands: np.ndarray) -> pd.DataFrame:
+def absolute_magnitudes(df: pd.DataFrame, all_bands: np.ndarray) -> pd.DataFrame:
     """
     Calculate all the absolute magnitudes in a given dataframe
 
@@ -489,7 +713,7 @@ def absmags(df: pd.DataFrame, all_bands: np.ndarray) -> pd.DataFrame:
         The output dataframe with absolute mags calculated
     """
 
-    def pogsonlaw(m: Union[float, np.ndarray]) -> Union[float, np.ndarray]:
+    def pogson_law(m: Union[float, np.ndarray]) -> Union[float, np.ndarray]:
         """
         Distance modulus equation. Calculates the absolute magnitude only for sources with a positive parallax,
         otherwise returns a NaN
@@ -505,29 +729,35 @@ def absmags(df: pd.DataFrame, all_bands: np.ndarray) -> pd.DataFrame:
         """
         return np.where(df.parallax > 0, m + 5 * np.log10(df.parallax, where=df.parallax > 0) - 10, np.nan)
 
-    dmags: Dict[str, np.ndarray] = {}
-    for band in all_bands:  # looking over all bands
-        abs_mag = "M_" + band  # creating abs mag name
+    # create absolute magnitude for each apparent magnitude
+    d_magnitudes: Dict[str, np.ndarray] = {}
+    for band in all_bands:
+
+        abs_mag = "M_" + band
         try:
-            dmags[abs_mag] = pogsonlaw(df[band])  # work out absolute magnitude
+            d_magnitudes[abs_mag] = pogson_law(df[band])
+
+        # in the case of duplicated band names
         except KeyError:
-            dmags[abs_mag] = pogsonlaw(df[band[:band.find('(')]])  # work out absolute magnitude if duplicate band names
-    dfabs = pd.DataFrame.from_dict(dmags)  # creates dictionary of absolute mags
-    if 'magnitude' in df.index:  # for the single source call, the index is magnitude
-        dfabs.rename(index={0: 'magnitude'}, inplace=True)  # make new dataframe having matching index
-    df = pd.concat([df, dfabs], axis=1)  # so that they will concatenate nicely
+            d_magnitudes[abs_mag] = pogson_law(df[band[:band.find('(')]])
+
+    # convert to dataframe version and append to original dataframe
+    df_absolute_magnitudes = pd.DataFrame.from_dict(d_magnitudes)
+    if 'magnitude' in df.index:
+        df_absolute_magnitudes.rename(index={0: 'magnitude'}, inplace=True)
+    df = pd.concat([df, df_absolute_magnitudes], axis=1)
     return df
 
 
-def results_concat(all_results_full: pd.DataFrame, all_photo: pd.DataFrame,
+def results_concat(all_results: pd.DataFrame, all_photometry: pd.DataFrame,
                    all_plx: pd.DataFrame, all_spts: pd.DataFrame, all_bands: np.ndarray) -> pd.DataFrame:
     """
     Gets parallax, photometry and projected positions into one dataframe
     Parameters
     ----------
-    all_results_full
+    all_results
         Basic data for all the objects
-    all_photo
+    all_photometry
         All the photometry
     all_plx
         All the parallaxes
@@ -538,20 +768,23 @@ def results_concat(all_results_full: pd.DataFrame, all_photo: pd.DataFrame,
 
     Returns
     -------
-    all_results_mostfull: pd.DataFrame
+    all_results_full: pd.DataFrame
         Concatenated data for all the objects
     """
-    raproj, decproj = coordinate_project(all_results_full)  # project coordinates to galactic
-    all_results_full['raproj'] = raproj  # ra
-    all_results_full['decproj'] = decproj  # dec
-    all_results_full_cut: pd.DataFrame = all_results_full[['source', 'raproj', 'decproj']]  # cut dataframe
-    all_results_mostfull: pd.DataFrame = pd.merge(all_results_full_cut, all_photo,
-                                                  left_on='source', right_on='target', how='left')
-    all_results_mostfull = pd.merge(all_results_mostfull, all_plx, on='source')
-    all_results_mostfull = pd.merge(all_results_mostfull, all_spts, on='source')
-    all_results_mostfull = absmags(all_results_mostfull, all_bands)  # find the absolute mags
-    all_results_mostfull.drop_duplicates('source', inplace=True)
-    return all_results_mostfull
+    # project ra and dec onto Mollweide representation
+    ra_projected, dec_projected = coordinate_project(all_results)
+    all_results['ra_projected'] = ra_projected
+    all_results['dec_projected'] = dec_projected
+
+    # combine the photometry, parallaxes, spectral types and source table into one dataframe
+    all_results_cut: pd.DataFrame = all_results[['source', 'ra_projected', 'dec_projected']]
+    all_results_full: pd.DataFrame = pd.merge(all_results_cut, all_photometry,
+                                              left_on='source', right_on='target', how='left')
+    all_results_full = pd.merge(all_results_full, all_plx, on='source')
+    all_results_full = pd.merge(all_results_full, all_spts, on='source')
+    all_results_full = absolute_magnitudes(all_results_full, all_bands)
+    all_results_full.drop_duplicates('source', inplace=True)
+    return all_results_full
 
 
 def coordinate_project(all_results_full: pd.DataFrame):
@@ -560,19 +793,20 @@ def coordinate_project(all_results_full: pd.DataFrame):
 
     Returns
     -------
-    raproj: np.ndarray
+    ra_projected: np.ndarray
         The projected RA coordinates
-    decproj: np.ndarray
+    dec_projected: np.ndarray
         The projected DEC coordinates
     """
 
-    def fnewton_solve(thetan: float, phi: float, acc: float = 1e-4) -> float:
+    def f_newton_solve(theta: float, phi: float, acc: float = 1e-4) -> float:
         """
-        Solves the numerical transformation to project coordinate
+        Solves the numerical transformation to project coordinate, see
+        https://mathworld.wolfram.com/MollweideProjection.html
 
         Parameters
         ----------
-        thetan: float
+        theta: float
             theta in radians
         phi: float
             phi in raidans
@@ -581,16 +815,23 @@ def coordinate_project(all_results_full: pd.DataFrame):
 
         Returns
         -------
-        thetan: float
+        theta: float
             theta in radians
         """
-        thetanp1 = thetan - (2 * thetan + np.sin(2 * thetan) - np.pi * np.sin(phi)) / (2 + 2 * np.cos(2 * thetan))
-        if np.isnan(thetanp1):  # at pi/2
+        # projection equation
+        theta_projected = theta - (2 * theta + np.sin(2 * theta) - np.pi * np.sin(phi)) / (2 + 2 * np.cos(2 * theta))
+
+        # handle special case of 90 degrees
+        if np.isnan(theta_projected):  # at pi/2
             return phi
-        elif np.abs(thetanp1 - thetan) / np.abs(thetan) < acc:  # less than desired accuracy
-            return thetanp1
+
+        # check the accuracy of the projection
+        elif np.abs(theta_projected - theta) / np.abs(theta) < acc:  # less than desired accuracy
+            return theta_projected
+
+        # otherwise, recurse the function until the accuracy diminishes
         else:
-            return fnewton_solve(thetanp1, phi)
+            return f_newton_solve(theta_projected, phi)
 
     @np.vectorize
     def project_mollweide(ra: Union[np.ndarray, float], dec: Union[np.ndarray, float]):
@@ -611,26 +852,34 @@ def coordinate_project(all_results_full: pd.DataFrame):
         y
             Projected DEC
         """
+        # determine polar coordinates from radians
         r = np.pi / 2 / np.sqrt(2)
-        theta = fnewton_solve(dec, dec)  # project
+        theta = f_newton_solve(dec, dec)
+
+        # convert to x and y then back to degrees
         x = r * (2 * np.sqrt(2)) / np.pi * ra * np.cos(theta)
         y = r * np.sqrt(2) * np.sin(theta)
-        x, y = np.rad2deg([x, y])  # back to degrees
+        x, y = np.rad2deg([x, y])
         return x, y
 
-    ravalues: np.ndarray = all_results_full.ra.values  # all ra values
-    decvalues: np.ndarray = all_results_full.dec.values  # all dec values
-    allcoords = SkyCoord(ravalues, decvalues, unit='deg', frame='icrs')  # make astropy skycoord object
-    ravalues = allcoords.galactic.l.value  # convert to galactic
-    decvalues = allcoords.galactic.b.value  # convert to galactic
-    ravalues -= 180  # shift position
-    ravalues = np.array([np.abs(180 - raval) if raval >= 0 else -np.abs(raval + 180) for raval in ravalues])
-    ravalues, decvalues = np.deg2rad([ravalues, decvalues])  # convert to radians
-    raproj, decproj = project_mollweide(ravalues, decvalues)  # project to Mollweide
-    return raproj, decproj
+    # gather all coordinates
+    ra_values: np.ndarray = all_results_full.ra.values
+    dec_values: np.ndarray = all_results_full.dec.values
+    all_coords = SkyCoord(ra_values, dec_values, unit='deg', frame='icrs')
+
+    # convert to galactic and shift longitudes
+    ra_values = all_coords.galactic.l.value
+    dec_values = all_coords.galactic.b.value
+    ra_values -= 180
+    ra_values = np.array([np.abs(180 - raval) if raval >= 0 else -np.abs(raval + 180) for raval in ra_values])
+
+    # project to Mollweide
+    ra_values, dec_values = np.deg2rad([ra_values, dec_values])
+    ra_projected, dec_projected = project_mollweide(ra_values, dec_values)
+    return ra_projected, dec_projected
 
 
-def onedfquery(results: pd.DataFrame, tid: Optional[str] = None, limmaxrows: bool = False) -> Optional[str]:
+def one_df_query(results: pd.DataFrame, table_id: Optional[str] = None, limit_max_rows: bool = False) -> Optional[str]:
     """
     Handling the output from a query that returns only one dataframe
 
@@ -638,9 +887,9 @@ def onedfquery(results: pd.DataFrame, tid: Optional[str] = None, limmaxrows: boo
     ----------
     results
         The dataframe of results for the query
-    tid
+    table_id
         The table id to be passed to html
-    limmaxrows
+    limit_max_rows
         Limit max rows switch
 
     Returns
@@ -648,28 +897,39 @@ def onedfquery(results: pd.DataFrame, tid: Optional[str] = None, limmaxrows: boo
     stringed_results
         Results converted into markdown including links where there is a source
     """
-    if tid is None:
-        tid = 'searchtable'
+    # html id keyword
+    if table_id is None:
+        table_id = 'searchtable'
+
+    # for any tables containing data
     if len(results):
+
+        # make the source always hyperlink to the solo_result page
         if 'source' in results.columns:
-            sourcelinks = []
-            for src in results.source.values:  # over every source in table
-                urllnk = quote(src)  # convert object name to url safe
-                srclnk = f'<a href="/load_solo/{urllnk}" target="_blank">{src}</a>'  # construct hyperlink
-                sourcelinks.append(srclnk)  # add that to list
-            results['source'] = sourcelinks  # update dataframe with the linked ones
-        if limmaxrows:
-            stringed_results = markdown(results.to_html(index=False, escape=False, table_id=tid, max_rows=50,
+            source_links = []
+
+            for source in results.source.values:
+                url_link = quote(source)
+                source_link = f'<a href="/load_solo/{url_link}" target="_blank">{source}</a>'
+                source_links.append(source_link)
+
+            results['source'] = source_links
+
+        # for very large tables (e.g. just searching for '2MASS'), limit max rows
+        if limit_max_rows:
+            stringed_results = markdown(results.to_html(index=False, escape=False, table_id=table_id, max_rows=50,
                                                         classes='table table-dark table-bordered table-striped'))
+        # otherwise, display all data
         else:
-            stringed_results = markdown(results.to_html(index=False, escape=False, table_id=tid,
+            stringed_results = markdown(results.to_html(index=False, escape=False, table_id=table_id,
                                                         classes='table table-dark table-bordered table-striped'))
+    # if there is no data in the table
     else:
         stringed_results = None
     return stringed_results
 
 
-def multidfquery(results: Dict[str, pd.DataFrame], limmaxrows: bool = False) -> Dict[str, Optional[str]]:
+def multi_df_query(results: Dict[str, pd.DataFrame], limit_max_rows: bool = False) -> Dict[str, Optional[str]]:
     """
     Handling the output from a query which returns multiple dataframes
 
@@ -677,87 +937,23 @@ def multidfquery(results: Dict[str, pd.DataFrame], limmaxrows: bool = False) -> 
     ----------
     results
         The dictionary of dataframes
-    limmaxrows
+    limit_max_rows
         Limit max rows switch
 
     Returns
     -------
-    resultsout
+    d_results
         The dictionary of handled dataframes
     """
-    resultsout = {}
+    d_results = {}
+
     if len(results):
-        for tabname, df in results.items():  # looping through dictionary
-            stringed_df = onedfquery(df, tabname.lower() + 'table', limmaxrows)  # handle each dataframe
-            resultsout[tabname] = stringed_df
-    return resultsout
 
-
-def multi_param_str_parse(s: str) -> Optional[Tuple[str, str, float]]:
-    """
-    Parses a string to split into two or three parameters separated by N spaces
-
-    Parameters
-    ----------
-    s: str
-        Input string
-
-    Returns
-    -------
-    a
-        First output
-    b
-        Second output
-    c
-        Third output (optional)
-    """
-    try:
-        qrysplit: np.ndarray = np.array(s.replace('\t', ' ').lower().strip().split(' '))
-        qrysplit = qrysplit[np.logical_not(qrysplit == '')]
-        qrylen = len(qrysplit)
-        if qrylen < 2 or qrylen > 3:
-            raise ValueError
-        elif qrylen == 3:
-            _ = float(qrysplit[2])  # if radius can't be parsed as float, raises ValueError
-    except ValueError:
-        return '', '', 10.
-    if qrylen == 3:
-        a, b, c = qrysplit
-        c = float(c)
-    else:  # only ra and dec
-        a, b = qrysplit
-        c = 10.
-    return a, b, c
-
-
-def ra_dec_unit_parse(ra: str, dec: str) -> Tuple[Union[str, float], Union[str, float], str]:
-    """
-    Parses ra and dec values into either string (hms) or float (deg)
-
-    Parameters
-    ----------
-    ra: str
-        RA from string
-    dec: str
-        Dec from string
-
-    Returns
-    -------
-    ra
-        RA either string or float
-    dec
-        Dec either string or float
-    unit
-        Unit as a string
-    """
-    try:
-        ra = float(ra)
-        dec = float(dec)
-    except ValueError:
-        unit = 'hourangle,deg'
-    else:
-        unit = 'deg'
-    return ra, dec, unit
+        # wrapping the one_df_query method for each table
+        for table_name, df in results.items():
+            stringed_df = one_df_query(df, table_name.lower() + 'table', limit_max_rows)
+            d_results[table_name] = stringed_df
+    return d_results
 
 
 def get_filters(db_file: str) -> pd.DataFrame:
@@ -775,11 +971,13 @@ def get_filters(db_file: str) -> pd.DataFrame:
         All of the filters, access as: phot_filters.loc['effective_wavelength', <bandname>]
     """
     db = SimpleDB(db_file, connection_arguments={'check_same_thread': False})
+
+    # query the database for all of the PhotometryFilters
     phot_filters: pd.DataFrame = db.query(db.PhotometryFilters).pandas().set_index('band').T
     return phot_filters
 
 
-def control_response(response: Response, key: str = '', apptype: str = 'csv') -> Response:
+def control_response(response: Response, key: str = '', app_type: str = 'csv') -> Response:
     """
     Edits the headers of a flask response
 
@@ -789,7 +987,7 @@ def control_response(response: Response, key: str = '', apptype: str = 'csv') ->
         The response as streamed out
     key
         The key used in the query, to differentiate returned results
-    apptype
+    app_type
         The type of application being returned
 
     Returns
@@ -797,25 +995,30 @@ def control_response(response: Response, key: str = '', apptype: str = 'csv') ->
     response
         The response with edited headers
     """
+    # adding to filename to differentiate results
     if len(key):  # if something provided to append
         key = '_' + key
-    if apptype == 'csv':  # checking application/content/mime types
-        ctype = 'text/csv'
-    elif apptype == 'zip':
-        ctype = 'application/zip'
+
+    # checking application/content/mime types to be returned
+    if app_type == 'csv':
+        content_type = 'text/csv'
+    elif app_type == 'zip':
+        content_type = 'application/zip'
     else:
-        ctype = 'text/plain'
-    suffix = '.' + apptype  # file type
-    response.headers['Content-Type'] = f"{ctype}; charset=utf-8"  # content type in response header
-    nowtime = strftime("%Y-%m-%d--%H-%M-%S", localtime())  # current time as a string
-    fname = 'simplequery-' + nowtime + key + suffix  # filename out
-    response.headers['Content-Disposition'] = f"attachment; filename={fname}"  # filename in response header
+        content_type = 'text/plain'
+
+    # handling headers and filename
+    suffix = '.' + app_type
+    response.headers['Content-Type'] = f"{content_type}; charset=utf-8"
+    now_time = strftime("%Y-%m-%d--%H-%M-%S", localtime())
+    filename = 'simplequery-' + now_time + key + suffix
+    response.headers['Content-Disposition'] = f"attachment; filename={filename}"
     return response
 
 
 def write_file(results: pd.DataFrame) -> str:
     """
-    Creates a csv file ready for download
+    Creates a csv file ready for download on a line by line basis
 
     Parameters
     ----------
@@ -828,20 +1031,20 @@ def write_file(results: pd.DataFrame) -> str:
         Each line of the outputted csv
     """
     yield f"{','.join(results.columns)}\n"
+
     for i, _row in results.iterrows():
         row_pack = [str(val) for val in _row.tolist()]
         yield f"{','.join(row_pack)}\n"
 
 
 # noinspection PyTypeChecker
-# this is because pycharm isn't the smartest
-def write_multi_files(resultsdict: Dict[str, pd.DataFrame]) -> BytesIO:
+def write_multi_files(d_results: Dict[str, pd.DataFrame]) -> BytesIO:
     """
     Creates a zip file containing multiple csvs ready for download
 
     Parameters
     ----------
-    resultsdict
+    d_results
         The collection of dataframes
 
     Returns
@@ -849,26 +1052,26 @@ def write_multi_files(resultsdict: Dict[str, pd.DataFrame]) -> BytesIO:
     zip_mem
         The zipped file in memory
     """
-    csv_dict: Dict[str, StringIO] = {}
+    d_csv: Dict[str, StringIO] = {}
 
-    for key, df in resultsdict.items():
+    # creating each csv file corresponding to each datafarme
+    for key, df in d_results.items():
         csv_data = StringIO()
         df.to_csv(csv_data, index=False)
         csv_data.seek(0)
-        csv_dict[key] = csv_data
+        d_csv[key] = csv_data
 
+    # creating a zipped file containing all csv files
     zip_mem = BytesIO()
-
     with ZipFile(zip_mem, 'w') as zipper:
-        for key, csv_data in csv_dict.items():
+        for key, csv_data in d_csv.items():
             zipper.writestr(f"{key}.csv", csv_data.getvalue())
 
-    zip_mem.seek(0)  # reset pointer to start of memory
+    zip_mem.seek(0)
     return zip_mem
 
 
 # noinspection PyTypeChecker
-# this is because pycharm isn't the smartest
 def write_spec_files(spec_files: List[str]) -> BytesIO:
     """
     Creates a zip file containing multiple spectra ready for download
@@ -883,56 +1086,66 @@ def write_spec_files(spec_files: List[str]) -> BytesIO:
     zip_mem
         The zipped file in memory
     """
-    spec_dict: Dict[str, Union[BytesIO, StringIO]] = {}
+    d_spec: Dict[str, Union[BytesIO, StringIO]] = {}
 
+    # processing each spectrum
     for i, spec_file in enumerate(spec_files):
-        if spec_file.endswith('fits'):  # fits files
+
+        # for fits files
+        if spec_file.endswith('fits'):
             file_mem = BytesIO()
 
+            # opening with astropy
             try:
-                with fits.open(spec_file) as hdulist:  # opening fits with astropy
-                    hdulist.writeto(file_mem, output_verify='ignore')
-            except (OSError, fits.verify.VerifyError):  # spectra which can't be loaded properly
+                with fits.open(spec_file) as hdu_list:
+                    hdu_list.writeto(file_mem, output_verify='ignore')
+
+            # if there is an issue with the spectra
+            except (OSError, fits.verify.VerifyError):
                 continue
 
-        else:  # text files
+        # for text files
+        else:
             response = requests.get(spec_file)
             if response.status_code != 200:  # i.e. could not download
                 continue
             file_mem = StringIO(response.text)
 
-        file_mem.seek(0)  # push pointer to start of memory object
-        spec_dict[f"spectra_{i}_" + os.path.basename(spec_file)] = file_mem
+        file_mem.seek(0)
+        d_spec[f"spectra_{i}_" + os.path.basename(spec_file)] = file_mem
 
-    if len(spec_dict):
+    # if at least one spectra downloaded correctly
+    if len(d_spec):
+
+        # creating a zipped file containing all spectra files
         zip_mem = BytesIO()
-
         with ZipFile(zip_mem, 'w') as zipper:
-            for key, spec_data in spec_dict.items():
+            for key, spec_data in d_spec.items():
                 zipper.writestr(f"{key}", spec_data.getvalue())
 
         zip_mem.seek(0)
         return zip_mem
 
-    return None  # if no spectra files extracted
+    # if no spectra files extracted
+    return None
 
 
-def mainutils():
+def main_utils():
     """
     Control module called when grabbing all instances from utils scripts.
     """
-    _args = sysargs()  # get all system arguments
-    _db_file = f'sqlite:///{_args.file}'  # the database file
-    _phot_filters = get_filters(_db_file)  # the photometric filters
-    _all_results, _all_results_full = all_sources(_db_file)  # find all the objects once
-    _versionstr = get_version(_db_file)  # get version
-    _all_photo, _all_bands = all_photometry(_db_file, _phot_filters)  # get all the photometry
-    _all_plx = all_parallaxes(_db_file)  # get all the parallaxes
-    _all_spts = all_spectraltypes(_db_file)  # get all the spectral type numbers
+    _args = sys_args()
+    _db_file = f'sqlite:///{_args.file}'
+    _phot_filters = get_filters(_db_file)
+    _all_results, _all_results_full = get_all_sources(_db_file)
+    _versionstr = get_version(_db_file)
+    _all_photometry, _all_bands = get_all_photometry(_db_file, _phot_filters)
+    _all_plx = get_all_parallaxes(_db_file)
+    _all_spts = get_all_spectral_types(_db_file)
     return _args, _db_file, _phot_filters, _all_results, _all_results_full, _versionstr, \
-        _all_photo, _all_bands, _all_plx, _all_spts
+        _all_photometry, _all_bands, _all_plx, _all_spts
 
 
 if __name__ == '__main__':
     ARGS, DB_FILE, PHOTOMETRIC_FILTERS, ALL_RESULTS, ALL_RESULTS_FULL, VERSION_STR, \
-        ALL_PHOTO, ALL_BANDS, ALL_PLX, ALL_SPTS = mainutils()
+        ALL_PHOTO, ALL_BANDS, ALL_PLX, ALL_SPTS = main_utils()

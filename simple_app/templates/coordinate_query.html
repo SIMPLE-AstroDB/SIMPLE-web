@@ -1,11 +1,11 @@
 {% extends "base.html" %}
-{% set active_page = "coordquery" %}
+{% set active_page = "coordinate_query" %}
 
 {% block content %}
 
     <div class="container">
         <h2 class="display-3">Exploring the Database</h2>
-        <form method="post" action="{{ url_for('coordquery') }}" id="searchform">
+        <form method="post" action="{{ url_for('coordinate_query') }}" id="searchform">
             {{ form.csrf_token }}
             <fieldset class="mb-3">
                 {{ form.query.label(class_="form-label") }}
@@ -45,7 +45,7 @@
 
     <div class="container-fluid">
         {% if query != '' %}
-        <h2 class="display-3"><a href="{{ url_for('create_file_for_coorddownload') }}">Results</a>
+        <h2 class="display-3"><a href="{{ url_for('create_file_for_coordinate_download') }}">Results</a>
              for: {{ query|safe }}</h2>
         {% else %}
         <h2 class="display-3">Results for: {{ query|safe }}</h2>

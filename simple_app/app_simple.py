@@ -17,10 +17,11 @@ CORS(app_simple)  # makes CORS work (aladin notably)
 @app_simple.route('/index', methods=['GET', 'POST'])
 def index_page():
     """
-    The main splash page
+    The main splash/home page
     """
-    source_count = len(all_results)  # count the number of sources
-    form = BasicSearchForm()  # main searchbar
+    # basic searchbar and source count
+    source_count = len(all_results)
+    form = BasicSearchForm()
     return render_template('index_simple.html', source_count=source_count, form=form, version_str=version_str)
 
 
@@ -37,79 +38,107 @@ def search():
     """
     The searchbar page
     """
+    # initialisation, check contents of searchbars
     form = SearchForm()  # main searchbar
-    if (refquery := form.refsearch.data) is None:  # content in references searchbar
-        refquery = ''
+    if (ref_query := form.ref_search.data) is None:  # content in references searchbar
+        ref_query = ''
     if (query := form.search.data) is None:  # content in main searchbar
         query = ''
+
     curdoc().template_variables['query'] = query  # add query to bokeh curdoc
-    curdoc().template_variables['refquery'] = refquery  # add query to bokeh curdoc
+    curdoc().template_variables['ref_query'] = ref_query  # add query to bokeh curdoc
     db = SimpleDB(db_file, connection_arguments={'check_same_thread': False})  # open database
+
+    # object search function
     try:
         results: Optional[pd.DataFrame] = db.search_object(query, fmt='pandas')  # get the results for that object
+
         if not len(results):
             raise IndexError('Empty dataframe from search')
+
     except (IndexError, OperationalError):
         stringed_results: Optional[str] = None
-        return render_template('search.html', form=form, refquery=refquery,
+
+        # if search failed, return page as is
+        return render_template('search.html', form=form, ref_query=ref_query,
                                results=stringed_results, query=query, version_str=version_str)
-    except IndexError:
-        results = pd.DataFrame()
-    refresults: Optional[dict] = db.search_string(refquery, fmt='pandas', verbose=False)  # search all the strings
+
+    # full text search function
+    ref_results: Optional[Dict[str, pd.DataFrame]] = db.search_string(ref_query, fmt='pandas', verbose=False)
     try:
-        refsources: pd.DataFrame = refresults['Sources']
+        ref_sources: pd.DataFrame = ref_results['Sources']
+
+    # if Sources table not in returned dictionary, catch it
     except KeyError:
         stringed_results = None
+
+    # otherwise, filter the Sources table by whatever is in the full text search
     else:
-        filtered_results: Optional[pd.DataFrame] = results.merge(refsources, on='source', suffixes=(None, 'extra'))
+        filtered_results: Optional[pd.DataFrame] = results.merge(ref_sources, on='source', suffixes=(None, 'extra'))
         filtered_results.drop(columns=list(filtered_results.filter(regex='extra')), inplace=True)
-        stringed_results = onedfquery(filtered_results)
-    return render_template('search.html', form=form, refquery=refquery, version_str=version_str,
+        stringed_results = one_df_query(filtered_results)
+
+    # return page with filtered Sources present
+    return render_template('search.html', form=form, ref_query=ref_query, version_str=version_str,
                            results=stringed_results, query=query)  # if everything not okay, return existing page as is
 
 
-@app_simple.route('/coordquery', methods=['GET', 'POST'])
-def coordquery():
+@app_simple.route('/coordinate_query', methods=['GET', 'POST'])
+def coordinate_query():
     """
     Wrapping the query by coordinate function
     """
     form = CoordQueryForm(db_file=db_file)
+
+    # validating the form and returning results from query
     if form.validate_on_submit():
-        if (query := form.query.data) is None:  # content in main searchbar
+
+        if (query := form.query.data) is None:
             query = ''
-        curdoc().template_variables['query'] = query  # add query to bokeh curdoc
-        db = SimpleDB(db_file, connection_arguments={'check_same_thread': False})  # open database
-        ra, dec, radius = multi_param_str_parse(query)
-        ra, dec, unit = ra_dec_unit_parse(ra, dec)
+
+        curdoc().template_variables['query'] = query
+        db = SimpleDB(db_file, connection_arguments={'check_same_thread': False})
+
+        # parse query into ra, dec, radius
+        ra, dec, radius = form.multi_param_str_parse(query)
+        ra, dec, unit = form.ra_dec_unit_parse(ra, dec)
         c = SkyCoord(ra=ra, dec=dec, unit=unit)
+
+        # submit query
         results: pd.DataFrame = db.query_region(c, fmt='pandas', radius=radius)  # query
-        stringed_results = onedfquery(results)
-        return render_template('coordquery.html', form=form, query=query, results=stringed_results,
+        stringed_results = one_df_query(results)
+        return render_template('coordinate_query.html', form=form, query=query, results=stringed_results,
                                version_str=version_str)
+
     else:
-        return render_template('coordquery.html', form=form, results=None, query='', version_str=version_str)
+        return render_template('coordinate_query.html', form=form, results=None, query='', version_str=version_str)
 
 
-@app_simple.route('/fulltextsearch', methods=['GET', 'POST'])
-def fulltextsearch():
+@app_simple.route('/full_text_search', methods=['GET', 'POST'])
+def full_text_search():
     """
     Wrapping the search string function to search through all tables and return them
     """
-    form = LooseSearchForm()  # main searchbar
+    form = LooseSearchForm()
     limmaxrows = False
-    if (query := form.search.data) is None:  # content in main searchbar
+
+    if (query := form.search.data) is None:
         query = ''
         limmaxrows = True
-    curdoc().template_variables['query'] = query  # add query to bokeh curdoc
-    db = SimpleDB(db_file, connection_arguments={'check_same_thread': False})  # open database
-    results: Dict[str, pd.DataFrame] = db.search_string(query, fmt='pandas', verbose=False)  # search
-    resultsout = multidfquery(results, limmaxrows)
-    return render_template('fulltextsearch.html', form=form, version_str=version_str,
-                           results=resultsout, query=query)  # if everything not okay, return existing page
+
+    curdoc().template_variables['query'] = query
+    db = SimpleDB(db_file, connection_arguments={'check_same_thread': False})
+
+    # search through the tables using the given query
+    results: Dict[str, pd.DataFrame] = db.search_string(query, fmt='pandas', verbose=False)
+    resultsout = multi_df_query(results, limmaxrows)
+
+    return render_template('full_text_search.html', form=form, version_str=version_str,
+                           results=resultsout, query=query)
 
 
-@app_simple.route('/load_fulltext')
-def load_fulltext():
+@app_simple.route('/load_full_text')
+def load_full_text():
     """
     Loading full text search page
     """
@@ -123,18 +152,28 @@ def raw_query():
     """
     db = SimpleDB(db_file, connection_arguments={'check_same_thread': False})  # open database
     form = SQLForm(db_file=db_file)  # main query form
+
+    # checks that the SQL is valid, then submits form
     if form.validate_on_submit():
-        if (query := form.sqlfield.data) is None:  # content in main searchbar
+
+        if (query := form.sqlfield.data) is None:
             query = ''
-        curdoc().template_variables['query'] = query  # add query to bokeh curdoc
+
+        curdoc().template_variables['query'] = query
+
+        # attempt to query the database
         try:
             results: Optional[pd.DataFrame] = db.sql_query(query, fmt='pandas')
+
+        # catch any broken queries (should not activate as will be caught by validation)
         except (ResourceClosedError, OperationalError, IndexError, SqliteWarning, BadSQLError):
             results = pd.DataFrame()
-        stringed_results = onedfquery(results)
-        return render_template('rawquery.html', form=form, results=stringed_results, version_str=version_str)
+
+        stringed_results = one_df_query(results)
+        return render_template('raw_query.html', form=form, results=stringed_results, version_str=version_str)
+
     else:
-        return render_template('rawquery.html', form=form, results=None, query='', version_str=version_str)
+        return render_template('raw_query.html', form=form, results=None, query='', version_str=version_str)
 
 
 @app_simple.route('/solo_result/<query>')
@@ -147,44 +186,49 @@ def solo_result(query: str):
     query: str
         The query -- full match to a main ID
     """
-    curdoc().template_variables['query'] = query  # add query to bokeh curdoc
-    db = SimpleDB(db_file, connection_arguments={'check_same_thread': False})  # open database
-    resultdict: dict = db.inventory(query)  # get everything about that object
-    everything = Inventory(resultdict, args)  # parsing the inventory into markdown
-    scriptcmd, divcmd = camdplot(query, everything, all_bands, all_results_full, all_plx, all_spts, photfilters,
-                                 all_photo, jscallbacks, nightskytheme)
-    scriptspectra, divspectra, nfail, failstr = specplot(query, db_file, nightskytheme, jscallbacks)
-    query = query.upper()  # convert query to all upper case
+    curdoc().template_variables['query'] = query
+    db = SimpleDB(db_file, connection_arguments={'check_same_thread': False})
+
+    # search database for given object
+    resultdict: dict = db.inventory(query)
+    everything = Inventory(resultdict)
+
+    # create camd and spectra plots
+    scriptcmd, divcmd = camd_plot(query, everything, all_bands, all_results_full, all_parallaxes, all_spectral_types,
+                                  photometric_filters, all_photometry, js_callbacks, night_sky_theme)
+    scriptspectra, divspectra, nfail, failstr = spectra_plot(query, db_file, night_sky_theme, js_callbacks)
+
+    query = query.upper()
     return render_template('solo_result.html', resources=CDN.render(), scriptcmd=scriptcmd, divcmd=divcmd,
                            scriptspectra=scriptspectra, divspectra=divspectra, nfail=nfail, failstr=failstr,
                            query=query, resultdict=resultdict, everything=everything, version_str=version_str)
 
 
 @app_simple.route('/load_solo/<query>')
-def load_solopage(query: str):
+def load_solo_page(query: str):
     """
     Loading solo result page
     """
     return render_template('load_solo.html', query=query, version_str=version_str)
 
 
-@app_simple.route('/multiplot')
-def multiplotpage():
+@app_simple.route('/multi_plot')
+def multi_plot_page():
     """
     The page for all the plots
     """
-    scriptmulti, divmulti = multiplotbokeh(all_results_full, all_bands, all_photo, all_plx, all_spts,
-                                           jscallbacks, nightskytheme)
-    return render_template('multiplot.html', scriptmulti=scriptmulti, divmulti=divmulti, resources=CDN.render(),
+    scriptmulti, divmulti = multi_plot_bokeh(all_results_full, all_bands, all_photometry, all_parallaxes,
+                                             all_spectral_types, js_callbacks, night_sky_theme)
+    return render_template('multi_plot.html', scriptmulti=scriptmulti, divmulti=divmulti, resources=CDN.render(),
                            version_str=version_str)
 
 
-@app_simple.route('/load_multiplot')
-def load_multiplot():
+@app_simple.route('/load_multi_plot')
+def load_multi_plot():
     """
     Loading multiplot page
     """
-    return render_template('load_multiplot.html', version_str=version_str)
+    return render_template('load_multi_plot.html', version_str=version_str)
 
 
 @app_simple.route('/autocomplete', methods=['GET'])
@@ -192,7 +236,7 @@ def autocomplete():
     """
     Autocompleting function, id linked to the jquery which does the heavy lifting
     """
-    return jsonify(alljsonlist=all_results)  # wraps all of the object names as a list, into a .json for server use
+    return jsonify(alljsonlist=all_results)
 
 
 @app_simple.errorhandler(HTTPException)
@@ -219,89 +263,115 @@ def create_file_for_download(key: str):
         The dataframe string
     """
     query = curdoc().template_variables['query']
-    db = SimpleDB(db_file, connection_arguments={'check_same_thread': False})  # open database
-    resultdict: dict = db.inventory(query)  # get everything about that object
-    everything = Inventory(resultdict, args, rtnmk=False)
+    db = SimpleDB(db_file, connection_arguments={'check_same_thread': False})
+
+    # search for a given object and a given key
+    resultdict: dict = db.inventory(query)
+    everything = Inventory(resultdict, return_markdown=False)
+
+    # writes table to csv
     if key in resultdict:
         results: pd.DataFrame = getattr(everything, key.lower())
         response = Response(write_file(results), mimetype='text/csv')
         response = control_response(response, key)
         return response
+
     abort(400, 'Could not write table')
 
 
-@app_simple.route('/write_soloall', methods=['GET', 'POST'])
-def create_files_for_solodownload():
+@app_simple.route('/write_solo_all', methods=['GET', 'POST'])
+def create_files_for_solo_download():
     """
     Creates and downloads all dataframes from solo results
     """
     query = curdoc().template_variables['query']
-    db = SimpleDB(db_file, connection_arguments={'check_same_thread': False})  # open database
-    resultdict: dict = db.inventory(query)  # get everything about that object
+    db = SimpleDB(db_file, connection_arguments={'check_same_thread': False})
+
+    # search for a given object
+    resultdict: dict = db.inventory(query)
     resultdictnew: Dict[str, pd.DataFrame] = {}
+
     for key, obj in resultdict.items():
         df: pd.DataFrame = pd.concat([pd.DataFrame(objrow, index=[i])  # create dataframe from found dict
                                       for i, objrow in enumerate(obj)], ignore_index=True)  # every dict in the list
         resultdictnew[key] = df
+
+    # write all tables to zipped csvs
     response = Response(write_multi_files(resultdictnew), mimetype='application/zip')
-    response = control_response(response, apptype='zip')
+    response = control_response(response, app_type='zip')
     return response
 
 
 @app_simple.route('/write_spectra', methods=['GET', 'POST'])
-def create_spectrafile_for_download():
+def create_spectra_files_for_download():
     """
     Downloads the spectra files and zips together
     """
     query = curdoc().template_variables['query']
-    db = SimpleDB(db_file, connection_arguments={'check_same_thread': False})  # open database
-    resultdict: dict = db.inventory(query)  # get everything about that object
-    everything = Inventory(resultdict, args, rtnmk=False)
+    db = SimpleDB(db_file, connection_arguments={'check_same_thread': False})
+
+    # search for a given object and specifically its spectra
+    resultdict: dict = db.inventory(query)
+    everything = Inventory(resultdict, return_markdown=False)
     results: pd.DataFrame = getattr(everything, 'spectra')
+
+    # write all spectra for object to zipped file
     zipped = write_spec_files(results.spectrum.values)
     if zipped is not None:
         response = Response(zipped, mimetype='application/zip')
-        response = control_response(response, apptype='zip')
+        response = control_response(response, app_type='zip')
         return response
+
     abort(400, 'Could not download fits')
 
 
 @app_simple.route('/write_filt', methods=['GET', 'POST'])
-def create_file_for_filtdownload():
+def create_file_for_filtered_download():
     """
     Creates and downloads the shown dataframe when in filtered search
     """
     query = curdoc().template_variables['query']
-    refquery = curdoc().template_variables['refquery']
-    db = SimpleDB(db_file, connection_arguments={'check_same_thread': False})  # open database
-    results: Optional[pd.DataFrame] = db.search_object(query, fmt='pandas')  # get the results for that object
-    refresults: Optional[dict] = db.search_string(refquery, fmt='pandas', verbose=False)  # search all the strings
-    refsources: pd.DataFrame = refresults['Sources']
-    filtered_results: Optional[pd.DataFrame] = results.merge(refsources, on='source', suffixes=(None, 'extra'))
+    refquery = curdoc().template_variables['ref_query']
+    db = SimpleDB(db_file, connection_arguments={'check_same_thread': False})
+
+    # search for a given object and a full text search at the same time
+    results: Optional[pd.DataFrame] = db.search_object(query, fmt='pandas')
+    ref_results: Optional[dict] = db.search_string(refquery, fmt='pandas', verbose=False)
+    ref_sources: pd.DataFrame = ref_results['Sources']
+
+    # filter the search by the reference search
+    filtered_results: Optional[pd.DataFrame] = results.merge(ref_sources, on='source', suffixes=(None, 'extra'))
     filtered_results.drop(columns=list(filtered_results.filter(regex='extra')), inplace=True)
+
+    # write to a csv
     response = Response(write_file(filtered_results), mimetype='text/csv')
     response = control_response(response)
     return response
 
 
 @app_simple.route('/write_coord', methods=['GET', 'POST'])
-def create_file_for_coorddownload():
+def create_file_for_coordinate_download():
     """
     Creates and downloads the shown dataframe when in coordinate search
     """
     query = curdoc().template_variables['query']
-    db = SimpleDB(db_file, connection_arguments={'check_same_thread': False})  # open database
-    ra, dec, radius = multi_param_str_parse(query)
-    ra, dec, unit = ra_dec_unit_parse(ra, dec)
+    db = SimpleDB(db_file, connection_arguments={'check_same_thread': False})
+
+    # query the database for given coordinates and parse those coordinates
+    form = CoordQueryForm(db_file=db_file)
+    ra, dec, radius = form.multi_param_str_parse(query)
+    ra, dec, unit = form.ra_dec_unit_parse(ra, dec)
     c = SkyCoord(ra=ra, dec=dec, unit=unit)
-    results: pd.DataFrame = db.query_region(c, fmt='pandas', radius=radius)  # query
+    results: pd.DataFrame = db.query_region(c, fmt='pandas', radius=radius)
+
+    # write results to a csv
     response = Response(write_file(results), mimetype='text/csv')
     response = control_response(response)
     return response
 
 
 @app_simple.route('/write_full/<key>', methods=['GET', 'POST'])
-def create_file_for_fulldownload(key: str):
+def create_file_for_full_download(key: str):
     """
     Creates and downloads the shown dataframe when in unrestrained search
 
@@ -311,46 +381,58 @@ def create_file_for_fulldownload(key: str):
         The dataframe string
     """
     query = curdoc().template_variables['query']
-    db = SimpleDB(db_file, connection_arguments={'check_same_thread': False})  # open database
-    resultdict: Dict[str, pd.DataFrame] = db.search_string(query, fmt='pandas', verbose=False)  # search
+    db = SimpleDB(db_file, connection_arguments={'check_same_thread': False})
+
+    # search database with a free-text search and specific table
+    resultdict: Dict[str, pd.DataFrame] = db.search_string(query, fmt='pandas', verbose=False)
+
+    # write to csv
     if key in resultdict:
         results: pd.DataFrame = resultdict[key]
         response = Response(write_file(results), mimetype='text/csv')
         response = control_response(response, key)
         return response
+
     abort(400, 'Could not write table')
 
 
 @app_simple.route('/write_all', methods=['GET', 'POST'])
-def create_files_for_multidownload():
+def create_files_for_multi_download():
     """
     Creates and downloads all dataframes from full results
-
     """
     query = curdoc().template_variables['query']
-    db = SimpleDB(db_file, connection_arguments={'check_same_thread': False})  # open database
-    resultdict: Dict[str, pd.DataFrame] = db.search_string(query, fmt='pandas', verbose=False)  # search
+    db = SimpleDB(db_file, connection_arguments={'check_same_thread': False})
+
+    # search with full-text search
+    resultdict: Dict[str, pd.DataFrame] = db.search_string(query, fmt='pandas', verbose=False)
+
+    # write all returned tables to zipped file of csvs
     response = Response(write_multi_files(resultdict), mimetype='application/zip')
-    response = control_response(response, apptype='zip')
+    response = control_response(response, app_type='zip')
     return response
 
 
 @app_simple.route('/write_sql', methods=['GET', 'POST'])
-def create_file_for_sqldownload():
+def create_file_for_sql_download():
     """
     Creates and downloads the shown dataframe when in sql query
     """
     query = curdoc().template_variables['query']
-    db = SimpleDB(db_file, connection_arguments={'check_same_thread': False})  # open database
+    db = SimpleDB(db_file, connection_arguments={'check_same_thread': False})
+
+    # query database via sql
     results: Optional[pd.DataFrame] = db.sql_query(query, fmt='pandas')
+
+    # write results to a csv
     response = Response(write_file(results), mimetype='text/csv')
     response = control_response(response)
     return response
 
 
-args, db_file, photfilters, all_results, all_results_full, version_str,\
-    all_photo, all_bands, all_plx, all_spts = mainutils()
-nightskytheme, jscallbacks = mainplots()
+args, db_file, photometric_filters, all_results, all_results_full, version_str,\
+    all_photometry, all_bands, all_parallaxes, all_spectral_types = main_utils()
+night_sky_theme, js_callbacks = main_plots()
 
 if __name__ == '__main__':
     app_simple.run(host=args.host, port=args.port, debug=args.debug)  # generate the application on server side

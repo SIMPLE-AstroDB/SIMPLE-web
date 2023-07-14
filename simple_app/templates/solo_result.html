@@ -4,7 +4,11 @@
     <div class="container flex-md-column">
         <div class="row">
             <div class="col-md-11">
-                <h1 class="display-2"><a href="{{ url_for('create_files_for_solodownload') }}">{{ query|safe }}</a></h1>
+                <h1 class="display-2">
+                    <a href="{{ url_for('create_files_for_solo_download') }}">
+                        {{ query|safe }}
+                    </a>
+                </h1>
             </div>
             <div class="col-md-1">
                 <button onclick="share()" type="button" class="btn btn-success"

@@ -74,10 +74,10 @@
         {% set navigation_bar = [
            ('/', 'home', 'Home'),
            ('/search', 'search', 'Search by Object'),
-           ('/coordquery', 'coordquery', 'Query by Coordinates'),
-           ('/load_fulltext', 'fulltextsearch', 'Full Text Search'),
-           ('/load_multiplot', 'view', 'View the Database'),
-           ('/raw_query', 'rawquery', 'Query using SQL'),
+           ('/coordinate_query', 'coordinate_query', 'Query by Coordinates'),
+           ('/load_full_text', 'full_text_search', 'Full Text Search'),
+           ('/load_multi_plot', 'view', 'View the Database'),
+           ('/raw_query', 'raw_query', 'Query using SQL'),
            ('/about', 'about', 'About the SIMPLE Archive')
         ] -%}
         {% set active_page = active_page|default('home') -%}

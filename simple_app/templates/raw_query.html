@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% set active_page = "rawquery" %}
+{% set active_page = "raw_query" %}
 
 {% block content %}
 
@@ -82,7 +82,7 @@
     </script>
     <div class="container-fluid">
         {% if query != '' %}
-            <h2 class="display-3"><a href="{{ url_for('create_file_for_sqldownload') }}">Results:</a></h2>
+            <h2 class="display-3"><a href="{{ url_for('create_file_for_sql_download') }}">Results</a>:</h2>
         {% else %}
             <h2 class="display-3">Results:</h2>
         {% endif %}
