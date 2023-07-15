@@ -196,8 +196,7 @@ class CoordQueryForm(FlaskForm):
         """
         # split up the string by empty space
         try:
-            query_split: np.ndarray = np.array(s.replace('\t', ' ').lower().strip().split(' '))
-            query_split = query_split[np.logical_not(query_split == '')]
+            query_split = s.lower().split()
             query_length = len(query_split)
 
             # check length is 2 or 3
@@ -323,7 +322,7 @@ class SQLForm(FlaskForm):
         field
             The data within the query form
         """
-        forbidden = ('update', 'drop', 'truncate', 'grant', 'commit', 'create', 'replace', 'alter', 'insert')
+        forbidden = ('update', 'drop', 'truncate', 'grant', 'commit', 'create', 'replace', 'alter', 'insert', 'delete')
         db = SimpleDB(self.db_file, connection_arguments={'check_same_thread': False})  # open database
 
         # check query field has data within

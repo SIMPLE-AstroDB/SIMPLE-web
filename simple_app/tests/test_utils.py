@@ -127,7 +127,7 @@ def test_results_concat(db, test_get_all_photometry, test_get_all_sources,
 
 def test_one_df_query(db):
     assert db
-    bad_query = 'thisisabad_query'
+    bad_query = 'thisisabadquery'
     good_query = 'twa'
     # test search object
     results = db.search_object(bad_query, fmt='pandas')
@@ -164,7 +164,7 @@ def test_one_df_query(db):
 
 def test_multi_df_query(db):
     assert db
-    bad_query = 'thisisabad_query'
+    bad_query = 'thisisabadquery'
     good_query = 'cruz'
     with pytest.raises(KeyError):
         results: Optional[dict] = db.search_string(bad_query, fmt='pandas', verbose=False)
@@ -177,4 +177,36 @@ def test_multi_df_query(db):
     assert isinstance(results_out, dict)
     assert 'Sources' in results_out
     assert isinstance(results_out['Sources'], str)
+    return
+
+
+def test_multi_param_str_parse():
+    twa_query = '174.96308 	-31.989305'
+    empty_query = ''
+    hms_query = '12h34m56s \t +78d90m12s'
+    for query in (twa_query, empty_query, hms_query):
+        a, b, c = CoordQueryForm.multi_param_str_parse(query)
+        assert isinstance(a, str)
+        assert isinstance(b, str)
+        assert isinstance(c, float)
+        assert c == 10.
+    twa_query = '174.96308 \t	-31.989305 15 '
+    a, b, c = CoordQueryForm.multi_param_str_parse(twa_query)
+    assert a == '174.96308'
+    assert b == '-31.989305'
+    assert c == 15.
+    return
+
+
+def test_ra_dec_unit_parse():
+    twa_query = '174.96308 	-31.989305'
+    a, b, c = CoordQueryForm.multi_param_str_parse(twa_query)
+    ra, dec, unit = CoordQueryForm.ra_dec_unit_parse(a, b)
+    assert isinstance(ra, float)
+    assert isinstance(dec, float)
+    assert unit == 'deg'
+    hms_query = '12h34m56s \t +78d90m12s'
+    a, b, c = CoordQueryForm.multi_param_str_parse(hms_query)
+    ra, dec, unit = CoordQueryForm.ra_dec_unit_parse(a, b)
+    assert unit == 'hourangle,deg'
     return
