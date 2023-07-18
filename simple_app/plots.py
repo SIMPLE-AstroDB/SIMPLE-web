@@ -221,7 +221,7 @@ def spectra_plot(query: str, db_file: str, night_sky_theme: Theme,
     spslide = RangeSlider(start=normalised_min_wave, end=normalised_max_wave, value=(0.81, 0.82),
                           step=0.01, title='Normalisation', sizing_mode='stretch_width')
     p.js_on_event('reset', CustomJS(args=dict(spslide=spslide), code=js_callbacks.reset_slider))
-    spslide.js_on_change('value', CustomJS(args=dict(spmin=spmin, spmax=spmax, cds_list=cds_list),
+    spslide.js_on_change('value', CustomJS(args=dict(spmin=spmin, spmax=spmax, cdslist=cds_list),
                                            code=js_callbacks.normalisation_slider))
 
     for sp in (spmin, spmax):
