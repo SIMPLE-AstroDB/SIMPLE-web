@@ -15,6 +15,39 @@
         provenance information and is visualized in the
         <a href="https://github.com/SIMPLE-AstroDB/SIMPLE-db#simple-database-schema" target="_blank"> schema</a>.
     </p>
+    <h2 class="display-3">Holdings</h2>
+</div>
+<div class="container-fluid">
+    <div class="row">
+        <div class="p-2 col-xxl-4">
+            <img src="{{ url_for('static', filename='images/color_spectra_counts.png') }}"
+                                  class="rounded img-fluid float-xxl-start" alt="">
+        </div>
+        <div class="p-2 col-xxl-4">
+            <img src="{{ url_for('static', filename='images/colormag_counts.png') }}"
+                                  class="rounded img-fluid mx-auto d-block" alt="">
+        </div>
+        <div class="p-2 col-xxl-4">
+            <img src="{{ url_for('static', filename='images/photometry_counts.png') }}"
+                                  class="rounded img-fluid float-xxl-end" alt="">
+        </div>
+    </div>
+    <div class="row">
+        <div class="p-2 col-xxl-4">
+            <img src="{{ url_for('static', filename='images/spectra_ins_counts.png') }}"
+                                  class="rounded img-fluid float-xxl-start" alt="">
+        </div>
+        <div class="p-2 col-xxl-4">
+            <img src="{{ url_for('static', filename='images/spectra_telins_counts.png') }}"
+                                  class="rounded img-fluid mx-auto d-block" alt="">
+        </div>
+        <div class="p-2 col-xxl-4">
+            <img src="{{ url_for('static', filename='images/sptypes_counts.png') }}"
+                                  class="rounded img-fluid float-xxl-end" alt="">
+        </div>
+    </div>
+</div>
+<div class='container'>
     <p class="display-6">
         We are currently working on including kinematics, spectra, images, and modelled and retrieved parameters.
         We are developing several different methods to interact with the database, including python,
