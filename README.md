@@ -23,12 +23,12 @@ wget https://raw.githubusercontent.com/SIMPLE-AstroDB/SIMPLE-binary/main/SIMPLE.
 
 ### Running
 Then run the application with   
-```python 
-python simple_app/app_simple.py
+```bash 
+python -m simple_app.app_simple
 ```
 For more options (help) run
-```python 
-python simple_app/app_simple.py -h
+```bash 
+python -m simple_app.app_simple -h
 ```
 Launch a browser and enter the URL [http://127.0.0.1:8000](http://127.0.0.1:8000).  
 If you have changed either the host or port with system arguments, use those instead.  

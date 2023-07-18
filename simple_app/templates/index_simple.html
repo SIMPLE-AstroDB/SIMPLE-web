@@ -28,15 +28,48 @@
         astrometry, photometry, spectra, and image data for <strong>{{ source_count|safe }}</strong>
         sources from the literature.<br>
         You can search the database through either an <a href="{{ url_for('search') }}">object search</a>,
-        a <a href="{{ url_for('fulltextsearch') }}">free text search</a> or a
-        <a href="{{ url_for('coordquery') }}">coordinate query</a>.
+        a <a href="{{ url_for('full_text_search') }}">free text search</a> or a
+        <a href="{{ url_for('coordinate_query') }}">coordinate query</a>.
         You can also view the positions and photometry of the entire database via our
-        <a href="{{ url_for('load_multiplot') }}">interactive viewer</a>!<br>
+        <a href="{{ url_for('load_multi_plot') }}">interactive viewer</a>!<br>
         Navigation can be performed through the use of the header bar, whilst details of our GitHub respositories are
         available through the footer.
         Any clickable table titles indicate that that data can be downloaded as either a .csv or .zip file.
         We welcome contributions from the entire community and greatly appreciate any feedback (including bug reports)!
     </p>
+</div>
+<div class="container-fluid">
+    <h2 class="display-3">Figures</h2>
+    <div class="container-fluid">
+        <div class="row">
+            <div class="p-2 col-xxl-4">
+                <img src="{{ url_for('static', filename='images/color_spectra_counts.png') }}"
+                                      class="rounded img-fluid float-xxl-start" alt="">
+            </div>
+            <div class="p-2 col-xxl-4">
+                <img src="{{ url_for('static', filename='images/colormag_counts.png') }}"
+                                      class="rounded img-fluid mx-auto d-block" alt="">
+            </div>
+            <div class="p-2 col-xxl-4">
+                <img src="{{ url_for('static', filename='images/photometry_counts.png') }}"
+                                      class="rounded img-fluid float-xxl-end" alt="">
+            </div>
+        </div>
+        <div class="row">
+            <div class="p-2 col-xxl-4">
+                <img src="{{ url_for('static', filename='images/spectra_ins_counts.png') }}"
+                                      class="rounded img-fluid float-xxl-start" alt="">
+            </div>
+            <div class="p-2 col-xxl-4">
+                <img src="{{ url_for('static', filename='images/spectra_telins_counts.png') }}"
+                                      class="rounded img-fluid mx-auto d-block" alt="">
+            </div>
+            <div class="p-2 col-xxl-4">
+                <img src="{{ url_for('static', filename='images/sptypes_counts.png') }}"
+                                      class="rounded img-fluid float-xxl-end" alt="">
+            </div>
+        </div>
+    </div>
 </div>
 <script>
     $(function() {

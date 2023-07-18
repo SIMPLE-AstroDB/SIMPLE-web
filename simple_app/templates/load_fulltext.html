@@ -1,15 +1,15 @@
 {% extends "base.html" %}
-{% set active_page = "fulltextsearch" %}
+{% set active_page = "full_text_search" %}
 {% block content %}
 
 <div class="container">
     <div id="loadingDiv" class="d-flex align-items-center">
         <strong>Loading...</strong>
-    <div class="spinner-border ml-auto" role="status" aria-hidden="true" style="float: right"></div>
+        <div class="spinner-border ml-auto" role="status" aria-hidden="true" style="float: right"></div>
     </div>
 </div>
 
 <script>
-    window.location.replace('/fulltextsearch');
+    window.location.replace('/full_text_search');
 </script>
 {% endblock %}

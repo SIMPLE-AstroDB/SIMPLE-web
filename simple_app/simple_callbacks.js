@@ -86,7 +86,7 @@ function button_flip(axrange) {
     axrange.change.emit()
 }
 
-function normslider(spmin, spmax, cdslist) {
+function normalisation_slider(spmin, spmax, cdslist) {
     function mincheck (number) {
         return number >= this.minpoint;
     }
