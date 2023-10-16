@@ -1,21 +1,23 @@
 {% extends "base.html" %}
 {% set active_page = "search" %}
 {% block content %}
-    <div class="container flex-md-column">
-        <div class="row">
-            <div class="col-md-11">
+    <div class="container">
+        <div class="row table-responsive">
+            <div class="col-11">
                 <h1 class="display-2">
                     <a href="{{ url_for('create_files_for_solo_download') }}">
                         {{ query|safe }}
                     </a>
                 </h1>
             </div>
-            <div class="col-md-1">
+            <div class="col-1">
                 <button onclick="share()" type="button" class="btn btn-success"
                         style="float: right" title="Copy link to object">Share</button>
             </div>
         </div>
-        <div class="row">
+        <p class="display-6">Are we missing any expected data? Please raise an
+            <a href="https://github.com/SIMPLE-AstroDB/SIMPLE-db/issues/new" target="_blank">issue</a>!</p>
+        <div class="row table-responsive">
             {% if everything.sources %}
                 <h2 class="display-3"><a href="{{ url_for('create_file_for_download', key='Sources') }}">Sources</a></h2>
                 <p class="display-6">
@@ -24,7 +26,7 @@
             {% endif %}
         </div>
         <div class="row">
-            <div class="col-md-6">
+            <div class="col-md-6 table-responsive">
                 {% if everything.names %}
                     <h2 class="display-3"><a href="{{ url_for('create_file_for_download', key='Names') }}">Names</a></h2>
                     <p class="display-6">
@@ -32,9 +34,9 @@
                     </p>
                 {% endif %}
             </div>
-            <div class="col-md-6">
+            <div class="col-md-6 col-sm-12">
                 <div id="aladin-lite-div"
-                     style="width: 400px; height:400px; float: right"></div>
+                     style="width: 100%; height:400px; float: right"></div>
                 <script type="text/javascript"
                         src="{{ url_for('static', filename='js/aladin.min.js') }}" charset="utf-8"></script>
                 <script type="text/javascript">
@@ -45,14 +47,14 @@
             </div>
         </div>
 
-        <div class="row">
+        <div class="row table-responsive">
             {% if everything.photometry %}
                 <h2 class="display-3"><a href="{{ url_for('create_file_for_download', key='Photometry') }}">
                     Photometry</a></h2>
                 <p class="display-6">
                     {{ everything.photometry|safe }}
                 </p>
-                <div class="row" id="camdplot">
+                <div class="row table-responsive" id="camdplot">
                     {{ divcmd|safe if divcmd is not none }}
                 </div>
             {% else %}
@@ -65,14 +67,14 @@
             {% endif %}
         </div>
 
-        <div class="row">
+        <div class="row table-responsive">
             {% if everything.spectra %}
                 <h2 class="display-3"><a href="{{ url_for('create_file_for_download', key='Spectra') }}">Spectra</a></h2>
                 <p class="display-6">
                     {{ everything.spectra|safe }}
                     {{ failstr if everything.spectra and nfail }}
                 </p>
-                <div class="row" id="specplot">
+                <div class="row table-responsive" id="specplot">
                     {{ divspectra|safe if divspectra is not none }}
                 </div>
             {% else %}
@@ -85,7 +87,7 @@
             {% endif %}
         </div>
 
-        <div class="row">
+        <div class="row table-responsive">
             {% if everything.spectraltypes %}
                 <h2 class="display-3"><a href="{{ url_for('create_file_for_download', key='SpectralTypes') }}">
                     Spectral Types</a></h2>
@@ -102,7 +104,7 @@
             {% endif %}
         </div>
 
-        <div class="row">
+        <div class="row table-responsive">
             {% if everything.radialvelocities %}
                 <h2 class="display-3"><a href="{{ url_for('create_file_for_download', key='RadialVelocities') }}">
                     Radial Velocities</a></h2>
@@ -119,7 +121,7 @@
             {% endif %}
         </div>
 
-        <div class="row">
+        <div class="row table-responsive">
             {% if everything.parallaxes %}
                 <h2 class="display-3"><a href="{{ url_for('create_file_for_download', key='Parallaxes') }}">
                     Parallaxes</a></h2>
@@ -136,7 +138,7 @@
             {% endif %}
         </div>
 
-        <div class="row">
+        <div class="row table-responsive">
             {% if everything.propermotions %}
                 <h2 class="display-3"><a href="{{ url_for('create_file_for_download', key='ProperMotions') }}">
                     Proper Motions</a></h2>
@@ -153,7 +155,7 @@
             {% endif %}
         </div>
 
-        <div class="row">
+        <div class="row table-responsive">
             {% if everything.gravities %}
                 <h2 class="display-3"><a href="{{ url_for('create_file_for_download', key='Gravities') }}">
                     Gravities</a></h2>
@@ -173,7 +175,10 @@
     <script>
         $(document).ready(function() {
             $("table").each(function() {
-                $(this).DataTable();
+                $(this).DataTable( {
+                    responsive: true,
+                    autoWidth: false
+                });
             });
             }
         );

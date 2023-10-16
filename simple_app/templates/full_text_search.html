@@ -55,7 +55,7 @@
           setCaretPosition(searchvalue, searchvalue.value.length);
         };
     </script>
-    <div class="container-fluid">
+    <div class="container">
         {% if query != '' and results|length > 0 %}
         <h2 class="display-3"><a href="{{ url_for('create_files_for_multi_download') }}">
             Results</a> for: {{ query|safe }}</h2>
@@ -63,7 +63,7 @@
         <h2 class="display-3">Results for: {{ query|safe }}</h2>
         {% endif %}
         {% for tabname, df in results.items() %}
-            <div class="container-fluid">
+            <div class="container table-responsive">
                 {% if query != '' %}
                 <h3 class="display-4"><a href="{{ url_for('create_file_for_full_download', key=tabname) }}">
                     {{ tabname|safe }}</a></h3>
@@ -81,7 +81,10 @@
     <script>
         $(document).ready(function() {
             $("table").each(function() {
-                $(this).DataTable();
+                $(this).DataTable( {
+                    responsive: true,
+                    autoWidth: false
+                });
             });
             }
         );

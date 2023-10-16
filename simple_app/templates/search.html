@@ -92,7 +92,7 @@
           setCaretPosition(searchvalue, searchvalue.value.length);
         };
     </script>
-    <div class="container-fluid">
+    <div class="container table-responsive">
         {% if query != '' and results is not none %}
         <h2 class="display-3"><a href="{{ url_for('create_file_for_filtered_download') }}">Results</a>
             for: {{ query|safe }}</h2>
@@ -107,7 +107,10 @@
     </div>
     <script>
         $(document).ready(function() {
-            $('#searchtable').DataTable();
+            $('#searchtable').DataTable( {
+                    responsive: true,
+                    autoWidth: false
+                });
         } );
     </script>
 
