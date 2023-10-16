@@ -249,7 +249,20 @@ def bad_request(e):
     e
         The HTTP status code
     """
-    return render_template('bad_request.html', e=e), 500
+    # handling 404 file not found errors
+    if e.code == 404:
+        # all different website routes and requested route
+        all_routes = ['about', 'search', 'full_text_search', 'load_full_text', 'coordinate_query', 'raw_query',
+                      'multi_plot', 'load_multi_plot']
+        requested_route = request.path.strip('/')
+
+        # get best match of path and redirect
+        best_match = get_close_matches(requested_route, all_routes, 1)
+        if best_match:
+            return redirect(url_for(best_match[0]))
+
+    # any other error codes or no good match found
+    return render_template('bad_request.html', e=e), e.code
 
 
 @app_simple.route('/write/<key>.csv', methods=['GET'])

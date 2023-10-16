@@ -34,6 +34,7 @@ from wtforms import StringField, SubmitField, TextAreaField, ValidationError  # 
 # internal packages
 import argparse  # parsing the arguments given with file
 from copy import deepcopy  # memory control
+from difflib import get_close_matches  # for redirecting bad file paths
 from io import StringIO, BytesIO, BufferedIOBase  # writing files without saving to disk
 import multiprocessing as mp  # multiprocessing for efficiency
 import os  # operating system
