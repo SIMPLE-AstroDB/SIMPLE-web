@@ -56,7 +56,7 @@
         };
     </script>
     <div class="container-fluid">
-        {% if query != '' %}
+        {% if query != '' and results|length > 0 %}
         <h2 class="display-3"><a href="{{ url_for('create_files_for_multi_download') }}">
             Results</a> for: {{ query|safe }}</h2>
         {% else %}

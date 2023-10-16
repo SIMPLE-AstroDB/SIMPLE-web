@@ -81,7 +81,7 @@
         };
     </script>
     <div class="container-fluid">
-        {% if query != '' %}
+        {% if query != '' and results is not none %}
             <h2 class="display-3"><a href="{{ url_for('create_file_for_sql_download') }}">Results</a>:</h2>
         {% else %}
             <h2 class="display-3">Results:</h2>
