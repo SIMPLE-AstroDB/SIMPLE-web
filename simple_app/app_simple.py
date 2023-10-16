@@ -14,14 +14,14 @@ CORS(app_simple)  # makes CORS work (aladin notably)
 
 # website pathing
 @app_simple.route('/')
-@app_simple.route('/index', methods=['GET', 'POST'])
+@app_simple.route('/index', methods=['GET'])
 def index_page():
     """
     The main splash/home page
     """
     # basic searchbar and source count
     source_count = len(all_results)
-    form = BasicSearchForm()
+    form = BasicSearchForm(request.args)
     return render_template('index_simple.html', source_count=source_count, form=form, version_str=version_str)
 
 
@@ -33,13 +33,13 @@ def about():
     return render_template('about.html')
 
 
-@app_simple.route('/search', methods=['GET', 'POST'])
+@app_simple.route('/search', methods=['GET'])
 def search():
     """
     The searchbar page
     """
     # initialisation, check contents of searchbars
-    form = SearchForm()  # main searchbar
+    form = SearchForm(request.args)  # main searchbar
     if (ref_query := form.ref_search.data) is None:  # content in references searchbar
         ref_query = ''
     if (query := form.search.data) is None:  # content in main searchbar
@@ -114,12 +114,12 @@ def coordinate_query():
         return render_template('coordinate_query.html', form=form, results=None, query='', version_str=version_str)
 
 
-@app_simple.route('/full_text_search', methods=['GET', 'POST'])
+@app_simple.route('/full_text_search', methods=['GET'])
 def full_text_search():
     """
     Wrapping the search string function to search through all tables and return them
     """
-    form = LooseSearchForm()
+    form = LooseSearchForm(request.args)
     limmaxrows = False
 
     if (query := form.search.data) is None:
@@ -252,7 +252,7 @@ def bad_request(e):
     return render_template('bad_request.html', e=e), 500
 
 
-@app_simple.route('/write/<key>.csv', methods=['GET', 'POST'])
+@app_simple.route('/write/<key>.csv', methods=['GET'])
 def create_file_for_download(key: str):
     """
     Creates and downloads the shown dataframe from solo results
@@ -279,7 +279,7 @@ def create_file_for_download(key: str):
     abort(400, 'Could not write table')
 
 
-@app_simple.route('/write_solo_all', methods=['GET', 'POST'])
+@app_simple.route('/write_solo_all', methods=['GET'])
 def create_files_for_solo_download():
     """
     Creates and downloads all dataframes from solo results
@@ -302,7 +302,7 @@ def create_files_for_solo_download():
     return response
 
 
-@app_simple.route('/write_spectra', methods=['GET', 'POST'])
+@app_simple.route('/write_spectra', methods=['GET'])
 def create_spectra_files_for_download():
     """
     Downloads the spectra files and zips together
@@ -325,7 +325,7 @@ def create_spectra_files_for_download():
     abort(400, 'Could not download fits')
 
 
-@app_simple.route('/write_filt', methods=['GET', 'POST'])
+@app_simple.route('/write_filt', methods=['GET'])
 def create_file_for_filtered_download():
     """
     Creates and downloads the shown dataframe when in filtered search
@@ -370,7 +370,7 @@ def create_file_for_coordinate_download():
     return response
 
 
-@app_simple.route('/write_full/<key>', methods=['GET', 'POST'])
+@app_simple.route('/write_full/<key>', methods=['GET'])
 def create_file_for_full_download(key: str):
     """
     Creates and downloads the shown dataframe when in unrestrained search
@@ -396,7 +396,7 @@ def create_file_for_full_download(key: str):
     abort(400, 'Could not write table')
 
 
-@app_simple.route('/write_all', methods=['GET', 'POST'])
+@app_simple.route('/write_all', methods=['GET'])
 def create_files_for_multi_download():
     """
     Creates and downloads all dataframes from full results
@@ -430,7 +430,7 @@ def create_file_for_sql_download():
     return response
 
 
-args, db_file, photometric_filters, all_results, all_results_full, version_str,\
+args, db_file, photometric_filters, all_results, all_results_full, version_str, \
     all_photometry, all_bands, all_parallaxes, all_spectral_types = main_utils()
 night_sky_theme, js_callbacks = main_plots()
 

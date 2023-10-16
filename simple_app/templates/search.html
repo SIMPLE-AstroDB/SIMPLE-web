@@ -5,7 +5,7 @@
 
     <div class="container">
         <h2 class="display-3">Exploring the Database</h2>
-        <form method="post" action="{{ url_for('search') }}" id="searchform">
+        <form method="get" action="{{ url_for('search') }}" id="searchform">
             {{ form.csrf_token }}
             <fieldset class="mb-3">
                 {{ form.search.label(class_="form-label") }}
@@ -33,7 +33,7 @@
                 {% endfor %}
             </fieldset>
             {% endif %}
-            {{ form.submit(class_="btn btn-primary") }}
+            <button type="submit" class="btn btn-primary">Search</button>
         </form>
     </div>
     <script>
