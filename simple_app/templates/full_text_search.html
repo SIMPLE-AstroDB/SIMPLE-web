@@ -5,7 +5,7 @@
 
     <div class="container">
         <h2 class="display-3">Exploring the Database</h2>
-        <form method="post" action="{{ url_for('full_text_search') }}" id="searchform">
+        <form method="get" action="{{ url_for('full_text_search') }}" id="searchform">
             {{ form.csrf_token }}
             <fieldset class="mb-3">
                 {{ form.search.label(class_="form-label") }}
@@ -20,7 +20,7 @@
                 {% endfor %}
             </fieldset>
             {% endif %}
-            {{ form.submit(class_="btn btn-primary") }}
+            <button type="submit" class="btn btn-primary">Search</button>
         </form>
     </div>
     <script>
@@ -55,15 +55,15 @@
           setCaretPosition(searchvalue, searchvalue.value.length);
         };
     </script>
-    <div class="container-fluid">
-        {% if query != '' %}
+    <div class="container">
+        {% if query != '' and results|length > 0 %}
         <h2 class="display-3"><a href="{{ url_for('create_files_for_multi_download') }}">
             Results</a> for: {{ query|safe }}</h2>
         {% else %}
         <h2 class="display-3">Results for: {{ query|safe }}</h2>
         {% endif %}
         {% for tabname, df in results.items() %}
-            <div class="container-fluid">
+            <div class="container table-responsive">
                 {% if query != '' %}
                 <h3 class="display-4"><a href="{{ url_for('create_file_for_full_download', key=tabname) }}">
                     {{ tabname|safe }}</a></h3>
@@ -73,11 +73,18 @@
                 <p class="display-6">{{ df|safe }}</p>
             </div>
         {% endfor %}
+        {% if query != '' %}
+        <p class="display-6">Are we missing an expected result? Please open an
+            <a href="https://github.com/SIMPLE-AstroDB/SIMPLE-db/issues/new" target="_blank">issue</a>!</p>
+        {% endif %}
     </div>
     <script>
         $(document).ready(function() {
             $("table").each(function() {
-                $(this).DataTable();
+                $(this).DataTable( {
+                    responsive: true,
+                    autoWidth: false
+                });
             });
             }
         );

@@ -43,18 +43,25 @@
         };
     </script>
 
-    <div class="container-fluid">
-        {% if query != '' %}
+    <div class="container table-responsive">
+        {% if query != '' and results is not none %}
         <h2 class="display-3"><a href="{{ url_for('create_file_for_coordinate_download') }}">Results</a>
              for: {{ query|safe }}</h2>
         {% else %}
         <h2 class="display-3">Results for: {{ query|safe }}</h2>
         {% endif %}
         <p class="display-6">{{ results|safe if results is not none }}</p>
+        {% if query != '' %}
+        <p class="display-6">Are we missing an expected result? Please open an
+            <a href="https://github.com/SIMPLE-AstroDB/SIMPLE-db/issues/new" target="_blank">issue</a>!</p>
+        {% endif %}
     </div>
     <script>
         $(document).ready(function() {
-            $('#searchtable').DataTable();
+            $('#searchtable').DataTable( {
+                    responsive: true,
+                    autoWidth: false
+                });
         } );
     </script>
 

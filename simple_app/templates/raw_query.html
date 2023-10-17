@@ -80,18 +80,25 @@
           setCaretPosition(searchvalue, searchvalue.value.length);
         };
     </script>
-    <div class="container-fluid">
-        {% if query != '' %}
+    <div class="container table-responsive">
+        {% if query != '' and results is not none %}
             <h2 class="display-3"><a href="{{ url_for('create_file_for_sql_download') }}">Results</a>:</h2>
         {% else %}
             <h2 class="display-3">Results:</h2>
         {% endif %}
         <p class="display-6">{{ results|safe if results is not none }}</p>
+        {% if query != '' %}
+        <p class="display-6">Are we missing an expected result? Please open an
+            <a href="https://github.com/SIMPLE-AstroDB/SIMPLE-db/issues/new" target="_blank">issue</a>!</p>
+        {% endif %}
     </div>
     <script>
         $(document).ready(function() {
             $(".table").each(function() {
-                $(this).DataTable();
+                $(this).DataTable( {
+                    responsive: true,
+                    autoWidth: false
+                });
             });
             }
         );

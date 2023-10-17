@@ -16,7 +16,8 @@ from bokeh.plotting import figure, curdoc  # bokeh plotting
 from bokeh.resources import CDN  # resources for webpage
 from bokeh.themes import built_in_themes, Theme  # appearance of bokeh glyphs
 from bokeh.transform import linear_cmap  # making colour maps
-from flask import Flask, render_template, jsonify, send_from_directory, redirect, url_for, Response, abort  # website
+from flask import (Flask, render_template, jsonify, send_from_directory, redirect, url_for,
+                   Response, abort, request)  # website
 from flask_cors import CORS  # cross origin fix (aladin mostly)
 from flask_wtf import FlaskForm  # web forms
 from markdown2 import markdown  # using markdown formatting
@@ -33,6 +34,7 @@ from wtforms import StringField, SubmitField, TextAreaField, ValidationError  # 
 # internal packages
 import argparse  # parsing the arguments given with file
 from copy import deepcopy  # memory control
+from difflib import get_close_matches  # for redirecting bad file paths
 from io import StringIO, BytesIO, BufferedIOBase  # writing files without saving to disk
 import multiprocessing as mp  # multiprocessing for efficiency
 import os  # operating system

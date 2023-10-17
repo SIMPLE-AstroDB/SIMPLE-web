@@ -146,7 +146,15 @@ class Inventory:
         return df
 
 
-class SearchForm(FlaskForm):
+class CSRFOverride(FlaskForm):
+    """
+    Overriding the CSRF protection on forms we want to GET instead of POST
+    """
+    class Meta:
+        csrf = False
+
+
+class SearchForm(CSRFOverride):
     """
     Basic search, combined with full text filtering
     """
@@ -155,7 +163,7 @@ class SearchForm(FlaskForm):
     submit = SubmitField('Search', id='querybutton')  # clicker button to send request
 
 
-class BasicSearchForm(FlaskForm):
+class BasicSearchForm(CSRFOverride):
     """
     Most basic searchbar
     """
@@ -163,7 +171,7 @@ class BasicSearchForm(FlaskForm):
     submit = SubmitField('Search', id='querybutton')  # clicker button to send request
 
 
-class CoordQueryForm(FlaskForm):
+class CoordQueryForm(CSRFOverride):
     """
     Class for searching by coordinate
     """
@@ -288,7 +296,7 @@ class CoordQueryForm(FlaskForm):
             raise ValidationError(f'Uncaught Error -- {e}')
 
 
-class LooseSearchForm(FlaskForm):
+class LooseSearchForm(CSRFOverride):
     """
     Searching by full text
     """
