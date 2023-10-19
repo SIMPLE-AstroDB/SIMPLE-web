@@ -37,6 +37,7 @@ class SimpleDB(Database):  # this keeps pycharm happy about unresolved reference
     PhotometryFilters = None
     Versions = None
     SpectralTypes = None
+    CompanionRelationships = None
 
 
 class Inventory:
