@@ -957,6 +957,10 @@ def multi_df_query(results: Dict[str, pd.DataFrame], limit_max_rows: bool = Fals
 
     if len(results):
 
+        # make sources table go first if present
+        if 'Sources' in results.keys():
+            d_results['Sources'] = one_df_query(results.pop('Sources'), 'sourcestable', limit_max_rows)
+
         # wrapping the one_df_query method for each table
         for table_name, df in results.items():
             stringed_df = one_df_query(df, table_name.lower() + 'table', limit_max_rows)
