@@ -371,8 +371,8 @@ class JSCallbacks:
     Converts javascript callbacks into python triple quoted strings
     """
     # initialised some empty strings to be filled with js functions
-    dropdownx_js = ''
-    dropdowny_js = ''
+    dropdown_x_js = ''
+    dropdown_y_js = ''
     button_flip = ''
     normalisation_slider = ''
     reset_slider = ''
@@ -382,7 +382,7 @@ class JSCallbacks:
         Loads simple_callbacks and unpacks the js functions within, to the python variables into instance attributes
         """
         # open js functions script
-        js_func_names = ('dropdownx_js', 'dropdowny_js', 'button_flip', 'normalisation_slider', 'reset_slider')
+        js_func_names = ('dropdown_x_js', 'dropdown_y_js', 'button_flip', 'normalisation_slider', 'reset_slider')
         with open('simple_app/simple_callbacks.js', 'r') as func_call:
             which_var = ''
             out_string = """"""
