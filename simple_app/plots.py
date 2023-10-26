@@ -182,12 +182,12 @@ def spectra_plot(query: str, db_file: str, night_sky_theme: Theme,
         label = f'{spec["telescope"]}-{spec["instrument"]}: {spec["observation_date"].date()}'
         normalised_min_wave = wave[0] if wave[0] < normalised_min_wave else normalised_min_wave
         normalised_max_wave = wave[-1] if wave[-1] > normalised_max_wave else normalised_max_wave
-        normflux = normalise()
-        flux_min = np.min(normflux) if np.min(normflux) < flux_min else flux_min
-        flux_max = np.max(normflux) if np.max(normflux) > flux_max else flux_max
+        normalised_flux = normalise()
+        flux_min = np.min(normalised_flux) if np.min(normalised_flux) < flux_min else flux_min
+        flux_max = np.max(normalised_flux) if np.max(normalised_flux) > flux_max else flux_max
 
         # add to bokeh object
-        cds = ColumnDataSource(data=dict(wave=wave, flux=flux, normflux=normflux))
+        cds = ColumnDataSource(data=dict(wave=wave, flux=flux, normalised_flux=normalised_flux))
         cds_list.append(cds)
 
         # handle line plot styling
@@ -197,7 +197,7 @@ def spectra_plot(query: str, db_file: str, night_sky_theme: Theme,
         else:
             j = i
 
-        lineplot = p.line(x='wave', y='normflux', source=cds, legend_label=label,
+        lineplot = p.line(x='wave', y='normalised_flux', source=cds, legend_label=label,
                           line_color=Colorblind8[j], line_dash=line_dash, line_width=2)
         line_plots.append(lineplot)
         i += 1
@@ -216,15 +216,16 @@ def spectra_plot(query: str, db_file: str, night_sky_theme: Theme,
                    'Binary Features': ['sb', ]}
     p.legend.click_policy = 'hide'
     p.legend.label_text_font_size = '1.5em'
-    spmin = Span(location=0.81, dimension='height', line_color='white', line_dash='dashed')
-    spmax = Span(location=0.82, dimension='height', line_color='white', line_dash='dashed')
-    spslide = RangeSlider(start=normalised_min_wave, end=normalised_max_wave, value=(0.81, 0.82),
-                          step=0.01, title='Normalisation', sizing_mode='stretch_width')
-    p.js_on_event('reset', CustomJS(args=dict(spslide=spslide), code=js_callbacks.reset_slider))
-    spslide.js_on_change('value', CustomJS(args=dict(spmin=spmin, spmax=spmax, cdslist=cds_list),
-                                           code=js_callbacks.normalisation_slider))
+    spectra_min = Span(location=0.81, dimension='height', line_color='white', line_dash='dashed')
+    spectra_max = Span(location=0.82, dimension='height', line_color='white', line_dash='dashed')
+    spectra_slide = RangeSlider(start=normalised_min_wave, end=normalised_max_wave, value=(0.81, 0.82),
+                                step=0.01, title='Normalisation', sizing_mode='stretch_width')
+    p.js_on_event('reset', CustomJS(args=dict(spectra_slide=spectra_slide), code=js_callbacks.reset_slider))
+    spectra_slide.js_on_change('value',
+                               CustomJS(args=dict(spectra_min=spectra_min, spectra_max=spectra_max, cds_list=cds_list),
+                                        code=js_callbacks.normalisation_slider))
 
-    for sp in (spmin, spmax):
+    for sp in (spectra_min, spectra_max):
         p.add_layout(sp)
 
     # spectral features, heavily taken from splat
@@ -265,7 +266,7 @@ def spectra_plot(query: str, db_file: str, night_sky_theme: Theme,
 
     # unpacking bokeh plots into html content
     scriptdiv = components(column(row(p, column(*toglist, max_width=200), sizing_mode='stretch_width'),
-                                  spslide, sizing_mode='stretch_width'),
+                                  spectra_slide, sizing_mode='stretch_width'),
                            theme=night_sky_theme)
     script: str = scriptdiv[0]
     div: str = scriptdiv[1]
@@ -316,7 +317,7 @@ def multi_plot_bokeh(all_results: pd.DataFrame, all_bands: np.ndarray,
         _p_sky.ellipse(x=0, y=0, width=360, height=180, color='#444444', name='background')
 
         # scatter plot for sky plot
-        circle = _p_sky.circle(source=fullcds, x='ra_projected', y='dec_projected',
+        circle = _p_sky.circle(source=full_cds, x='ra_projected', y='dec_projected',
                                size=6, name='circle', color='ghostwhite')
 
         # bokeh tools for sky plot
@@ -339,12 +340,12 @@ def multi_plot_bokeh(all_results: pd.DataFrame, all_bands: np.ndarray,
                                   sizing_mode='stretch_width')
         _p_colour_colour.x_range = Range1d(all_results_full[x_full_name].min(), all_results_full[x_full_name].max())
         _p_colour_colour.y_range = Range1d(all_results_full[y_full_name].min(), all_results_full[y_full_name].max())
-        _p_colour_colour.xaxis.axis_label = xvisname
-        _p_colour_colour.yaxis.axis_label = yvisname
+        _p_colour_colour.xaxis.axis_label = x_shown_name
+        _p_colour_colour.yaxis.axis_label = y_shown_name
         _p_colour_colour = bokeh_formatter(_p_colour_colour)
 
         # scatter plot for colour-colour
-        full_plot = _p_colour_colour.circle(x=x_full_name, y=y_full_name, source=fullcds, size=6, color=cmap)
+        full_plot = _p_colour_colour.circle(x=x_full_name, y=y_full_name, source=full_cds, size=6, color=cmap)
 
         # colour bar for colour-colour plot
         cbar = ColorBar(color_mapper=cmap['transform'], label_standoff=12,
@@ -357,19 +358,21 @@ def multi_plot_bokeh(all_results: pd.DataFrame, all_bands: np.ndarray,
         tap_tool = _p_colour_colour.select(type=TapTool)  # tapping
         tap_tool.callback = OpenURL(url='/load_solo/@source')  # open new page on target when source tapped
         _button_x_flip = Toggle(label='X Flip')
-        _button_x_flip.js_on_click(CustomJS(code=js_callbacks.button_flip, args={'axrange': _p_colour_colour.x_range}))
+        _button_x_flip.js_on_click(CustomJS(code=js_callbacks.button_flip, args={'ax_range': _p_colour_colour.x_range}))
         _button_y_flip = Toggle(label='Y Flip')
-        _button_y_flip.js_on_click(CustomJS(code=js_callbacks.button_flip, args={'axrange': _p_colour_colour.y_range}))
-        _dropdown_x = Select(options=dropmenu, value=x_full_name)
-        _dropdown_x.js_on_change('value', CustomJS(code=js_callbacks.dropdownx_js,
-                                                   args={'full_plot': full_plot, 'fulldata': fullcds.data,
-                                                         'xbut': _button_x_flip, 'xaxis': _p_colour_colour.xaxis[0],
-                                                         'xrange': _p_colour_colour.x_range}))
-        _dropdown_y = Select(options=dropmenu, value=y_full_name)  # y axis select
-        _dropdown_y.js_on_change('value', CustomJS(code=js_callbacks.dropdowny_js,
-                                                   args={'full_plot': full_plot, 'fulldata': fullcds.data,
-                                                         'ybut': _button_y_flip, 'yaxis': _p_colour_colour.yaxis[0],
-                                                         'yrange': _p_colour_colour.y_range}))
+        _button_y_flip.js_on_click(CustomJS(code=js_callbacks.button_flip, args={'ax_range': _p_colour_colour.y_range}))
+        _dropdown_x = Select(options=dropdown_menu, value=x_full_name)
+        _dropdown_x.js_on_change('value',
+                                 CustomJS(code=js_callbacks.dropdown_x_js,
+                                          args={'full_plot': full_plot, 'full_data': full_cds.data,
+                                                'x_button': _button_x_flip, 'x_axis': _p_colour_colour.xaxis[0],
+                                                'x_range': _p_colour_colour.x_range}))
+        _dropdown_y = Select(options=dropdown_menu, value=y_full_name)  # y axis select
+        _dropdown_y.js_on_change('value',
+                                 CustomJS(code=js_callbacks.dropdown_y_js,
+                                          args={'full_plot': full_plot, 'full_data': full_cds.data,
+                                                'y_button': _button_y_flip, 'y_axis': _p_colour_colour.yaxis[0],
+                                                'y_range': _p_colour_colour.y_range}))
         return _p_colour_colour, _button_x_flip, _button_y_flip, _dropdown_x, _dropdown_y
 
     def colour_absolute_magnitude_diagram() -> Tuple[figure, Toggle, Toggle, Select, Select]:
@@ -383,12 +386,12 @@ def multi_plot_bokeh(all_results: pd.DataFrame, all_bands: np.ndarray,
                          sizing_mode='stretch_width')  # bokeh figure
         _p_camd.x_range = Range1d(all_results_full[x_full_name].min(), all_results_full[x_full_name].max())
         _p_camd.y_range = Range1d(all_results_full[y_full_name].max(), all_results_full[y_full_name].min())
-        _p_camd.xaxis.axis_label = xvisname
+        _p_camd.xaxis.axis_label = x_shown_name
         _p_camd.yaxis.axis_label = y_full_name
         _p_camd = bokeh_formatter(_p_camd)
 
         # scatter plot for camd
-        full_mag_plot = _p_camd.circle(x=x_full_name, y=y_full_name, source=fullcds, size=6, color=cmap)
+        full_mag_plot = _p_camd.circle(x=x_full_name, y=y_full_name, source=full_cds, size=6, color=cmap)
 
         # colour bar for camd
         cbar = ColorBar(color_mapper=cmap['transform'], label_standoff=12,
@@ -401,19 +404,19 @@ def multi_plot_bokeh(all_results: pd.DataFrame, all_bands: np.ndarray,
         tap_tool_mag = _p_camd.select(type=TapTool)
         tap_tool_mag.callback = OpenURL(url='/load_solo/@source')
         _button_mag_x_flip = Toggle(label='X Flip')
-        _button_mag_x_flip.js_on_click(CustomJS(code=js_callbacks.button_flip, args={'axrange': _p_camd.x_range}))
+        _button_mag_x_flip.js_on_click(CustomJS(code=js_callbacks.button_flip, args={'ax_range': _p_camd.x_range}))
         _button_mag_y_flip = Toggle(label='Y Flip')
-        _button_mag_y_flip.js_on_click(CustomJS(code=js_callbacks.button_flip, args={'axrange': _p_camd.y_range}))
-        _dropdown_mag_x = Select(options=dropmenu, value=x_full_name)  # x axis
-        _dropdown_mag_x.js_on_change('value', CustomJS(code=js_callbacks.dropdownx_js,
+        _button_mag_y_flip.js_on_click(CustomJS(code=js_callbacks.button_flip, args={'ax_range': _p_camd.y_range}))
+        _dropdown_mag_x = Select(options=dropdown_menu, value=x_full_name)  # x axis
+        _dropdown_mag_x.js_on_change('value', CustomJS(code=js_callbacks.dropdown_x_js,
                                                        args={'full_plot': full_mag_plot,
-                                                             'fulldata': fullcds.data, 'xbut': _button_mag_x_flip,
-                                                             'xaxis': _p_camd.xaxis[0], 'xrange': _p_camd.x_range}))
-        _dropdown_mag_y = Select(options=dropmenumag, value=y_full_name)  # y axis
-        _dropdown_mag_y.js_on_change('value', CustomJS(code=js_callbacks.dropdowny_js,
+                                                             'full_data': full_cds.data, 'x_button': _button_mag_x_flip,
+                                                             'x_axis': _p_camd.xaxis[0], 'x_range': _p_camd.x_range}))
+        _dropdown_mag_y = Select(options=dropdown_menu_mag, value=y_full_name)  # y axis
+        _dropdown_mag_y.js_on_change('value', CustomJS(code=js_callbacks.dropdown_y_js,
                                                        args={'full_plot': full_mag_plot,
-                                                             'fulldata': fullcds.data, 'ybut': _button_mag_y_flip,
-                                                             'yaxis': _p_camd.yaxis[0], 'yrange': _p_camd.y_range}))
+                                                             'full_data': full_cds.data, 'y_button': _button_mag_y_flip,
+                                                             'y_axis': _p_camd.yaxis[0], 'y_range': _p_camd.y_range}))
         return _p_camd, _button_mag_x_flip, _button_mag_y_flip, _dropdown_mag_x, _dropdown_mag_y
 
     # gather all necessary data including parallaxes, spectral types and bands
@@ -422,7 +425,7 @@ def multi_plot_bokeh(all_results: pd.DataFrame, all_bands: np.ndarray,
     all_bands = all_bands[np.isin(all_bands, all_results_full.columns)]
 
     # bokeh tools initialisation
-    fullcds = ColumnDataSource(all_results_full)
+    full_cds = ColumnDataSource(all_results_full)
     cmap = linear_cmap('sptnum', Turbo256, 60, 100)
     tooltips = [('Target', '@source')]
 
@@ -442,10 +445,10 @@ def multi_plot_bokeh(all_results: pd.DataFrame, all_bands: np.ndarray,
     just_colours = all_results_full.loc[:, colour_bands].copy()
     x_full_name = just_colours.columns[0]
     y_full_name = just_colours.columns[1]
-    xvisname = x_full_name.replace('-', ' - ')
-    yvisname = y_full_name.replace('-', ' - ')
+    x_shown_name = x_full_name.replace('-', ' - ')
+    y_shown_name = y_full_name.replace('-', ' - ')
     axis_names = [col.replace('-', ' - ') for col in just_colours.columns]
-    dropmenu = [*zip(just_colours.columns, axis_names), ]
+    dropdown_menu = [*zip(just_colours.columns, axis_names), ]
 
     # colour-colour plot
     p_colour_colour, button_x_flip, button_y_flip, dropdown_x, dropdown_y = colour_colour_plot()
@@ -460,7 +463,7 @@ def multi_plot_bokeh(all_results: pd.DataFrame, all_bands: np.ndarray,
             bad_cols.append(col)
 
     absmagnames = absmagnames[~np.isin(absmagnames, bad_cols)]
-    dropmenumag = [*zip(absmagnames, absmagnames)]
+    dropdown_menu_mag = [*zip(absmagnames, absmagnames)]
     y_full_name = absmagnames[0]
 
     # camd plot
@@ -599,10 +602,10 @@ def camd_plot(query: str, everything: Inventory, all_bands: np.ndarray, all_resu
 
     x_full_name = just_colours.columns[0]
     y_full_name = just_colours.columns[1]
-    xvisname = x_full_name.replace('-', ' - ')
-    yvisname = y_full_name.replace('-', ' - ')
+    x_shown_name = x_full_name.replace('-', ' - ')
+    y_shown_name = y_full_name.replace('-', ' - ')
     axis_names = [col.replace('-', ' - ') for col in just_colours.columns]
-    dropmenu = [*zip(just_colours.columns, axis_names), ]
+    dropdown_menu = [*zip(just_colours.columns, axis_names), ]
 
     # initialise plot
     p = figure(outer_height=500,
@@ -611,8 +614,8 @@ def camd_plot(query: str, everything: Inventory, all_bands: np.ndarray, all_resu
                sizing_mode='stretch_width')
     p.x_range = Range1d(all_results_full[x_full_name].min(), all_results_full[x_full_name].max())
     p.y_range = Range1d(all_results_full[y_full_name].min(), all_results_full[y_full_name].max())
-    p.xaxis.axis_label = xvisname
-    p.yaxis.axis_label = yvisname
+    p.xaxis.axis_label = x_shown_name
+    p.yaxis.axis_label = y_shown_name
     p = bokeh_formatter(p)
 
     # scatter plot for given object
@@ -621,8 +624,8 @@ def camd_plot(query: str, everything: Inventory, all_bands: np.ndarray, all_resu
                          color=cmap, size=20)  # plot for this object
 
     # scatter plot for all data
-    cdsfull = ColumnDataSource(data=all_results_full)  # bokeh cds object
-    full_plot = p.circle(x=x_full_name, y=y_full_name, source=cdsfull,
+    cds_full = ColumnDataSource(data=all_results_full)  # bokeh cds object
+    full_plot = p.circle(x=x_full_name, y=y_full_name, source=cds_full,
                          color=cmap, alpha=0.5, size=6)  # plot all objects
     full_plot.level = 'underlay'  # put full plot underneath this plot
 
@@ -637,19 +640,19 @@ def camd_plot(query: str, everything: Inventory, all_bands: np.ndarray, all_resu
     tap_tool = p.select(type=TapTool)  # tapping
     tap_tool.callback = OpenURL(url='/load_solo/@target')
     button_x_flip = Toggle(label='X Flip')
-    button_x_flip.js_on_click(CustomJS(code=js_callbacks.button_flip, args={'axrange': p.x_range}))
+    button_x_flip.js_on_click(CustomJS(code=js_callbacks.button_flip, args={'ax_range': p.x_range}))
     button_y_flip = Toggle(label='Y Flip')
-    button_y_flip.js_on_click(CustomJS(code=js_callbacks.button_flip, args={'axrange': p.y_range}))
-    dropdown_x = Select(options=dropmenu, value=x_full_name)  # x axis select
-    dropdown_x.js_on_change('value', CustomJS(code=js_callbacks.dropdownx_js,
-                                              args={'full_plot': full_plot, 'thisplot': this_plot,
-                                                    'fulldata': cdsfull.data, 'xbut': button_x_flip,
-                                                    'xaxis': p.xaxis[0], 'xrange': p.x_range}))
-    dropdown_y = Select(options=dropmenu, value=y_full_name)  # y axis select
-    dropdown_y.js_on_change('value', CustomJS(code=js_callbacks.dropdowny_js,
-                                              args={'full_plot': full_plot, 'thisplot': this_plot,
-                                                    'fulldata': cdsfull.data, 'ybut': button_y_flip,
-                                                    'yaxis': p.yaxis[0], 'yrange': p.y_range}))
+    button_y_flip.js_on_click(CustomJS(code=js_callbacks.button_flip, args={'ax_range': p.y_range}))
+    dropdown_x = Select(options=dropdown_menu, value=x_full_name)  # x axis select
+    dropdown_x.js_on_change('value', CustomJS(code=js_callbacks.dropdown_x_js,
+                                              args={'full_plot': full_plot, 'this_plot': this_plot,
+                                                    'full_data': cds_full.data, 'x_button': button_x_flip,
+                                                    'x_axis': p.xaxis[0], 'x_range': p.x_range}))
+    dropdown_y = Select(options=dropdown_menu, value=y_full_name)  # y axis select
+    dropdown_y.js_on_change('value', CustomJS(code=js_callbacks.dropdown_y_js,
+                                              args={'full_plot': full_plot, 'this_plot': this_plot,
+                                                    'full_data': cds_full.data, 'y_button': button_y_flip,
+                                                    'y_axis': p.yaxis[0], 'y_range': p.y_range}))
 
     # creating bokeh layout and html
     plots = column(p, row(dropdown_x,

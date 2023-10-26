@@ -16,7 +16,8 @@
             </div>
         </div>
         <p class="display-6">Are we missing any expected data? Please open an
-            <a href="https://github.com/SIMPLE-AstroDB/SIMPLE-db/issues/new" target="_blank">issue</a>!</p>
+            <a href="https://github.com/SIMPLE-AstroDB/SIMPLE-db/issues/new?assignees=&labels=data+ingestion&projects=&template=missing_data.md&title=Data+ingest+request+from%3A+%3Cpublication%3E" target="_blank">
+                issue</a>!</p>
         <div class="row table-responsive">
             {% if everything.sources %}
                 <h2 class="display-3"><a href="{{ url_for('create_file_for_download', key='Sources') }}">Sources</a></h2>
@@ -62,7 +63,7 @@
                 <p class="display-6">
                     No Photometry for {{ query|safe }} in the SIMPLE Archive.
                     If some exists and should be ingested, please open an
-                    <a href="https://github.com/SIMPLE-AstroDB/SIMPLE-db/issues/new/choose" target="_blank"> issue</a>.
+                    <a href="https://github.com/SIMPLE-AstroDB/SIMPLE-db/issues/new?assignees=&labels=data+ingestion&projects=&template=missing_data.md&title=Data+ingest+request+from%3A+%3Cpublication%3E" target="_blank">issue</a>.
                 </p>
             {% endif %}
         </div>
@@ -82,7 +83,7 @@
                 <p class="display-6">
                     No Spectra for {{ query|safe }} in the SIMPLE Archive.
                     If some exist and should be ingested, please open an
-                    <a href="https://github.com/SIMPLE-AstroDB/SIMPLE-db/issues/new/choose" target="_blank"> issue</a>.
+                    <a href="https://github.com/SIMPLE-AstroDB/SIMPLE-db/issues/new?assignees=&labels=data+ingestion&projects=&template=missing_data.md&title=Data+ingest+request+from%3A+%3Cpublication%3E" target="_blank">issue</a>.
                 </p>
             {% endif %}
         </div>
@@ -99,7 +100,7 @@
                 <p class="display-6">
                     No Spectral Types for {{ query|safe }} in the SIMPLE Archive.
                     If some exist and should be ingested, please open an
-                    <a href="https://github.com/SIMPLE-AstroDB/SIMPLE-db/issues/new/choose" target="_blank"> issue</a>.
+                    <a href="https://github.com/SIMPLE-AstroDB/SIMPLE-db/issues/new?assignees=&labels=data+ingestion&projects=&template=missing_data.md&title=Data+ingest+request+from%3A+%3Cpublication%3E" target="_blank">issue</a>.
                 </p>
             {% endif %}
         </div>
@@ -116,7 +117,7 @@
                 <p class="display-6">
                     No Radial Velocities for {{ query|safe }} in the SIMPLE Archive.
                     If some exist and should be ingested, please open an
-                    <a href="https://github.com/SIMPLE-AstroDB/SIMPLE-db/issues/new/choose" target="_blank"> issue</a>.
+                    <a href="https://github.com/SIMPLE-AstroDB/SIMPLE-db/issues/new?assignees=&labels=data+ingestion&projects=&template=missing_data.md&title=Data+ingest+request+from%3A+%3Cpublication%3E" target="_blank">issue</a>.
                 </p>
             {% endif %}
         </div>
@@ -133,7 +134,7 @@
                 <p class="display-6">
                     No Parallaxes for {{ query|safe }} in the SIMPLE Archive.
                     If some exist and should be ingested, please open an
-                    <a href="https://github.com/SIMPLE-AstroDB/SIMPLE-db/issues/new/choose" target="_blank"> issue</a>.
+                    <a href="https://github.com/SIMPLE-AstroDB/SIMPLE-db/issues/new?assignees=&labels=data+ingestion&projects=&template=missing_data.md&title=Data+ingest+request+from%3A+%3Cpublication%3E" target="_blank">issue</a>.
                 </p>
             {% endif %}
         </div>
@@ -150,7 +151,7 @@
                 <p class="display-6">
                     No Proper Motions for {{ query|safe }} in the SIMPLE Archive.
                     If some exist and should be ingested, please open an
-                    <a href="https://github.com/SIMPLE-AstroDB/SIMPLE-db/issues/new/choose" target="_blank"> issue</a>.
+                    <a href="https://github.com/SIMPLE-AstroDB/SIMPLE-db/issues/new?assignees=&labels=data+ingestion&projects=&template=missing_data.md&title=Data+ingest+request+from%3A+%3Cpublication%3E" target="_blank">issue</a>.
                 </p>
             {% endif %}
         </div>
@@ -167,7 +168,24 @@
                 <p class="display-6">
                     No Gravities for {{ query|safe }} in the SIMPLE Archive.
                     If some exists and should be ingested, please open an
-                    <a href="https://github.com/SIMPLE-AstroDB/SIMPLE-db/issues/new/choose" target="_blank"> issue</a>.
+                    <a href="https://github.com/SIMPLE-AstroDB/SIMPLE-db/issues/new?assignees=&labels=data+ingestion&projects=&template=missing_data.md&title=Data+ingest+request+from%3A+%3Cpublication%3E" target="_blank">issue</a>.
+                </p>
+            {% endif %}
+        </div>
+
+        <div class="row table-responsive">
+            {% if everything.companionrelationships %}
+                <h2 class="display-3"><a href="{{ url_for('create_file_for_download', key='CompanionRelationships') }}">
+                    Companion Relationships</a></h2>
+                <p class="display-6">
+                    {{ everything.companionrelationships|safe }}
+                </p>
+            {% else %}
+                <h2 class="display-4">Companion Relationships</h2>
+                <p class="display-6">
+                    No Companion Relationships for {{ query|safe }} in the SIMPLE Archive.
+                    If some exists and should be ingested, please open an
+                    <a href="https://github.com/SIMPLE-AstroDB/SIMPLE-db/issues/new?assignees=&labels=data+ingestion&projects=&template=missing_data.md&title=Data+ingest+request+from%3A+%3Cpublication%3E" target="_blank">issue</a>.
                 </p>
             {% endif %}
         </div>

@@ -88,8 +88,9 @@
         {% endif %}
         <p class="display-6">{{ results|safe if results is not none }}</p>
         {% if query != '' %}
-        <p class="display-6">Are we missing an expected result? Please open an
-            <a href="https://github.com/SIMPLE-AstroDB/SIMPLE-db/issues/new" target="_blank">issue</a>!</p>
+        <p class="display-6">Are we missing any expected data? Please open an
+            <a href="https://github.com/SIMPLE-AstroDB/SIMPLE-db/issues/new?assignees=&labels=data+ingestion&projects=&template=missing-source.md&title=Ingest+request%3A+%3Csource+name%3E" target="_blank">
+                issue</a>!</p>
         {% endif %}
     </div>
     <script>
