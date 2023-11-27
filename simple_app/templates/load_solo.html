@@ -4,8 +4,10 @@
 
 <div class="container">
     <div id="loadingDiv" class="d-flex align-items-center">
-        <strong>Loading...</strong>
-        <div class="spinner-border ml-auto" role="status" aria-hidden="true" style="float: right"></div>
+        <div class="ml-auto align-items-center" role="status" aria-hidden="true">
+            <img src="{{ url_for('static', filename='images/loading.png') }}" class="spinner" alt="Loading">
+            <span class="sr-only">Loading...</span>
+        </div>
     </div>
 </div>
 

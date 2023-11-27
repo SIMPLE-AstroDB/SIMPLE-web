@@ -63,6 +63,13 @@
         .dataTables_info,
         .form-control.form-control-sm,
         .form-select.form-select-sm {color: aliceblue !important;}
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        .spinner {
+            animation: spin 4s linear infinite;
+        }
     </style>
 
     {{ resources|safe }}
