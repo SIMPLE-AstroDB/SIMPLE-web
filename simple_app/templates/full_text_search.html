@@ -23,6 +23,40 @@
             <button type="submit" class="btn btn-primary">Search</button>
         </form>
     </div>
+
+
+    <div id="loadingDiv" class="container align-items-center justify-content-center">
+        <div class="ml-auto align-items-center" role="status" aria-hidden="true">
+            <img src="{{ url_for('static', filename='images/loading.png') }}" class="spinner" alt="Loading">
+            <span class="sr-only">Loading...</span>
+        </div>
+    </div>
+
+    <div class="container" id="tables" style="display: none">
+        {% if query != '' and results|length > 0 %}
+        <h2 class="display-3"><a href="{{ url_for('create_files_for_multi_download') }}">
+            Results</a> for: {{ query|safe }}</h2>
+        {% else %}
+        <h2 class="display-3">Results for: {{ query|safe }}</h2>
+        {% endif %}
+        {% for tabname, df in results.items() %}
+            <div class="container table-responsive">
+                {% if query != '' %}
+                <h3 class="display-4"><a href="{{ url_for('create_file_for_full_download', key=tabname) }}">
+                    {{ tabname|safe }}</a></h3>
+                {% else %}
+                <h3 class="display-4">{{ tabname|safe }}</h3>
+                {% endif %}
+                <p class="display-6">{{ df|safe }}</p>
+            </div>
+        {% endfor %}
+        {% if query != '' %}
+        <p class="display-6">Are we missing any expected data? Please open an
+            <a href="https://github.com/SIMPLE-AstroDB/SIMPLE-db/issues/new?assignees=&labels=data+ingestion&projects=&template=missing-source.md&title=Ingest+request%3A+%3Csource+name%3E" target="_blank">
+                issue</a>!</p>
+        {% endif %}
+    </div>
+
     <script>
         function delay(callback, ms) {
           let timer = 0;
@@ -55,39 +89,18 @@
           setCaretPosition(searchvalue, searchvalue.value.length);
         };
     </script>
-    <div class="container">
-        {% if query != '' and results|length > 0 %}
-        <h2 class="display-3"><a href="{{ url_for('create_files_for_multi_download') }}">
-            Results</a> for: {{ query|safe }}</h2>
-        {% else %}
-        <h2 class="display-3">Results for: {{ query|safe }}</h2>
-        {% endif %}
-        {% for tabname, df in results.items() %}
-            <div class="container table-responsive">
-                {% if query != '' %}
-                <h3 class="display-4"><a href="{{ url_for('create_file_for_full_download', key=tabname) }}">
-                    {{ tabname|safe }}</a></h3>
-                {% else %}
-                <h3 class="display-4">{{ tabname|safe }}</h3>
-                {% endif %}
-                <p class="display-6">{{ df|safe }}</p>
-            </div>
-        {% endfor %}
-        {% if query != '' %}
-        <p class="display-6">Are we missing any expected data? Please open an
-            <a href="https://github.com/SIMPLE-AstroDB/SIMPLE-db/issues/new?assignees=&labels=data+ingestion&projects=&template=missing-source.md&title=Ingest+request%3A+%3Csource+name%3E" target="_blank">
-                issue</a>!</p>
-        {% endif %}
-    </div>
     <script>
         $(document).ready(function() {
-            $("table").each(function() {
-                $(this).DataTable( {
-                    responsive: true,
-                    autoWidth: false
+            $('#loadingDiv').hide();
+            $('#tables').show().promise().done(function () {
+                $("table").each(function() {
+                    $(this).DataTable( {
+                        responsive: true,
+                        autoWidth: false
+                    });
                 });
-            });
-            }
+            })
+        }
         );
     </script>
 

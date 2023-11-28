@@ -9,6 +9,10 @@
         <h3 class="display-6">Please send the above error code and what you were trying to do, to the
             <a href="https://github.com/SIMPLE-AstroDB/SIMPLE-web/issues/new/choose" target="_blank">developers</a>.
         </h3>
+        {% if e.code == 404 %}
+            <img src="{{ url_for('static', filename='images/404image.png') }}"
+                 class="rounded img-fluid mx-auto d-block" alt="">
+        {% endif %}
     </div>
 
 {% endblock %}
