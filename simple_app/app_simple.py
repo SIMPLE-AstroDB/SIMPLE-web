@@ -191,6 +191,8 @@ def solo_result(query: str):
 
     # search database for given object
     resultdict: dict = db.inventory(query)
+    if not len(resultdict):
+        abort(404, f'"{query}" does match any result in SIMPLE!')
     everything = Inventory(resultdict)
 
     # create camd and spectra plots
