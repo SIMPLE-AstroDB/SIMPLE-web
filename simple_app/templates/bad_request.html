@@ -3,9 +3,9 @@
 
 {% block content %}
 
-    <div class="container">
+    <div class="container" xmlns="http://www.w3.org/1999/html">
         <h1 class="display-2" style="text-align: center">{{ e.code|safe }}</h1>
-        <h2 class="display-3" style="text-align: center">Something went wrong!</h2>
+        <h2 class="display-3" style="text-align: center">Something went wrong:<br>{{ e.description|safe }}</h2>
         <h3 class="display-6">Please send the above error code and what you were trying to do, to the
             <a href="https://github.com/SIMPLE-AstroDB/SIMPLE-web/issues/new/choose" target="_blank">developers</a>.
         </h3>
