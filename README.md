@@ -38,16 +38,11 @@ We also recommend keeping up to date with the repo changes, and most importantly
 the [astrodbkit2](https://github.com/dr-rodriguez/AstrodbKit2) package:
 ```bash
 git pull
-pip install git+https://github.com/dr-rodriguez/AstrodbKit2
+pip install -Ur requirements.txt
 ```
-You can also get the latest copy of the SQLite database binary file with:
+You can also get the latest copy of the SQLite database binary file again with:
 ```bash
 wget https://raw.githubusercontent.com/SIMPLE-AstroDB/SIMPLE-binary/main/SIMPLE.db
-```
-
-If updating requirements, update them with:
-```bash
-pip freeze > requirements.txt
 ```
 
 ## Apache Config
