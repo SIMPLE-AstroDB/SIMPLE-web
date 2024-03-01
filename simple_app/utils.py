@@ -721,7 +721,7 @@ def absolute_magnitudes(df: pd.DataFrame, all_bands: np.ndarray) -> pd.DataFrame
         The output dataframe with absolute mags calculated
     """
 
-    def pogson_law(m: Union[float, np.ndarray]) -> Union[float, np.ndarray]:
+    def pogson_law(m: Union[float, pd.Series]) -> Union[float, np.ndarray]:
         """
         Distance modulus equation. Calculates the absolute magnitude only for sources with a positive parallax,
         otherwise returns a NaN
@@ -735,7 +735,10 @@ def absolute_magnitudes(df: pd.DataFrame, all_bands: np.ndarray) -> pd.DataFrame
         _
             Absolute magnitude
         """
-        return np.where(df.parallax > 0, m + 5 * np.log10(df.parallax, where=df.parallax > 0) - 10, np.nan)
+        mask = df.parallax > 0
+        _abs_mag = np.full_like(m, fill_value=np.nan)
+        _abs_mag[mask] = m[mask] + 5 * np.log10(df.parallax[mask]) - 10
+        return _abs_mag
 
     # create absolute magnitude for each apparent magnitude
     d_magnitudes: Dict[str, np.ndarray] = {}

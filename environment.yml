@@ -1,10 +1,10 @@
 name: simple
 channels:
-  - http://ssb.stsci.edu/astroconda
   - defaults
   - conda-forge
+  - http://ssb.stsci.edu/astroconda
 dependencies:
-  - python=3.8
+  - python=3.9.16
   - pip
   - pip:
     - -r requirements.txt
