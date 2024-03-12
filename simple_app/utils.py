@@ -1158,6 +1158,17 @@ def main_utils():
         _all_photometry, _all_bands, _all_plx, _all_spts
 
 
+REFERENCE_TABLES = [
+    'Publications',
+    'Telescopes',
+    'Instruments',
+    'Modes',
+    'PhotometryFilters',
+    'Versions',
+    'Parameters',
+    'Regimes'
+]
+
 if __name__ == '__main__':
     ARGS, DB_FILE, PHOTOMETRIC_FILTERS, ALL_RESULTS, ALL_RESULTS_FULL, VERSION_STR, \
         ALL_PHOTO, ALL_BANDS, ALL_PLX, ALL_SPTS = main_utils()
