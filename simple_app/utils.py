@@ -19,8 +19,8 @@ def sys_args():
     _args.add_argument('-p', '--port', default=8000,
                        help='Local port number to host server through, default 8000', type=int)
     _args.add_argument('-d', '--debug', help='Run Flask in debug mode?', default=False, action='store_true')
-    _args.add_argument('-f', '--file', default='SIMPLE.db',
-                       help='Database file path relative to current directory, default SIMPLE.db')
+    _args.add_argument('-f', '--file', default='SIMPLE.sqlite',
+                       help='Database file path relative to current directory, default SIMPLE.sqlite')
     _args = _args.parse_args()
     return _args
 
