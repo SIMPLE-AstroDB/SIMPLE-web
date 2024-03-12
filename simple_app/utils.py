@@ -39,6 +39,12 @@ class SimpleDB(Database):  # this keeps pycharm happy about unresolved reference
     SpectralTypes = None
     CompanionRelationships = None
 
+    def __init__(self, connection_string):
+        super().__init__(connection_string,
+                         reference_tables=REFERENCE_TABLES,
+                         connection_arguments={'check_same_thread': False})
+
+
 
 class Inventory:
     """
@@ -276,7 +282,7 @@ class CoordQueryForm(CSRFOverride):
 
         """
         # split search bar into 3 components (ra, dec, radius)
-        db = SimpleDB(self.db_file, connection_arguments={'check_same_thread': False})  # open database
+        db = SimpleDB(self.db_file)  # open database
         ra, dec, radius = self.multi_param_str_parse(field.data)
 
         if not ra:  # i.e. empty string, bad parse
@@ -332,7 +338,7 @@ class SQLForm(FlaskForm):
             The data within the query form
         """
         forbidden = ('update', 'drop', 'truncate', 'grant', 'commit', 'create', 'replace', 'alter', 'insert', 'delete')
-        db = SimpleDB(self.db_file, connection_arguments={'check_same_thread': False})  # open database
+        db = SimpleDB(self.db_file)  # open database
 
         # check query field has data within
         if (query := field.data) is None or query.strip() == '':  # content in main searchbar
@@ -429,7 +435,7 @@ def get_all_sources(db_file: str):
     full_results
         The full dataframe of all the sources
     """
-    db = SimpleDB(db_file, connection_arguments={'check_same_thread': False})
+    db = SimpleDB(db_file)
 
     # get the full Sources table and just the main id list
     full_results: pd.DataFrame = db.query(db.Sources).pandas()
@@ -451,7 +457,7 @@ def get_version(db_file: str) -> str:
     vstr
         The stringified version formatted
     """
-    db = SimpleDB(db_file, connection_arguments={'check_same_thread': False})
+    db = SimpleDB(db_file)
 
     # query Versions table and extract active version before pretty-printing
     v: pd.DataFrame = db.query(db.Versions).pandas()
@@ -655,7 +661,7 @@ def get_all_photometry(db_file: str, photometric_filters: pd.DataFrame):
     all_bands: np.ndarray
         The unique passbands to create dropdowns by
     """
-    db = SimpleDB(db_file, connection_arguments={'check_same_thread': False})
+    db = SimpleDB(db_file)
 
     # query all photometry and extract the unique bands
     all_photometry: pd.DataFrame = db.query(db.Photometry).pandas()
@@ -678,7 +684,7 @@ def get_all_parallaxes(db_file: str):
     all_parallax: pd.DataFrame
         The dataframe of all the parallaxes
     """
-    db = SimpleDB(db_file, connection_arguments={'check_same_thread': False})
+    db = SimpleDB(db_file)
 
     # query the database for the parallaxes and only take necessary columns
     all_parallaxes: pd.DataFrame = db.query(db.Parallaxes).pandas()
@@ -695,7 +701,7 @@ def get_all_spectral_types(db_file: str):
     all_spts: pd.DataFrame
         The dataframe of all the spectral type numbers
     """
-    db = SimpleDB(db_file, connection_arguments={'check_same_thread': False})
+    db = SimpleDB(db_file)
 
     # query the database for the spectral types and only take necessary columns
     all_spts: pd.DataFrame = db.query(db.SpectralTypes).pandas()
@@ -982,7 +988,7 @@ def get_filters(db_file: str) -> pd.DataFrame:
     phot_filters: pd.DataFrame
         All of the filters, access as: phot_filters.loc['effective_wavelength', <bandname>]
     """
-    db = SimpleDB(db_file, connection_arguments={'check_same_thread': False})
+    db = SimpleDB(db_file)
 
     # query the database for all of the PhotometryFilters
     phot_filters: pd.DataFrame = db.query(db.PhotometryFilters).pandas().set_index('band').T
