@@ -1,8 +1,6 @@
 name: simple
 channels:
   - defaults
-  - conda-forge
-  - http://ssb.stsci.edu/astroconda
 dependencies:
   - python=3.9.16
   - pip
