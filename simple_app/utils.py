@@ -140,8 +140,20 @@ class Inventory:
         """
         # construct dataframe for a given key corresponding to a table
         obj = self.results[key]
-        df: pd.DataFrame = pd.concat([pd.DataFrame(objrow, index=[i])
-                                      for i, objrow in enumerate(obj)], ignore_index=True)
+        df_list = []
+
+        # check each row for NaNs, only append to list if not wholly NaNs
+        for i, obj_row in enumerate(obj):
+            df_row = pd.DataFrame(obj_row, index=[i]).dropna(axis=0, how='all')
+
+            if len(df_row):
+                df_list.append(df_row)
+
+        # create a concatenated dataframe of all the rows in a given table
+        if len(df_list):
+            df: pd.DataFrame = pd.concat(df_list, ignore_index=True)
+        else:
+            df = pd.DataFrame(columns=list(obj[0].keys()))
 
         # switch whether to have a Markdown version of the table, or a normal DataFrame
         if return_markdown:
