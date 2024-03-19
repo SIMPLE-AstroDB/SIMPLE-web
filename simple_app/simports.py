@@ -36,7 +36,7 @@ import argparse  # parsing the arguments given with file
 from copy import deepcopy  # memory control
 from difflib import get_close_matches  # for redirecting bad file paths
 from io import StringIO, BytesIO, BufferedIOBase  # writing files without saving to disk
-import multiprocessing as mp  # multiprocessing for efficiency
+import multiprocess as mp  # multiprocessing for efficiency
 import os  # operating system
 import requests  # accessing internet
 from shutil import copy  # copying files

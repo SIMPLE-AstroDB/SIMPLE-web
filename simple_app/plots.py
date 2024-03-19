@@ -549,7 +549,7 @@ def camd_plot(query: str, everything: Inventory, all_bands: np.ndarray, all_resu
         this_spectral_type = pd.DataFrame.from_dict(dict(spectral_type_code=[np.nan, ], adopted=[np.nan, ]))
 
     # use adopted spectral type if present
-    this_spectral_type['adopted'] = this_spectral_type.adopted.fillna(False)
+    this_spectral_type['adopted'] = this_spectral_type.adopted.astype(bool).fillna(False)
     if not this_spectral_type.adopted.any():
         this_spectral_type.loc[0, 'adopted'] = True
 
@@ -571,7 +571,7 @@ def camd_plot(query: str, everything: Inventory, all_bands: np.ndarray, all_resu
     else:
 
         # use adopted parallax, if present
-        this_parallaxes['adopted'] = this_parallaxes.adopted.fillna(False)
+        this_parallaxes['adopted'] = this_parallaxes.adopted.astype(bool).fillna(False)
         if not this_parallaxes.adopted.any():
             this_parallaxes.loc[0, 'adopted'] = True
         this_photometry['parallax'] = this_parallaxes.loc[this_parallaxes.adopted].parallax.iloc[0]

@@ -140,8 +140,20 @@ class Inventory:
         """
         # construct dataframe for a given key corresponding to a table
         obj = self.results[key]
-        df: pd.DataFrame = pd.concat([pd.DataFrame(objrow, index=[i])
-                                      for i, objrow in enumerate(obj)], ignore_index=True)
+        df_list = []
+
+        # check each row for NaNs, only append to list if not wholly NaNs
+        for i, obj_row in enumerate(obj):
+            df_row = pd.DataFrame(obj_row, index=[i]).dropna(axis=0, how='all')
+
+            if len(df_row):
+                df_list.append(df_row)
+
+        # create a concatenated dataframe of all the rows in a given table
+        if len(df_list):
+            df: pd.DataFrame = pd.concat(df_list, ignore_index=True)
+        else:
+            df = pd.DataFrame(columns=list(obj[0].keys()))
 
         # switch whether to have a Markdown version of the table, or a normal DataFrame
         if return_markdown:
@@ -727,7 +739,7 @@ def absolute_magnitudes(df: pd.DataFrame, all_bands: np.ndarray) -> pd.DataFrame
         The output dataframe with absolute mags calculated
     """
 
-    def pogson_law(m: Union[float, np.ndarray]) -> Union[float, np.ndarray]:
+    def pogson_law(m: Union[float, pd.Series]) -> Union[float, np.ndarray]:
         """
         Distance modulus equation. Calculates the absolute magnitude only for sources with a positive parallax,
         otherwise returns a NaN
@@ -741,7 +753,10 @@ def absolute_magnitudes(df: pd.DataFrame, all_bands: np.ndarray) -> pd.DataFrame
         _
             Absolute magnitude
         """
-        return np.where(df.parallax > 0, m + 5 * np.log10(df.parallax, where=df.parallax > 0) - 10, np.nan)
+        mask = df.parallax > 0
+        _abs_mag = np.full_like(m, fill_value=np.nan)
+        _abs_mag[mask] = m[mask] + 5 * np.log10(df.parallax[mask]) - 10
+        return _abs_mag
 
     # create absolute magnitude for each apparent magnitude
     d_magnitudes: Dict[str, np.ndarray] = {}
