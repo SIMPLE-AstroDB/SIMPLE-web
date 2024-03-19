@@ -47,7 +47,7 @@ def search():
 
     curdoc().template_variables['query'] = query  # add query to bokeh curdoc
     curdoc().template_variables['ref_query'] = ref_query  # add query to bokeh curdoc
-    db = SimpleDB(db_file, connection_arguments={'check_same_thread': False})  # open database
+    db = SimpleDB(db_file)  # open database
 
     # object search function
     try:
@@ -97,7 +97,7 @@ def coordinate_query():
             query = ''
 
         curdoc().template_variables['query'] = query
-        db = SimpleDB(db_file, connection_arguments={'check_same_thread': False})
+        db = SimpleDB(db_file)
 
         # parse query into ra, dec, radius
         ra, dec, radius = form.multi_param_str_parse(query)
@@ -127,7 +127,7 @@ def full_text_search():
         limmaxrows = True
 
     curdoc().template_variables['query'] = query
-    db = SimpleDB(db_file, connection_arguments={'check_same_thread': False})
+    db = SimpleDB(db_file)
 
     # search through the tables using the given query
     results: Dict[str, pd.DataFrame] = db.search_string(query, fmt='pandas', verbose=False)
@@ -150,7 +150,7 @@ def raw_query():
     """
     Page for raw sql query, returning all tables
     """
-    db = SimpleDB(db_file, connection_arguments={'check_same_thread': False})  # open database
+    db = SimpleDB(db_file)  # open database
     form = SQLForm(db_file=db_file)  # main query form
 
     # checks that the SQL is valid, then submits form
@@ -187,12 +187,16 @@ def solo_result(query: str):
         The query -- full match to a main ID
     """
     curdoc().template_variables['query'] = query
-    db = SimpleDB(db_file, connection_arguments={'check_same_thread': False})
+    db = SimpleDB(db_file)
 
     # search database for given object
-    resultdict: dict = db.inventory(query)
-    if not len(resultdict):
+    try:
+        resultdict: dict = db.inventory(query)
+        if not len(resultdict):
+            raise KeyError
+    except KeyError:
         abort(404, f'"{query}" does match any result in SIMPLE!')
+        return
     everything = Inventory(resultdict)
 
     # create camd and spectra plots
@@ -278,7 +282,7 @@ def create_file_for_download(key: str):
         The dataframe string
     """
     query = curdoc().template_variables['query']
-    db = SimpleDB(db_file, connection_arguments={'check_same_thread': False})
+    db = SimpleDB(db_file)
 
     # search for a given object and a given key
     resultdict: dict = db.inventory(query)
@@ -300,7 +304,7 @@ def create_files_for_solo_download():
     Creates and downloads all dataframes from solo results
     """
     query = curdoc().template_variables['query']
-    db = SimpleDB(db_file, connection_arguments={'check_same_thread': False})
+    db = SimpleDB(db_file)
 
     # search for a given object
     resultdict: dict = db.inventory(query)
@@ -323,7 +327,7 @@ def create_spectra_files_for_download():
     Downloads the spectra files and zips together
     """
     query = curdoc().template_variables['query']
-    db = SimpleDB(db_file, connection_arguments={'check_same_thread': False})
+    db = SimpleDB(db_file)
 
     # search for a given object and specifically its spectra
     resultdict: dict = db.inventory(query)
@@ -347,7 +351,7 @@ def create_file_for_filtered_download():
     """
     query = curdoc().template_variables['query']
     refquery = curdoc().template_variables['ref_query']
-    db = SimpleDB(db_file, connection_arguments={'check_same_thread': False})
+    db = SimpleDB(db_file)
 
     # search for a given object and a full text search at the same time
     results: Optional[pd.DataFrame] = db.search_object(query, fmt='pandas')
@@ -370,7 +374,7 @@ def create_file_for_coordinate_download():
     Creates and downloads the shown dataframe when in coordinate search
     """
     query = curdoc().template_variables['query']
-    db = SimpleDB(db_file, connection_arguments={'check_same_thread': False})
+    db = SimpleDB(db_file)
 
     # query the database for given coordinates and parse those coordinates
     form = CoordQueryForm(db_file=db_file)
@@ -396,7 +400,7 @@ def create_file_for_full_download(key: str):
         The dataframe string
     """
     query = curdoc().template_variables['query']
-    db = SimpleDB(db_file, connection_arguments={'check_same_thread': False})
+    db = SimpleDB(db_file)
 
     # search database with a free-text search and specific table
     resultdict: Dict[str, pd.DataFrame] = db.search_string(query, fmt='pandas', verbose=False)
@@ -417,7 +421,7 @@ def create_files_for_multi_download():
     Creates and downloads all dataframes from full results
     """
     query = curdoc().template_variables['query']
-    db = SimpleDB(db_file, connection_arguments={'check_same_thread': False})
+    db = SimpleDB(db_file)
 
     # search with full-text search
     resultdict: Dict[str, pd.DataFrame] = db.search_string(query, fmt='pandas', verbose=False)
@@ -434,7 +438,7 @@ def create_file_for_sql_download():
     Creates and downloads the shown dataframe when in sql query
     """
     query = curdoc().template_variables['query']
-    db = SimpleDB(db_file, connection_arguments={'check_same_thread': False})
+    db = SimpleDB(db_file)
 
     # query database via sql
     results: Optional[pd.DataFrame] = db.sql_query(query, fmt='pandas')

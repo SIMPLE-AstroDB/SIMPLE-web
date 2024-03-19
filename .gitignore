@@ -1,5 +1,6 @@
 # No database binary files!
 *.db
+*.sqlite
 *.fits
 simple_app/tmp/user*
 

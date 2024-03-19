@@ -129,7 +129,7 @@ def spectra_plot(query: str, db_file: str, night_sky_theme: Theme,
         return flux / fluxmed
 
     # query the database for the spectra
-    db = SimpleDB(db_file, connection_arguments={'check_same_thread': False})  # open database
+    db = SimpleDB(db_file)  # open database
     t_spectra: Table = db.query(db.Spectra).\
         filter(db.Spectra.c.source == query).\
         table(spectra=['spectrum'])
