@@ -18,7 +18,7 @@ conda env create -f environment.yml
 ### Refresh the database
 Get a fresh copy of the database from the binary repo.
 ```bash
-wget https://raw.githubusercontent.com/SIMPLE-AstroDB/SIMPLE-binary/main/SIMPLE.db
+wget https://raw.githubusercontent.com/SIMPLE-AstroDB/SIMPLE-binary/main/SIMPLE.sqlite
 ```
 
 ### Running
