@@ -132,7 +132,7 @@ def spectra_plot(query: str, db_file: str, night_sky_theme: Theme,
     db = SimpleDB(db_file)  # open database
     t_spectra: Table = db.query(db.Spectra).\
         filter(db.Spectra.c.source == query).\
-        table(spectra=['spectrum'])
+        table(spectra=['access_url'])
 
     # initialise plot
     n_fail, fail_string_list = 0, []
@@ -153,7 +153,7 @@ def spectra_plot(query: str, db_file: str, night_sky_theme: Theme,
 
     # checking each spectra in table
     for spec in t_spectra:
-        spectrum: Spectrum1D = spec['spectrum']
+        spectrum: Spectrum1D = spec['access_url']
 
         # checking spectrum has good units and not only NaNs
         try:
