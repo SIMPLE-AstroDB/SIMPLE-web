@@ -335,7 +335,7 @@ def create_spectra_files_for_download():
     results: pd.DataFrame = getattr(everything, 'spectra')
 
     # write all spectra for object to zipped file
-    zipped = write_spec_files(results.spectrum.values)
+    zipped = write_spec_files(results.access_url.values)
     if zipped is not None:
         response = Response(zipped, mimetype='application/zip')
         response = control_response(response, app_type='zip')
