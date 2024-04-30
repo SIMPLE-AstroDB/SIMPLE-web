@@ -11,7 +11,7 @@
 	"forwardPorts": [8000],
 
 	// Use 'postCreateCommand' to run commands after the container is created.
-	"postCreateCommand": "pip install -r requirements.txt && wget -O SIMPLE.db https://raw.githubusercontent.com/SIMPLE-AstroDB/SIMPLE-binary/main/SIMPLE.db && python -m simple_app.app_simple -d"
+	"postCreateCommand": "pip install -r requirements.txt && wget -O SIMPLE.sqlite https://raw.githubusercontent.com/SIMPLE-AstroDB/SIMPLE-binary/main/SIMPLE.sqlite && python -m simple_app.app_simple -d"
 
 	// Configure tool-specific properties.
 	// "customizations": {},

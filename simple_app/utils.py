@@ -104,7 +104,7 @@ class Inventory:
 
         # convert links to spectra files from plaintext to hyperlinks
         url_links = []
-        for source in df.spectrum.values:
+        for source in df.access_url.values:
             source_link = f'<a href="{source}" target="_blank">Link</a>'
             url_links.append(source_link)
 
@@ -112,7 +112,7 @@ class Inventory:
         df.drop(columns=[col for col in df.columns if
                          any([sub_string in col for sub_string in ('wave', 'flux', 'original')])],
                 inplace=True)
-        drop_cols = ['spectrum', 'local_spectrum', 'regime']
+        drop_cols = ['access_url', 'local_spectrum', 'regime']
         if drop_source:
             drop_cols.append('source')
         df.drop(columns=drop_cols, inplace=True, errors='ignore')
