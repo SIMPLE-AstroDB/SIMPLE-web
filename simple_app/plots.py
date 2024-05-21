@@ -76,6 +76,24 @@ def bokeh_formatter(p: figure) -> figure:
     return p
 
 
+def name_simplifier(s: str) -> str:
+    """
+    Simplifies name of magnitude into something nicer to read
+
+    Parameters
+    ----------
+    s
+        Input string
+
+    Returns
+    -------
+    s
+        Simplified input string
+    """
+    s = s.replace('-', ' - ').replace('GAIA3.', '').replace('2MASS.', '').replace('WISE.', '')
+    return s
+
+
 def spectra_plot(query: str, db_file: str, night_sky_theme: Theme,
                  js_callbacks: JSCallbacks) -> Tuple[Optional[str], Optional[str], Optional[int], Optional[str]]:
     """
@@ -387,7 +405,7 @@ def multi_plot_bokeh(all_results: pd.DataFrame, all_bands: np.ndarray,
         _p_camd.x_range = Range1d(all_results_full[x_full_name].min(), all_results_full[x_full_name].max())
         _p_camd.y_range = Range1d(all_results_full[y_full_name].max(), all_results_full[y_full_name].min())
         _p_camd.xaxis.axis_label = x_shown_name
-        _p_camd.yaxis.axis_label = y_full_name
+        _p_camd.yaxis.axis_label = y_shown_name
         _p_camd = bokeh_formatter(_p_camd)
 
         # scatter plot for camd
@@ -405,7 +423,7 @@ def multi_plot_bokeh(all_results: pd.DataFrame, all_bands: np.ndarray,
         tap_tool_mag.callback = OpenURL(url='/load_solo/@source')
         _button_mag_x_flip = Toggle(label='X Flip')
         _button_mag_x_flip.js_on_click(CustomJS(code=js_callbacks.button_flip, args={'ax_range': _p_camd.x_range}))
-        _button_mag_y_flip = Toggle(label='Y Flip')
+        _button_mag_y_flip = Toggle(label='Y Flip', active=True)
         _button_mag_y_flip.js_on_click(CustomJS(code=js_callbacks.button_flip, args={'ax_range': _p_camd.y_range}))
         _dropdown_mag_x = Select(options=dropdown_menu, value=x_full_name)  # x axis
         _dropdown_mag_x.js_on_change('value', CustomJS(code=js_callbacks.dropdown_x_js,
@@ -423,6 +441,8 @@ def multi_plot_bokeh(all_results: pd.DataFrame, all_bands: np.ndarray,
     all_results_full = results_concat(all_results, all_photometry, all_parallaxes, all_spectral_types, all_bands)
     all_results_full.dropna(axis=1, how='all', inplace=True)
     all_bands = all_bands[np.isin(all_bands, all_results_full.columns)]
+    wanted_mags = ('GAIA3.G', 'GAIA3.Grp', '2MASS.J', '2MASS.H', '2MASS.Ks', 'WISE.W1', 'WISE.W2')
+    all_bands = np.array(list(set(wanted_mags).intersection(all_bands)))
 
     # bokeh tools initialisation
     full_cds = ColumnDataSource(all_results_full)
@@ -445,15 +465,17 @@ def multi_plot_bokeh(all_results: pd.DataFrame, all_bands: np.ndarray,
     just_colours = all_results_full.loc[:, colour_bands].copy()
     x_full_name = just_colours.columns[0]
     y_full_name = just_colours.columns[1]
-    x_shown_name = x_full_name.replace('-', ' - ')
-    y_shown_name = y_full_name.replace('-', ' - ')
-    axis_names = [col.replace('-', ' - ') for col in just_colours.columns]
+    x_shown_name = name_simplifier(x_full_name)
+    y_shown_name = name_simplifier(y_full_name)
+    axis_names = [name_simplifier(col) for col in just_colours.columns]
     dropdown_menu = [*zip(just_colours.columns, axis_names), ]
 
     # colour-colour plot
     p_colour_colour, button_x_flip, button_y_flip, dropdown_x, dropdown_y = colour_colour_plot()
 
     # prepping the absolute magnitudes for camd
+    wanted_mags = ('GAIA3.G', '2MASS.J', 'WISE.W1')
+    all_bands = np.array(list(set(wanted_mags).intersection(all_bands)))
     just_mags: pd.DataFrame = all_results_full[all_bands]
     absmagnames = np.array(["M_" + col for col in just_mags.columns])
 
@@ -463,8 +485,10 @@ def multi_plot_bokeh(all_results: pd.DataFrame, all_bands: np.ndarray,
             bad_cols.append(col)
 
     absmagnames = absmagnames[~np.isin(absmagnames, bad_cols)]
-    dropdown_menu_mag = [*zip(absmagnames, absmagnames)]
+    absmag_shown_name = [name_simplifier(mag) for mag in absmagnames]
+    dropdown_menu_mag = [*zip(absmagnames, absmag_shown_name)]
     y_full_name = absmagnames[0]
+    y_shown_name = absmag_shown_name[0]
 
     # camd plot
     p_camd, button_mag_x_flip, button_mag_y_flip, dropdown_mag_x, dropdown_mag_y = colour_absolute_magnitude_diagram()
@@ -602,9 +626,9 @@ def camd_plot(query: str, everything: Inventory, all_bands: np.ndarray, all_resu
 
     x_full_name = just_colours.columns[0]
     y_full_name = just_colours.columns[1]
-    x_shown_name = x_full_name.replace('-', ' - ')
-    y_shown_name = y_full_name.replace('-', ' - ')
-    axis_names = [col.replace('-', ' - ') for col in just_colours.columns]
+    x_shown_name = name_simplifier(x_full_name)
+    y_shown_name = name_simplifier(y_full_name)
+    axis_names = [name_simplifier(col) for col in just_colours.columns]
     dropdown_menu = [*zip(just_colours.columns, axis_names), ]
 
     # initialise plot
