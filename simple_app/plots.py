@@ -144,7 +144,7 @@ def spectra_plot(query: str, db_file: str, night_sky_theme: Theme,
         else:
             fluxmed = np.nanmedian(flux)
 
-        if not np.isclose(fluxmed, 0):
+        if not np.isclose(fluxmed, 0, atol=1e-30):
             return flux / fluxmed
         return flux  # unable to normalise by first 0.01um
 
@@ -180,7 +180,7 @@ def spectra_plot(query: str, db_file: str, night_sky_theme: Theme,
             wave: np.ndarray = spectrum.spectral_axis.to(u.micron).value
             flux: np.ndarray = spectrum.flux.value
             nan_check: np.ndarray = ~np.isnan(flux) & ~np.isnan(wave)
-            zero_check: np.ndarray = ~np.isclose(flux, 0)
+            zero_check: np.ndarray = ~np.isclose(flux, 0, atol=1e-30)
             nanzero_check = nan_check & zero_check
             wave = wave[nanzero_check]
             flux = flux[nanzero_check]

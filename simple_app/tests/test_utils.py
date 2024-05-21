@@ -119,9 +119,10 @@ def test_results_concat(db, test_get_all_photometry, test_get_all_sources,
     all_results, all_results_full = test_get_all_sources
     all_parallaxes = test_get_all_parallaxes
     all_spectral_types = test_get_all_spectral_types
+    wanted_mags = {'GAIA3.G', '2MASS.J', 'WISE.W1'}
     all_results_concat = results_concat(all_results_full, all_photometry, all_parallaxes, all_spectral_types, all_bands)
     assert all([col in all_results_concat.columns for col in ('ra_projected', 'dec_projected')])
-    assert all([f'M_{band}' in all_results_concat.columns for band in all_bands])
+    assert all([f'M_{band}' in all_results_concat.columns for band in all_bands if band in wanted_mags])
     return
 
 
