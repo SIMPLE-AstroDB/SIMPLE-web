@@ -144,7 +144,9 @@ def spectra_plot(query: str, db_file: str, night_sky_theme: Theme,
         else:
             fluxmed = np.nanmedian(flux)
 
-        return flux / fluxmed
+        if not np.isclose(fluxmed, 0):
+            return flux / fluxmed
+        return flux  # unable to normalise by first 0.01um
 
     # query the database for the spectra
     db = SimpleDB(db_file)  # open database
@@ -173,13 +175,15 @@ def spectra_plot(query: str, db_file: str, night_sky_theme: Theme,
     for spec in t_spectra:
         spectrum: Spectrum1D = spec['access_url']
 
-        # checking spectrum has good units and not only NaNs
+        # checking spectrum has good units and not only NaNs or 0s
         try:
             wave: np.ndarray = spectrum.spectral_axis.to(u.micron).value
             flux: np.ndarray = spectrum.flux.value
             nan_check: np.ndarray = ~np.isnan(flux) & ~np.isnan(wave)
-            wave = wave[nan_check]
-            flux = flux[nan_check]
+            zero_check: np.ndarray = ~np.isclose(flux, 0)
+            nanzero_check = nan_check & zero_check
+            wave = wave[nanzero_check]
+            flux = flux[nanzero_check]
             if not len(wave):
                 raise ValueError
 
