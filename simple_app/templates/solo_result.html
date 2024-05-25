@@ -190,6 +190,23 @@
                 </p>
             {% endif %}
         </div>
+
+        <div class="row table-responsive">
+            {% if everything.modeledparameters %}
+                <h2 class="display-3"><a href="{{ url_for('create_file_for_download', key='ModeledParameters') }}">
+                    Modeled Parameters</a></h2>
+                <p class="display-6">
+                    {{ everything.modeledparameters|safe }}
+                </p>
+            {% else %}
+                <h2 class="display-4">Modeled Parameters</h2>
+                <p class="display-6">
+                    No Modeled Parameters for {{ query|safe }} in the SIMPLE Archive.
+                    If some exists and should be ingested, please open an
+                    <a href="https://github.com/SIMPLE-AstroDB/SIMPLE-db/issues/new?assignees=&labels=data+ingestion&projects=&template=missing_data.md&title=Data+ingest+request+from%3A+%3Cpublication%3E" target="_blank">issue</a>.
+                </p>
+            {% endif %}
+        </div>
     </div>
     <script>
         $(document).ready(function() {

@@ -520,6 +520,10 @@ def find_colours(photometry_df: pd.DataFrame, all_bands: np.ndarray, photometric
             raise KeyError(f'{checking_band_true} not yet a supported filter')
         return checking_band_true
 
+    wanted_mags = {'GAIA3.G', 'GAIA3.Grp', '2MASS.J', '2MASS.H', '2MASS.Ks', 'WISE.W1', 'WISE.W2'}
+    wanted_cols = {'GAIA3.G-GAIA3.Grp', 'GAIA3.G-2MASS.J', '2MASS.J-2MASS.Ks', '2MASS.H-2MASS.Ks', 'WISE.W1-WISE.W2'}
+    all_bands = np.array(list(wanted_mags.intersection(all_bands)))
+
     # looking at each band given in turn
     d_cols: Dict[str, np.ndarray] = {}
     for band in all_bands:
@@ -532,6 +536,9 @@ def find_colours(photometry_df: pd.DataFrame, all_bands: np.ndarray, photometric
 
             # don't make a colour of same band
             if band == next_band:
+                continue
+            # only want certain colours defined above
+            elif f'{band}-{next_band}' not in wanted_cols:
                 continue
 
             # validate band
@@ -625,33 +632,29 @@ def parse_photometry(photometry_df: pd.DataFrame, all_bands: np.ndarray, multi_s
     else:
         # initialise a DataFrame grouped by each target
         df_group_photometry = photometry_df.groupby('source')
-        d_new_photometry = {col: np.empty(len(df_group_photometry)) for col in all_bands}
-        d_new_photometry['target'] = np.empty(len(df_group_photometry), dtype=str)
-        df_new_photometry = pd.DataFrame(d_new_photometry)
 
-        # process the photometry of each source
-        p = mp.Pool(processes=mp.cpu_count() - 1 or 1)
-        sources = p.map(one_source_iter, [targetdf for (_, targetdf) in df_group_photometry])
+        sources_list: List[Dict[str, object]] = []  # initialize empty list of sources
 
-        # rearrange columns
-        for i, (target, targetdf) in tqdm(enumerate(df_group_photometry), total=len(df_group_photometry),
-                                          desc='Photometry'):
+        # process photometry of each source
+        with mp.Pool(processes=mp.cpu_count() - 1 or 1) as pool:
+            results = pool.map(one_source_iter, [df for _, df in df_group_photometry])
 
-            specificphoto = sources[i]
-            for key in df_new_photometry.columns:  # over all keys
+        for (target, _), data in tqdm(zip(df_group_photometry, results), total=len(df_group_photometry),
+                                      desc='Photometry'):
 
-                if key == 'target':
-                    df_new_photometry.loc[i, key] = target
+            row_data = {'target': target}
 
-                # for the magnitude columns
-                else:
+            for band in all_bands:
 
-                    try:
-                        df_new_photometry.loc[i, key] = specificphoto.loc['magnitude', key]
+                try:
+                    row_data[band] = data.loc['magnitude', band]
+                except KeyError:
+                    row_data[band] = None
 
-                    # use None as filler value
-                    except KeyError:
-                        df_new_photometry.loc[i, key] = None
+            sources_list.append(row_data)
+
+        df_new_photometry = pd.DataFrame(sources_list)
+
     return df_new_photometry
 
 
@@ -757,6 +760,9 @@ def absolute_magnitudes(df: pd.DataFrame, all_bands: np.ndarray) -> pd.DataFrame
         _abs_mag = np.full_like(m, fill_value=np.nan)
         _abs_mag[mask] = m[mask] + 5 * np.log10(df.parallax[mask]) - 10
         return _abs_mag
+
+    wanted_mags = {'GAIA3.G', '2MASS.J', 'WISE.W1'}
+    all_bands = np.array(list(wanted_mags.intersection(all_bands)))
 
     # create absolute magnitude for each apparent magnitude
     d_magnitudes: Dict[str, np.ndarray] = {}
