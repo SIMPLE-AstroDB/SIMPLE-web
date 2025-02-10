@@ -1,4 +1,4 @@
-astrodbkit2>=0.5.1
+astrodbkit>=2.2
 astropy>=5.2.0,<6
 bokeh==3.0.2
 flask>=3.0,<4

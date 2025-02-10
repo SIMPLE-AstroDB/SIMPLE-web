@@ -35,7 +35,7 @@ If you have changed either the host or port with system arguments, use those ins
 
 ### Updating
 We also recommend keeping up to date with the repo changes, and most importantly, 
-the [astrodbkit2](https://github.com/dr-rodriguez/AstrodbKit2) package:
+the [astrodbkit](https://github.com/astrodbtoolkit/AstrodbKit) package:
 ```bash
 git pull
 pip install -Ur requirements.txt

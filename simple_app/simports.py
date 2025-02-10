@@ -2,7 +2,7 @@
 Importing all packages
 """
 # external packages
-from astrodbkit2.astrodb import Database  # used for pulling out database and querying
+from astrodbkit.astrodb import Database  # used for pulling out database and querying
 from astropy.coordinates import SkyCoord  # coordinates
 from astropy.io import fits  # handling fits files
 import astropy.units as u  # units
