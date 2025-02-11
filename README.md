@@ -42,31 +42,14 @@ pip install -Ur requirements.txt
 ```
 You can also get the latest copy of the SQLite database binary file again with:
 ```bash
-wget https://raw.githubusercontent.com/SIMPLE-AstroDB/SIMPLE-binary/main/SIMPLE.db
+wget https://raw.githubusercontent.com/SIMPLE-AstroDB/SIMPLE-binary/main/SIMPLE.sqlite
 ```
 
 ## Apache Config
 The major requirement for running this program on Apache
 is [`mod_wsgi`](https://flask.palletsprojects.com/en/2.1.x/deploying/mod_wsgi/)
-You will need to edit `/etc/httpd/conf/httpd.conf` by adding the line:
-```
-WSGIApplicationGroup %{GLOBAL}
-```
-Additionally, edit ` /etc/httpd/conf.d/wsgi.conf` with the lines:
-```
-WSGIScriptAlias / <your/path/to/simple>/simple_app.wsgi
-Alias /static <your/path/to/simple>/simple_app/static
-Alias /favicon.ico <your/path/to/simple>/simple_app/static/favicon.ico
-```
-Finally, in the `simple_root` symlink, swap
-`
-.
-`
-for
-`
-<your/path/to/simple>
-`
 
+Refer to our GitHub Wiki pages for more detailed setup instructions.
 
 ## Further Details
 For feedback, questions, or if you've found an error, 
