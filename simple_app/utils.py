@@ -376,7 +376,7 @@ class SQLForm(FlaskForm):
             _: Optional[pd.DataFrame] = db.sql_query(query, fmt='pandas')
 
         # catch these expected errors
-        except (ResourceClosedError, OperationalError, IndexError, SqliteWarning, BadSQLError) as e:
+        except (ResourceClosedError, OperationalError, IndexError, SqliteWarning, BadSQLError, ProgrammingError) as e:
             raise ValidationError('Invalid SQL: ' + str(e))
 
         # any unexpected errors
@@ -944,6 +944,8 @@ def one_df_query(results: pd.DataFrame, table_id: Optional[str] = None, limit_ma
             source_links = []
 
             for source in results.source.values:
+                if not isinstance(source, str):
+                    source = source[0]
                 url_link = quote(source)
                 source_link = f'<a href="/load_solo/{url_link}" target="_blank">{source}</a>'
                 source_links.append(source_link)

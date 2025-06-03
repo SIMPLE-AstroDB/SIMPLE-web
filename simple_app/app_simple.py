@@ -166,7 +166,7 @@ def raw_query():
             results: Optional[pd.DataFrame] = db.sql_query(query, fmt='pandas')
 
         # catch any broken queries (should not activate as will be caught by validation)
-        except (ResourceClosedError, OperationalError, IndexError, SqliteWarning, BadSQLError):
+        except (ResourceClosedError, OperationalError, IndexError, SqliteWarning, BadSQLError, ProgrammingError):
             results = pd.DataFrame()
 
         stringed_results = one_df_query(results)
