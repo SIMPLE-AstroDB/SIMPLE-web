@@ -17,7 +17,7 @@ from bokeh.resources import CDN  # resources for webpage
 from bokeh.themes import built_in_themes, Theme  # appearance of bokeh glyphs
 from bokeh.transform import linear_cmap  # making colour maps
 from flask import (Flask, render_template, jsonify, send_from_directory, redirect, url_for,
-                   Response, abort, request)  # website
+                   Response, abort, request, session)  # website
 from flask_cors import CORS  # cross origin fix (aladin mostly)
 from flask_wtf import FlaskForm  # web forms
 from markdown2 import markdown  # using markdown formatting
