@@ -45,7 +45,6 @@ class SimpleDB(Database):  # this keeps pycharm happy about unresolved reference
                          connection_arguments={'check_same_thread': False})
 
 
-
 class Inventory:
     """
     For use in the solo result page where the inventory of an object is queried, grabs also the RA & Dec
@@ -85,7 +84,7 @@ class Inventory:
         return
 
     @staticmethod
-    def spectra_handle(df: pd.DataFrame, drop_source: bool = True):
+    def spectra_handle(df: pd.DataFrame, drop_source: bool = True, multi_obj: bool = False):
         """
         Handles spectra, converting files to links
 
@@ -95,6 +94,8 @@ class Inventory:
             The table for the spectra
         drop_source: bool
             Switch to keep source in the dataframe
+        multi_obj: bool
+            Switch on multiple objects being looked at or just one individual object
 
         Returns
         -------
@@ -118,7 +119,11 @@ class Inventory:
         df.drop(columns=drop_cols, inplace=True, errors='ignore')
 
         # editing dataframe with nicely formatted columns
-        df['<a href="/write_spectra" target="_blank">download</a>'] = url_links
+        if multi_obj:
+            href_path = 'write_multi_spectra'
+        else:
+            href_path = 'write_spectra'
+        df[f'<a href="/{href_path}" target="_blank">download</a>'] = url_links
         df['observation_date'] = df['observation_date'].dt.date
         return df
 
@@ -992,6 +997,8 @@ def multi_df_query(results: Dict[str, pd.DataFrame], limit_max_rows: bool = Fals
 
         # wrapping the one_df_query method for each table
         for table_name, df in results.items():
+            if table_name == 'Spectra':
+                df = Inventory.spectra_handle(df, False, True)
             stringed_df = one_df_query(df, table_name.lower() + 'table', limit_max_rows)
             d_results[table_name] = stringed_df
     return d_results

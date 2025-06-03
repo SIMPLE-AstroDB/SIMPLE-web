@@ -343,6 +343,28 @@ def create_spectra_files_for_download():
     abort(400, 'Could not download fits')
 
 
+@app_simple.route('/write_multi_spectra', methods=['GET'])
+def create_multi_spectra_files_for_download():
+    """
+    Downloads the spectra files and zips together
+    """
+    query = session.get('query')
+    db = SimpleDB(db_file)
+
+    # search for the spectra within a given free search
+    resultdict: Dict[str, pd.DataFrame] = db.search_string(query, fmt='pandas', verbose=False)
+    spectra_df: pd.DataFrame = resultdict['Spectra']
+
+    # write all spectra for object to zipped file
+    zipped = write_spec_files(spectra_df.access_url.values)
+    if zipped is not None:
+        response = Response(zipped, mimetype='application/zip')
+        response = control_response(response, app_type='zip')
+        return response
+
+    abort(400, 'Could not download fits')
+
+
 @app_simple.route('/write_filt', methods=['GET'])
 def create_file_for_filtered_download():
     """
