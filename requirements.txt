@@ -1,8 +1,8 @@
-astrodbkit>=2.2
+astrodbkit>=1.0
 astropy>=5.2.0,<6
-bokeh==3.0.2
+bokeh==3.4.3
 flask>=3.0,<4
-flask-cors>=4.0,<5
+flask-cors>=6.0
 flask-wtf>=1.2,<2
 markdown2>=2.4,<3
 multiprocess>=0.70,<1
