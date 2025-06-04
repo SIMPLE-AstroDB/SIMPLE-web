@@ -52,18 +52,18 @@ def test_camd_plot(db, test_main_plots, test_get_all_photometry, test_get_all_so
     bad_query = 'thisisabadquery'
     night_sky_theme, js_callbacks = test_main_plots
     d_result: dict = db.inventory(good_query)
-    good_everything = Inventory(d_result)
+    good_everything = Inventory(d_result, db_cs)
     d_result = db.inventory(bad_query)
-    bad_everything = Inventory(d_result)
+    bad_everything = Inventory(d_result, db_cs)
     all_results, all_resultsfull = test_get_all_sources
     all_parallaxes = test_get_all_parallaxes
     all_spectral_types = test_get_all_spectral_types
     good_script, good_div = camd_plot(good_query, good_everything, all_bands, all_resultsfull,
                                       all_parallaxes, all_spectral_types, photometric_filters,
-                                      all_photometry, js_callbacks, night_sky_theme)
+                                      all_photometry, js_callbacks, night_sky_theme, db_cs)
     bad_script, bad_div = camd_plot(bad_query, bad_everything, all_bands, all_resultsfull,
                                     all_parallaxes, all_spectral_types, photometric_filters,
-                                    all_photometry, js_callbacks, night_sky_theme)
+                                    all_photometry, js_callbacks, night_sky_theme, db_cs)
     assert all([type(s) == str for s in (good_script, good_div)])
     assert all([s is None for s in (bad_script, bad_div)])
     return

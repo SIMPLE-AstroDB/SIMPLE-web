@@ -519,7 +519,7 @@ def multi_plot_bokeh(all_results: pd.DataFrame, all_bands: np.ndarray,
 
 def camd_plot(query: str, everything: Inventory, all_bands: np.ndarray, all_results: pd.DataFrame,
               all_parallaxes: pd.DataFrame, all_spectral_types: pd.DataFrame, photometric_filters: pd.DataFrame,
-              all_photometry: pd.DataFrame, js_callbacks: JSCallbacks, night_sky_theme: Theme) -> Tuple[Optional[str],
+              all_photometry: pd.DataFrame, js_callbacks: JSCallbacks, night_sky_theme: Theme, db_file: str) -> Tuple[Optional[str],
                                                                                                         Optional[str]]:
     """
     Creates CAMD plot into html
@@ -546,6 +546,8 @@ def camd_plot(query: str, everything: Inventory, all_bands: np.ndarray, all_resu
         The javascript callbacks for bokeh
     night_sky_theme: Theme
         The theme for bokeh
+    db_file: str
+        The connection string to the database
 
     Returns
     -------
@@ -560,7 +562,7 @@ def camd_plot(query: str, everything: Inventory, all_bands: np.ndarray, all_resu
 
     # retrieve photometry for given object
     try:
-        this_photometry: pd.DataFrame = everything.list_concat('Photometry', False)
+        this_photometry: pd.DataFrame = everything.list_concat('Photometry', db_file, False)
 
         if len(this_photometry) < 4:
             raise KeyError('Not enough photometric entries')
@@ -571,7 +573,7 @@ def camd_plot(query: str, everything: Inventory, all_bands: np.ndarray, all_resu
 
     # look for spectral type
     try:
-        this_spectral_type: pd.DataFrame = everything.list_concat('SpectralTypes', False)
+        this_spectral_type: pd.DataFrame = everything.list_concat('SpectralTypes', db_file, False)
 
     except KeyError:
         this_spectral_type = pd.DataFrame.from_dict(dict(spectral_type_code=[np.nan, ], adopted=[np.nan, ]))
@@ -590,7 +592,7 @@ def camd_plot(query: str, everything: Inventory, all_bands: np.ndarray, all_resu
 
     # attempt to retrieve parallaxes to process absolute magnitudes
     try:
-        this_parallaxes: pd.DataFrame = everything.list_concat('Parallaxes', False)
+        this_parallaxes: pd.DataFrame = everything.list_concat('Parallaxes', db_file, False)
 
     except KeyError:
         pass
