@@ -38,6 +38,7 @@ class SimpleDB(Database):  # this keeps pycharm happy about unresolved reference
     Versions = None
     SpectralTypes = None
     CompanionRelationships = None
+    Publications = None
 
     def __init__(self, connection_string):
         super().__init__(connection_string,
@@ -53,7 +54,8 @@ class Inventory:
     ra: float = 0
     dec: float = 0
 
-    def __init__(self, d_result: Dict[str, List[Dict[str, List[Union[str, float, int]]]]], **kwargs):
+    def __init__(self, d_result: Dict[str, List[Dict[str, List[Union[str, float, int]]]]],
+                 db_file: str, **kwargs):
         """
         Constructor method for Inventory
 
@@ -61,6 +63,8 @@ class Inventory:
         ----------
         d_result: Dict[str, List[Dict[str, List[Union[str, float, int]]]
             The dictionary of all the key: values in a given object inventory
+        db_file: str
+            The connection string to the database
         """
         self.results: Dict[str, List[Dict[str, List[Union[str, float, int]]]]] = d_result
 
@@ -73,12 +77,12 @@ class Inventory:
 
             # convert the table result to Markdown
             low_key: str = key.lower()
-            markdown_output: str = self.list_concat(key, **kwargs)
+            markdown_output: str = self.list_concat(key, db_file, **kwargs)
             setattr(self, low_key, markdown_output)
 
         # retrieve ra and dec from the Sources table, if present
         try:
-            sources: pd.DataFrame = self.list_concat('Sources', return_markdown=False)
+            sources: pd.DataFrame = self.list_concat('Sources', db_file, return_markdown=False)
             self.ra, self.dec = sources.ra[0], sources.dec[0]
         except (KeyError, AttributeError):
             pass
@@ -122,7 +126,7 @@ class Inventory:
         df['observation_date'] = df['observation_date'].dt.date
         return df
 
-    def list_concat(self, key: str, return_markdown: bool = True) -> Union[pd.DataFrame, str]:
+    def list_concat(self, key: str, db_file: str, return_markdown: bool = True) -> Union[pd.DataFrame, str]:
         """
         Concatenates the list for a given key
 
@@ -130,6 +134,8 @@ class Inventory:
         ----------
         key: str
             The key corresponding to the inventory
+        db_file: str
+            The connection string to the database
         return_markdown: bool
             Switch for whether to return either a markdown string or a dataframe
 
@@ -159,6 +165,7 @@ class Inventory:
         if return_markdown:
             if key == 'Spectra':
                 df = self.spectra_handle(df)
+            df = reference_handle(df, db_file)
             df.rename(columns={s: s.replace('_', ' ') for s in df.columns if 'download' not in s}, inplace=True)
             return markdown(df.to_html(index=False, escape=False,
                                        classes='table table-dark table-bordered table-striped'))
@@ -964,7 +971,8 @@ def one_df_query(results: pd.DataFrame, table_id: Optional[str] = None, limit_ma
     return stringed_results
 
 
-def multi_df_query(results: Dict[str, pd.DataFrame], limit_max_rows: bool = False) -> Dict[str, Optional[str]]:
+def multi_df_query(results: Dict[str, pd.DataFrame], db_file: str,
+                   limit_max_rows: bool = False) -> Dict[str, Optional[str]]:
     """
     Handling the output from a query which returns multiple dataframes
 
@@ -972,6 +980,8 @@ def multi_df_query(results: Dict[str, pd.DataFrame], limit_max_rows: bool = Fals
     ----------
     results
         The dictionary of dataframes
+    db_file: str
+        The connection string to the database
     limit_max_rows
         Limit max rows switch
 
@@ -986,13 +996,59 @@ def multi_df_query(results: Dict[str, pd.DataFrame], limit_max_rows: bool = Fals
 
         # make sources table go first if present
         if 'Sources' in results.keys():
-            d_results['Sources'] = one_df_query(results.pop('Sources'), 'sourcestable', limit_max_rows)
+            sources_df = reference_handle(results.pop('Sources'), db_file)
+            d_results['Sources'] = one_df_query(sources_df, 'sourcestable', limit_max_rows)
 
         # wrapping the one_df_query method for each table
         for table_name, df in results.items():
+            df = reference_handle(df, db_file)
             stringed_df = one_df_query(df, table_name.lower() + 'table', limit_max_rows)
             d_results[table_name] = stringed_df
     return d_results
+
+
+def reference_handle(df: pd.DataFrame, db_file: str, multi_dim: bool = False) -> pd.DataFrame:
+    """
+    Handles any references to redirect to ADS via bibcode
+
+    Parameters
+    ----------
+    db_file: str
+        The connection string to the database
+    df
+        Dataframe with references in
+    multi_dim: bool
+        Whether the reference values are multidimensional or not
+
+    Returns
+    -------
+    df: pd.DataFrame
+        Edited dataframe if reference was in columns
+    """
+    if 'reference' not in df.columns:
+        return df
+
+    if not multi_dim:
+        old_reference_values = df.reference.values
+    else:
+        old_reference_values = df.reference.values[:, 0]
+    new_reference_values = []
+
+    db = SimpleDB(db_file)
+    publications_table: pd.DataFrame = db.query(db.Publications).pandas()
+
+    for old_reference in old_reference_values:
+        try:
+            bibcode = publications_table[publications_table.reference == old_reference].bibcode.values[0]
+        except IndexError:  # if no reference match, which only happens on default search view
+            new_reference_values.append(old_reference)
+            continue
+        new_reference = (f'<a href="https://ui.adsabs.harvard.edu/abs/{bibcode}/abstract"'
+                         f' target="_blank">{old_reference}</a>')
+        new_reference_values.append(new_reference)
+
+    df['reference'] = new_reference_values
+    return df
 
 
 def get_filters(db_file: str) -> pd.DataFrame:
