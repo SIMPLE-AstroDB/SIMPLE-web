@@ -290,3 +290,14 @@ function reset_slider (spectra_slide) {
     spectra_slide.change.emit();
 
 }
+
+function reset_dropdown(dropdown_x, dropdown_y) {
+
+    // resetting the dropdown columns when reset button pressed
+    dropdown_x.value = dropdown_x.options[0][0];
+    dropdown_y.value = dropdown_y.options[1][0];
+
+    dropdown_x.change.emit();
+    dropdown_y.change.emit();
+
+}

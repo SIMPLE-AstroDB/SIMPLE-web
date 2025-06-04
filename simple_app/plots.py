@@ -395,6 +395,8 @@ def multi_plot_bokeh(all_results: pd.DataFrame, all_bands: np.ndarray,
                                           args={'full_plot': full_plot, 'full_data': full_cds.data,
                                                 'y_button': _button_y_flip, 'y_axis': _p_colour_colour.yaxis[0],
                                                 'y_range': _p_colour_colour.y_range}))
+        _p_colour_colour.js_on_event('reset', CustomJS(args=dict(dropdown_x=_dropdown_x, dropdown_y=_dropdown_y),
+                                                       code=js_callbacks.reset_dropdown))
         return _p_colour_colour, _button_x_flip, _button_y_flip, _dropdown_x, _dropdown_y
 
     def colour_absolute_magnitude_diagram() -> Tuple[figure, Toggle, Toggle, Select, Select]:
@@ -439,6 +441,8 @@ def multi_plot_bokeh(all_results: pd.DataFrame, all_bands: np.ndarray,
                                                        args={'full_plot': full_mag_plot,
                                                              'full_data': full_cds.data, 'y_button': _button_mag_y_flip,
                                                              'y_axis': _p_camd.yaxis[0], 'y_range': _p_camd.y_range}))
+        _p_camd.js_on_event('reset', CustomJS(args=dict(dropdown_x=_dropdown_mag_x, dropdown_y=_dropdown_mag_y),
+                                              code=js_callbacks.reset_dropdown))
         return _p_camd, _button_mag_x_flip, _button_mag_y_flip, _dropdown_mag_x, _dropdown_mag_y
 
     # gather all necessary data including parallaxes, spectral types and bands
@@ -491,8 +495,8 @@ def multi_plot_bokeh(all_results: pd.DataFrame, all_bands: np.ndarray,
     absmagnames = absmagnames[~np.isin(absmagnames, bad_cols)]
     absmag_shown_name = [name_simplifier(mag) for mag in absmagnames]
     dropdown_menu_mag = [*zip(absmagnames, absmag_shown_name)]
-    y_full_name = absmagnames[0]
-    y_shown_name = absmag_shown_name[0]
+    y_full_name = absmagnames[1]
+    y_shown_name = absmag_shown_name[1]
 
     # camd plot
     p_camd, button_mag_x_flip, button_mag_y_flip, dropdown_mag_x, dropdown_mag_y = colour_absolute_magnitude_diagram()
@@ -681,6 +685,8 @@ def camd_plot(query: str, everything: Inventory, all_bands: np.ndarray, all_resu
                                               args={'full_plot': full_plot, 'this_plot': this_plot,
                                                     'full_data': cds_full.data, 'y_button': button_y_flip,
                                                     'y_axis': p.yaxis[0], 'y_range': p.y_range}))
+    p.js_on_event('reset', CustomJS(args=dict(dropdown_x=dropdown_x, dropdown_y=dropdown_y),
+                                    code=js_callbacks.reset_dropdown))
 
     # creating bokeh layout and html
     plots = column(p, row(dropdown_x,
