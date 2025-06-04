@@ -3,12 +3,16 @@
 {% block content %}
     <div class="container">
         <div class="row table-responsive">
-            <div class="col-11">
+            <div class="col-10">
                 <h1 class="display-2">
                     <a href="{{ url_for('create_files_for_solo_download') }}">
                         {{ query|safe }}
                     </a>
                 </h1>
+            </div>
+            <div class="col-1">
+                <button onclick="window.open('https://simbad.u-strasbg.fr/simbad/sim-basic?Ident={{ query|urlencode }}&submit=SIMBAD+search', '_blank')"
+                        class="btn btn-success" style="float: right" title="Link to SIMBAD">SIMBAD</button>
             </div>
             <div class="col-1">
                 <button onclick="share()" type="button" class="btn btn-success"
