@@ -9,7 +9,7 @@ import astropy.units as u  # units
 from astropy.table import Table  # tables in astropy
 from bokeh.embed import components  # converting python bokeh to javascript
 from bokeh.layouts import row, column  # bokeh displaying nicely
-from bokeh.models import ColumnDataSource, Range1d, CustomJS,\
+from bokeh.models import ColumnDataSource, Range1d, CustomJS, \
     Select, Toggle, TapTool, OpenURL, HoverTool, Span, RangeSlider, Label, ColorBar, FixedTicker  # bokeh models
 from bokeh.palettes import Colorblind8, Turbo256  # plotting palettes
 from bokeh.plotting import figure, curdoc  # bokeh plotting
@@ -42,6 +42,6 @@ import requests  # accessing internet
 from shutil import copy  # copying files
 import sys  # system arguments
 from time import strftime, localtime  # time stuff for naming files
-from typing import Tuple, Optional, List, Union, Dict  # type hinting (good in IDEs)
+from typing import Tuple, Optional, List, Union, Dict, Generator  # type hinting (good in IDEs)
 from urllib.parse import quote  # handling strings into url friendly form
 from zipfile import ZipFile  # zipping files together

@@ -202,7 +202,7 @@ class CoordQueryForm(CSRFOverride):
     query = StringField('Query by coordinate within radius:', id='mainsearchfield')  # searchbar
     submit = SubmitField('Query', id='querybutton')  # clicker button to send request
 
-    def __init__(self, *args, **kwargs):
+    def __init__(self, *args, **kwargs: str):
         super(CoordQueryForm, self).__init__(*args, **kwargs)
         self.db_file: str = kwargs['db_file']
         return
@@ -341,7 +341,7 @@ class SQLForm(FlaskForm):
     sqlfield = TextAreaField('Enter SQL query here:', id='rawsqlarea', render_kw={'rows': '4'})
     submit = SubmitField('Query', id='querybutton')
 
-    def __init__(self, *args, **kwargs):
+    def __init__(self, *args, **kwargs: str):
         super(SQLForm, self).__init__(*args, **kwargs)
         self.db_file: str = kwargs['db_file']
         return
@@ -613,6 +613,7 @@ def one_source_iter(one_photometry_df: pd.DataFrame):
     return this_new_phot
 
 
+# noinspection PyTypeChecker
 def parse_photometry(photometry_df: pd.DataFrame, all_bands: np.ndarray, multi_source: bool = False) -> pd.DataFrame:
     """
     Parses the photometry dataframe handling multiple references for same magnitude
@@ -1066,7 +1067,7 @@ def control_response(response: Response, key: str = '', app_type: str = 'csv') -
     return response
 
 
-def write_file(results: pd.DataFrame) -> str:
+def write_file(results: pd.DataFrame) -> Generator:
     """
     Creates a csv file ready for download on a line by line basis
 

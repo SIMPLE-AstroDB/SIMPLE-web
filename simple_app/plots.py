@@ -333,14 +333,14 @@ def multi_plot_bokeh(all_results: pd.DataFrame, all_bands: np.ndarray,
         _p_sky = figure(title='Sky Plot', outer_height=500,
                         active_scroll='wheel_zoom', active_drag='box_zoom',
                         tools='pan,wheel_zoom,box_zoom,box_select,reset',
-                        sizing_mode='stretch_width', x_range=[-180, 180], y_range=[-90, 90])
+                        sizing_mode='stretch_width', x_range=Range1d(-180, 180), y_range=Range1d(-90, 90))
 
         # background for skyplot
         _p_sky.ellipse(x=0, y=0, width=360, height=180, color='#444444', name='background')
 
         # scatter plot for sky plot
-        circle = _p_sky.circle(source=full_cds, x='ra_projected', y='dec_projected',
-                               size=6, name='circle', color='ghostwhite')
+        circle = _p_sky.scatter(marker='circle', source=full_cds, x='ra_projected', y='dec_projected',
+                                size=6, name='circle', color='ghostwhite')
 
         # bokeh tools for sky plot
         this_hover = HoverTool(renderers=[circle, ], tooltips=tooltips)
@@ -367,7 +367,8 @@ def multi_plot_bokeh(all_results: pd.DataFrame, all_bands: np.ndarray,
         _p_colour_colour = bokeh_formatter(_p_colour_colour)
 
         # scatter plot for colour-colour
-        full_plot = _p_colour_colour.circle(x=x_full_name, y=y_full_name, source=full_cds, size=6, color=cmap)
+        full_plot = _p_colour_colour.scatter(marker='circle', x=x_full_name, y=y_full_name, source=full_cds, size=6,
+                                             color=cmap)
 
         # colour bar for colour-colour plot
         cbar = ColorBar(color_mapper=cmap['transform'], label_standoff=12,
@@ -415,7 +416,8 @@ def multi_plot_bokeh(all_results: pd.DataFrame, all_bands: np.ndarray,
         _p_camd = bokeh_formatter(_p_camd)
 
         # scatter plot for camd
-        full_mag_plot = _p_camd.circle(x=x_full_name, y=y_full_name, source=full_cds, size=6, color=cmap)
+        full_mag_plot = _p_camd.scatter(marker='circle', x=x_full_name, y=y_full_name, source=full_cds, size=6,
+                                        color=cmap)
 
         # colour bar for camd
         cbar = ColorBar(color_mapper=cmap['transform'], label_standoff=12,
@@ -652,13 +654,13 @@ def camd_plot(query: str, everything: Inventory, all_bands: np.ndarray, all_resu
 
     # scatter plot for given object
     this_cds = ColumnDataSource(data=this_photometry)
-    this_plot = p.square(x=x_full_name, y=y_full_name, source=this_cds,
-                         color=cmap, size=20)  # plot for this object
+    this_plot = p.scatter(marker='square', x=x_full_name, y=y_full_name, source=this_cds,
+                          color=cmap, size=20)  # plot for this object
 
     # scatter plot for all data
     cds_full = ColumnDataSource(data=all_results_full)  # bokeh cds object
-    full_plot = p.circle(x=x_full_name, y=y_full_name, source=cds_full,
-                         color=cmap, alpha=0.5, size=6)  # plot all objects
+    full_plot = p.scatter(marker='circle', x=x_full_name, y=y_full_name, source=cds_full,
+                          color=cmap, alpha=0.5, size=6)  # plot all objects
     full_plot.level = 'underlay'  # put full plot underneath this plot
 
     # colour bar
@@ -709,6 +711,6 @@ def main_plots():
 
 
 if __name__ == '__main__':
-    ARGS, DB_FILE, PHOTOMETRIC_FILTERS, ALL_RESULTS, ALL_RESULTS_FULL, VERSION_STR,\
+    ARGS, DB_FILE, PHOTOMETRIC_FILTERS, ALL_RESULTS, ALL_RESULTS_FULL, VERSION_STR, \
         ALL_PHOTO, ALL_BANDS, ALL_PLX, ALL_SPTS = main_utils()
     NIGHTSKYTHEME, JSCALLBACKS = main_plots()
