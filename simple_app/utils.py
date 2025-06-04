@@ -45,7 +45,6 @@ class SimpleDB(Database):  # this keeps pycharm happy about unresolved reference
                          connection_arguments={'check_same_thread': False})
 
 
-
 class Inventory:
     """
     For use in the solo result page where the inventory of an object is queried, grabs also the RA & Dec
@@ -85,7 +84,7 @@ class Inventory:
         return
 
     @staticmethod
-    def spectra_handle(df: pd.DataFrame, drop_source: bool = True):
+    def spectra_handle(df: pd.DataFrame, drop_source: bool = True, multi_obj: bool = False):
         """
         Handles spectra, converting files to links
 
@@ -95,6 +94,8 @@ class Inventory:
             The table for the spectra
         drop_source: bool
             Switch to keep source in the dataframe
+        multi_obj: bool
+            Switch on multiple objects being looked at or just one individual object
 
         Returns
         -------
@@ -118,7 +119,11 @@ class Inventory:
         df.drop(columns=drop_cols, inplace=True, errors='ignore')
 
         # editing dataframe with nicely formatted columns
-        df['<a href="/write_spectra" target="_blank">download</a>'] = url_links
+        if multi_obj:
+            href_path = 'write_multi_spectra'
+        else:
+            href_path = 'write_spectra'
+        df[f'<a href="/{href_path}" target="_blank">download</a>'] = url_links
         df['observation_date'] = df['observation_date'].dt.date
         return df
 
@@ -197,7 +202,7 @@ class CoordQueryForm(CSRFOverride):
     query = StringField('Query by coordinate within radius:', id='mainsearchfield')  # searchbar
     submit = SubmitField('Query', id='querybutton')  # clicker button to send request
 
-    def __init__(self, *args, **kwargs):
+    def __init__(self, *args, **kwargs: str):
         super(CoordQueryForm, self).__init__(*args, **kwargs)
         self.db_file: str = kwargs['db_file']
         return
@@ -336,7 +341,7 @@ class SQLForm(FlaskForm):
     sqlfield = TextAreaField('Enter SQL query here:', id='rawsqlarea', render_kw={'rows': '4'})
     submit = SubmitField('Query', id='querybutton')
 
-    def __init__(self, *args, **kwargs):
+    def __init__(self, *args, **kwargs: str):
         super(SQLForm, self).__init__(*args, **kwargs)
         self.db_file: str = kwargs['db_file']
         return
@@ -376,7 +381,7 @@ class SQLForm(FlaskForm):
             _: Optional[pd.DataFrame] = db.sql_query(query, fmt='pandas')
 
         # catch these expected errors
-        except (ResourceClosedError, OperationalError, IndexError, SqliteWarning, BadSQLError) as e:
+        except (ResourceClosedError, OperationalError, IndexError, SqliteWarning, BadSQLError, ProgrammingError) as e:
             raise ValidationError('Invalid SQL: ' + str(e))
 
         # any unexpected errors
@@ -394,13 +399,15 @@ class JSCallbacks:
     button_flip = ''
     normalisation_slider = ''
     reset_slider = ''
+    reset_dropdown = ''
 
     def __init__(self):
         """
         Loads simple_callbacks and unpacks the js functions within, to the python variables into instance attributes
         """
         # open js functions script
-        js_func_names = ('dropdown_x_js', 'dropdown_y_js', 'button_flip', 'normalisation_slider', 'reset_slider')
+        js_func_names = ('dropdown_x_js', 'dropdown_y_js', 'button_flip', 'normalisation_slider',
+                         'reset_slider', 'reset_dropdown')
         with open('simple_app/simple_callbacks.js', 'r') as func_call:
             which_var = ''
             out_string = """"""
@@ -606,6 +613,7 @@ def one_source_iter(one_photometry_df: pd.DataFrame):
     return this_new_phot
 
 
+# noinspection PyTypeChecker
 def parse_photometry(photometry_df: pd.DataFrame, all_bands: np.ndarray, multi_source: bool = False) -> pd.DataFrame:
     """
     Parses the photometry dataframe handling multiple references for same magnitude
@@ -944,6 +952,8 @@ def one_df_query(results: pd.DataFrame, table_id: Optional[str] = None, limit_ma
             source_links = []
 
             for source in results.source.values:
+                if not isinstance(source, str):
+                    source = source[0]
                 url_link = quote(source)
                 source_link = f'<a href="/load_solo/{url_link}" target="_blank">{source}</a>'
                 source_links.append(source_link)
@@ -990,6 +1000,8 @@ def multi_df_query(results: Dict[str, pd.DataFrame], limit_max_rows: bool = Fals
 
         # wrapping the one_df_query method for each table
         for table_name, df in results.items():
+            if table_name == 'Spectra':
+                df = Inventory.spectra_handle(df, False, True)
             stringed_df = one_df_query(df, table_name.lower() + 'table', limit_max_rows)
             d_results[table_name] = stringed_df
     return d_results
@@ -1055,7 +1067,7 @@ def control_response(response: Response, key: str = '', app_type: str = 'csv') -
     return response
 
 
-def write_file(results: pd.DataFrame) -> str:
+def write_file(results: pd.DataFrame) -> Generator:
     """
     Creates a csv file ready for download on a line by line basis
 
