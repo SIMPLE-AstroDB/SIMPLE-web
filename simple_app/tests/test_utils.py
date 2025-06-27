@@ -130,11 +130,13 @@ def test_one_df_query(db):
     assert db
     bad_query = 'thisisabadquery'
     good_query = 'twa'
+    
     # test search object
     results = db.search_object(bad_query, fmt='pandas')
     assert not len(results)  # bad query should return empty table
     results = db.search_object(good_query, fmt='pandas')
     assert isinstance(results, pd.DataFrame)
+
     # test search string
     with pytest.raises(KeyError):
         ref_results: Optional[dict] = db.search_string(bad_query, fmt='pandas', verbose=False)
@@ -146,9 +148,11 @@ def test_one_df_query(db):
     filtered_results: Optional[pd.DataFrame] = results.merge(ref_sources, on='source', suffixes=(None, 'extra'))
     assert isinstance(filtered_results, pd.DataFrame)
     filtered_results.drop(columns=list(filtered_results.filter(regex='extra')), inplace=True)
+
     # test one_df_query
     stringed_results = one_df_query(filtered_results)
     assert isinstance(stringed_results, str)
+
     # test sql query
     with pytest.raises(OperationalError):
         _ = db.sql_query('notasqlquery', fmt='pandas')
@@ -156,11 +160,14 @@ def test_one_df_query(db):
         _ = db.sql_query('select * from NotaTable', fmt='pandas')
     with pytest.raises(OperationalError):
         _ = db.sql_query('select * from Sources where notacolumn == "asdf"', fmt='pandas')
-    raw_sql_query = db.sql_query('select * from Sources where source == "Luhman 16"', fmt='pandas')
+
+    # Using a source that returns a single row
+    raw_sql_query = db.sql_query('select * from Sources where source == "WISE J104915.57-531906.1"', fmt='pandas')
     assert isinstance(raw_sql_query, pd.DataFrame)
+
+    # Testing conversion to a markdown string
     stringed_results = one_df_query(raw_sql_query)
     assert isinstance(stringed_results, str)
-    return
 
 
 def test_multi_df_query(db):
