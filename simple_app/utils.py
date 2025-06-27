@@ -1186,14 +1186,14 @@ def main_utils():
 
 
 REFERENCE_TABLES = [
-    'Publications',
-    'Telescopes',
-    'Instruments',
-    'Modes',
-    'PhotometryFilters',
-    'Versions',
-    'Parameters',
-    'Regimes'
+    "Publications",
+    "Telescopes",
+    "Instruments",
+    "PhotometryFilters",
+    "Versions",
+    "Parameters",
+    "Regimes",
+    "CompanionList"
 ]
 
 if __name__ == '__main__':
