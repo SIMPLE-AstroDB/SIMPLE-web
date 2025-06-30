@@ -45,8 +45,8 @@ def search():
     if (query := form.search.data) is None:  # content in main searchbar
         query = ''
 
-    curdoc().template_variables['query'] = query  # add query to bokeh curdoc
-    curdoc().template_variables['ref_query'] = ref_query  # add query to bokeh curdoc
+    session['query'] = query  # add query to bokeh curdoc
+    session['ref_query'] = ref_query  # add query to bokeh curdoc
     db = SimpleDB(db_file)  # open database
 
     # object search function
@@ -96,7 +96,7 @@ def coordinate_query():
         if (query := form.query.data) is None:
             query = ''
 
-        curdoc().template_variables['query'] = query
+        session['query'] = query
         db = SimpleDB(db_file)
 
         # parse query into ra, dec, radius
@@ -126,7 +126,7 @@ def full_text_search():
         query = ''
         limmaxrows = True
 
-    curdoc().template_variables['query'] = query
+    session['query'] = query
     db = SimpleDB(db_file)
 
     # search through the tables using the given query
@@ -159,14 +159,14 @@ def raw_query():
         if (query := form.sqlfield.data) is None:
             query = ''
 
-        curdoc().template_variables['query'] = query
+        session['query'] = query
 
         # attempt to query the database
         try:
             results: Optional[pd.DataFrame] = db.sql_query(query, fmt='pandas')
 
         # catch any broken queries (should not activate as will be caught by validation)
-        except (ResourceClosedError, OperationalError, IndexError, SqliteWarning, BadSQLError):
+        except (ResourceClosedError, OperationalError, IndexError, SqliteWarning, BadSQLError, ProgrammingError):
             results = pd.DataFrame()
 
         stringed_results = one_df_query(results)
@@ -186,7 +186,7 @@ def solo_result(query: str):
     query: str
         The query -- full match to a main ID
     """
-    curdoc().template_variables['query'] = query
+    session['query'] = query
     db = SimpleDB(db_file)
 
     # search database for given object
@@ -196,7 +196,6 @@ def solo_result(query: str):
             raise KeyError
     except KeyError:
         abort(404, f'"{query}" does match any result in SIMPLE!')
-        return
     everything = Inventory(resultdict)
 
     # create camd and spectra plots
@@ -281,7 +280,7 @@ def create_file_for_download(key: str):
     key: str
         The dataframe string
     """
-    query = curdoc().template_variables['query']
+    query: str = session.get('query')
     db = SimpleDB(db_file)
 
     # search for a given object and a given key
@@ -303,7 +302,7 @@ def create_files_for_solo_download():
     """
     Creates and downloads all dataframes from solo results
     """
-    query = curdoc().template_variables['query']
+    query = session.get('query')
     db = SimpleDB(db_file)
 
     # search for a given object
@@ -326,7 +325,7 @@ def create_spectra_files_for_download():
     """
     Downloads the spectra files and zips together
     """
-    query = curdoc().template_variables['query']
+    query = session.get('query')
     db = SimpleDB(db_file)
 
     # search for a given object and specifically its spectra
@@ -344,13 +343,35 @@ def create_spectra_files_for_download():
     abort(400, 'Could not download fits')
 
 
+@app_simple.route('/write_multi_spectra', methods=['GET'])
+def create_multi_spectra_files_for_download():
+    """
+    Downloads the spectra files and zips together
+    """
+    query = session.get('query')
+    db = SimpleDB(db_file)
+
+    # search for the spectra within a given free search
+    resultdict: Dict[str, pd.DataFrame] = db.search_string(query, fmt='pandas', verbose=False)
+    spectra_df: pd.DataFrame = resultdict['Spectra']
+
+    # write all spectra for object to zipped file
+    zipped = write_spec_files(spectra_df.access_url.values)
+    if zipped is not None:
+        response = Response(zipped, mimetype='application/zip')
+        response = control_response(response, app_type='zip')
+        return response
+
+    abort(400, 'Could not download fits')
+
+
 @app_simple.route('/write_filt', methods=['GET'])
 def create_file_for_filtered_download():
     """
     Creates and downloads the shown dataframe when in filtered search
     """
-    query = curdoc().template_variables['query']
-    refquery = curdoc().template_variables['ref_query']
+    query = session.get('query')
+    refquery = session.get('ref_query')
     db = SimpleDB(db_file)
 
     # search for a given object and a full text search at the same time
@@ -373,7 +394,7 @@ def create_file_for_coordinate_download():
     """
     Creates and downloads the shown dataframe when in coordinate search
     """
-    query = curdoc().template_variables['query']
+    query = session.get('query')
     db = SimpleDB(db_file)
 
     # query the database for given coordinates and parse those coordinates
@@ -399,12 +420,12 @@ def create_file_for_full_download(key: str):
     key: str
         The dataframe string
     """
-    query = curdoc().template_variables['query']
+    query = session.get('query')
     db = SimpleDB(db_file)
 
     # search database with a free-text search and specific table
     resultdict: Dict[str, pd.DataFrame] = db.search_string(query, fmt='pandas', verbose=False)
-
+    print(query, key, resultdict.keys())
     # write to csv
     if key in resultdict:
         results: pd.DataFrame = resultdict[key]
@@ -420,7 +441,7 @@ def create_files_for_multi_download():
     """
     Creates and downloads all dataframes from full results
     """
-    query = curdoc().template_variables['query']
+    query = session.get('query')
     db = SimpleDB(db_file)
 
     # search with full-text search
@@ -437,7 +458,7 @@ def create_file_for_sql_download():
     """
     Creates and downloads the shown dataframe when in sql query
     """
-    query = curdoc().template_variables['query']
+    query = session.get('query')
     db = SimpleDB(db_file)
 
     # query database via sql
