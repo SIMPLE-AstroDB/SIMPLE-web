@@ -106,6 +106,7 @@ def coordinate_query():
 
         # submit query
         results: pd.DataFrame = db.query_region(c, fmt='pandas', radius=radius)  # query
+        results = reference_handle(results, db_file)
         stringed_results = one_df_query(results)
         return render_template('coordinate_query.html', form=form, query=query, results=stringed_results,
                                version_str=version_str)
@@ -131,7 +132,7 @@ def full_text_search():
 
     # search through the tables using the given query
     results: Dict[str, pd.DataFrame] = db.search_string(query, fmt='pandas', verbose=False)
-    resultsout = multi_df_query(results, limmaxrows)
+    resultsout = multi_df_query(results, db_file, limmaxrows)
 
     return render_template('full_text_search.html', form=form, version_str=version_str,
                            results=resultsout, query=query)
@@ -169,6 +170,7 @@ def raw_query():
         except (ResourceClosedError, OperationalError, IndexError, SqliteWarning, BadSQLError):
             results = pd.DataFrame()
 
+        results = reference_handle(results, db_file, True)
         stringed_results = one_df_query(results)
         return render_template('raw_query.html', form=form, results=stringed_results, version_str=version_str)
 
@@ -197,11 +199,11 @@ def solo_result(query: str):
     except KeyError:
         abort(404, f'"{query}" does match any result in SIMPLE!')
         return
-    everything = Inventory(resultdict)
+    everything = Inventory(resultdict, db_file)
 
     # create camd and spectra plots
     scriptcmd, divcmd = camd_plot(query, everything, all_bands, all_results_full, all_parallaxes, all_spectral_types,
-                                  photometric_filters, all_photometry, js_callbacks, night_sky_theme)
+                                  photometric_filters, all_photometry, js_callbacks, night_sky_theme, db_file)
     scriptspectra, divspectra, nfail, failstr = spectra_plot(query, db_file, night_sky_theme, js_callbacks)
 
     query = query.upper()
@@ -286,7 +288,7 @@ def create_file_for_download(key: str):
 
     # search for a given object and a given key
     resultdict: dict = db.inventory(query)
-    everything = Inventory(resultdict, return_markdown=False)
+    everything = Inventory(resultdict, db_file, return_markdown=False)
 
     # writes table to csv
     if key in resultdict:
@@ -331,7 +333,7 @@ def create_spectra_files_for_download():
 
     # search for a given object and specifically its spectra
     resultdict: dict = db.inventory(query)
-    everything = Inventory(resultdict, return_markdown=False)
+    everything = Inventory(resultdict, db_file, return_markdown=False)
     results: pd.DataFrame = getattr(everything, 'spectra')
 
     # write all spectra for object to zipped file

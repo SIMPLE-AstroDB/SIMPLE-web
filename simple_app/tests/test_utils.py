@@ -96,7 +96,7 @@ def test_inventory(db):
     good_query = '2MASS J00192626+4614078'
     d_results: dict = db.inventory(good_query)
     assert len(d_results)
-    everything = Inventory(d_results)
+    everything = Inventory(d_results, db_cs)
     assert all([hasattr(everything, s) for s in
                 ('photometry', 'sources', 'names', 'spectra', 'ra', 'dec', 'propermotions')])
     return
@@ -181,7 +181,7 @@ def test_multi_df_query(db):
     assert isinstance(results, dict)
     assert 'Sources' in results
     assert isinstance(results['Sources'], pd.DataFrame)
-    results_out = multi_df_query(results)
+    results_out = multi_df_query(results, db_cs)
     assert isinstance(results_out, dict)
     assert 'Sources' in results_out
     assert isinstance(results_out['Sources'], str)
