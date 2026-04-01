@@ -3,6 +3,17 @@ The static functions for various calculations and required parameters
 """
 from .simports import *
 
+REFERENCE_TABLES = [
+    "Publications",
+    "Telescopes",
+    "Instruments",
+    "PhotometryFilters",
+    "Versions",
+    "Parameters",
+    "RegimeList",
+    "CompanionList"
+]
+
 
 def sys_args():
     """
@@ -1252,17 +1263,6 @@ def main_utils():
     return _args, _db_file, _phot_filters, _all_results, _all_results_full, _versionstr, \
         _all_photometry, _all_bands, _all_plx, _all_spts
 
-
-REFERENCE_TABLES = [
-    "Publications",
-    "Telescopes",
-    "Instruments",
-    "PhotometryFilters",
-    "Versions",
-    "Parameters",
-    "Regimes",
-    "CompanionList"
-]
 
 if __name__ == '__main__':
     ARGS, DB_FILE, PHOTOMETRIC_FILTERS, ALL_RESULTS, ALL_RESULTS_FULL, VERSION_STR, \
