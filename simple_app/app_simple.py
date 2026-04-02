@@ -170,12 +170,15 @@ def raw_query():
         except (ResourceClosedError, OperationalError, IndexError, SqliteWarning, BadSQLError, ProgrammingError):
             results = pd.DataFrame()
 
-        results = reference_handle(results, db_file, True)
+        results = reference_handle(results, db_file)
+        res_len = len(results)
         stringed_results = one_df_query(results)
-        return render_template('raw_query.html', form=form, results=stringed_results, version_str=version_str)
+        return render_template('raw_query.html', form=form, results=stringed_results, res_len=res_len,
+                               version_str=version_str)
 
     else:
-        return render_template('raw_query.html', form=form, results=None, query='', version_str=version_str)
+        return render_template('raw_query.html', form=form, results=None, res_len=0, query='',
+                               version_str=version_str)
 
 
 @app_simple.route('/solo_result/<query>')

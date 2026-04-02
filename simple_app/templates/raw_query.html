@@ -85,10 +85,18 @@
     <div class="container table-responsive">
         {% if query != '' and results is not none %}
             <h2 class="display-3"><a href="{{ url_for('create_file_for_sql_download') }}">Results</a>:</h2>
+            {% if res_len > 10_000 %}
+                <p class="display-6">There are a large number of rows returned ({{ res_len }}),
+                please be patient whilst the table constructs itself.
+                You may wish to consider downloading the database and querying locally. </p>
+            {% endif %}
+            <p class="display-6">{{ results|safe }}</p>
         {% else %}
             <h2 class="display-3">Results:</h2>
+            {% if query != '' and results is none %}
+                <p class="display-5">No results found.</p>
+            {% endif %}
         {% endif %}
-        <p class="display-6">{{ results|safe if results is not none }}</p>
         {% if query != '' %}
         <p class="display-6">Are we missing any expected data? Please open an
             <a href="https://github.com/SIMPLE-AstroDB/SIMPLE-db/issues/new?assignees=&labels=data+ingestion&projects=&template=missing-source.md&title=Ingest+request%3A+%3Csource+name%3E" target="_blank">

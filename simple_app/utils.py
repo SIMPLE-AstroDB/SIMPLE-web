@@ -1019,7 +1019,7 @@ def multi_df_query(results: Dict[str, pd.DataFrame], db_file: str,
     return d_results
 
 
-def reference_handle(df: pd.DataFrame, db_file: str, multi_dim: bool = False) -> pd.DataFrame:
+def reference_handle(df: pd.DataFrame, db_file: str) -> pd.DataFrame:
     """
     Handles any references to redirect to ADS via bibcode
 
@@ -1029,8 +1029,6 @@ def reference_handle(df: pd.DataFrame, db_file: str, multi_dim: bool = False) ->
         The connection string to the database
     df
         Dataframe with references in
-    multi_dim: bool
-        Whether the reference values are multidimensional or not
 
     Returns
     -------
@@ -1040,10 +1038,7 @@ def reference_handle(df: pd.DataFrame, db_file: str, multi_dim: bool = False) ->
     if 'reference' not in df.columns:
         return df
 
-    if not multi_dim:
-        old_reference_values = df.reference.values
-    else:
-        old_reference_values = df.reference.values[:, 0]
+    old_reference_values = np.atleast_2d(df.reference.values)[0]
     new_reference_values = []
 
     db = SimpleDB(db_file)
