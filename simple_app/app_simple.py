@@ -474,6 +474,17 @@ def create_file_for_sql_download():
     return response
 
 
+@app_simple.route('/download_sqlite', methods=['GET'])
+def download_sqlite():
+    """
+    Downloads the SIMPLE.db file.
+    """
+    local_db_file = db_file.replace('sqlite:///', '')
+    directory = os.path.dirname(local_db_file) or '..'  # code runs in simple_app dir, we keep the binary one dir up
+    filename = os.path.basename(local_db_file)
+    return send_from_directory(directory, filename, as_attachment=True)
+
+
 args, db_file, photometric_filters, all_results, all_results_full, version_str, \
     all_photometry, all_bands, all_parallaxes, all_spectral_types = main_utils()
 night_sky_theme, js_callbacks = main_plots()
