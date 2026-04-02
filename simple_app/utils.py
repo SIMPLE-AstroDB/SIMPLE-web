@@ -3,17 +3,6 @@ The static functions for various calculations and required parameters
 """
 from .simports import *
 
-REFERENCE_TABLES = [
-    "Publications",
-    "Telescopes",
-    "Instruments",
-    "PhotometryFilters",
-    "Versions",
-    "Parameters",
-    "RegimeList",
-    "CompanionList"
-]
-
 
 def sys_args():
     """

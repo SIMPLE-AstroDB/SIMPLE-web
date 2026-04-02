@@ -67,3 +67,4 @@ from sqlalchemy.exc import OperationalError, ProgrammingError, ResourceClosedErr
 from tqdm import tqdm  # progress bars
 from werkzeug.exceptions import HTTPException  # underlying http
 from wtforms import StringField, SubmitField, TextAreaField, ValidationError  # web forms
+from simple import REFERENCE_TABLES
