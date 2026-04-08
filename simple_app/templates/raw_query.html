@@ -51,6 +51,24 @@
                             using (source)<br>
                             where source like "%twa%"
                         </li>
+                        <li>
+                            select * from SpectralTypes<br>
+                            join Spectra using (source)<br>
+                            where spectral_type_string like "%sd%"
+                        </li>
+                        <li>
+                            select * from SpectralTypes<br>
+                            join Spectra using (source)<br>
+                            where (spectral_type_string like "%L%" or<br>
+                            spectral_type_string like "%T%" or<br>
+                            spectral_type_string like "%Y%") and<br>
+                            instrument like "SpeX"
+                        </li>
+                        <li>
+                            select * from Spectra<br>
+                            where telescope like "JWST"<br>
+                            and instrument like "NIRspec"
+                        </li>
                     </ul>
                     Note that the query backend is SQLite, be aware of any
                     <a href="https://www.sqlite.org/lang_keywords.html" target="_blank"> syntax differences</a>.
