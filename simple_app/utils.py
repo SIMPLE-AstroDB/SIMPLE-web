@@ -1079,6 +1079,29 @@ def get_filters(db_file: str) -> pd.DataFrame:
     return phot_filters
 
 
+def zip_spectra(url_values: pd.Series) -> Optional[Response]:
+    """
+    Zipping multiple spectra together into a single zip file
+
+    Parameters
+    ----------
+    url_values
+        The series of URLs to be zipped
+
+    Returns
+    -------
+    response
+        The zipped files
+    """
+    zipped = write_spec_files(url_values.values)
+    if zipped is not None:
+        response = Response(zipped, mimetype='application/zip')
+        response = control_response(response, app_type='zip')
+        return response
+
+    return None
+
+
 def control_response(response: Response, key: str = '', app_type: str = 'csv') -> Response:
     """
     Edits the headers of a flask response

@@ -170,11 +170,17 @@ def raw_query():
         except (ResourceClosedError, OperationalError, IndexError, SqliteWarning, BadSQLError, ProgrammingError):
             results = pd.DataFrame()
 
+        if 'access_url' in results.columns:
+            url_links = [f'<a href="{url}" target="_blank">Link</a>' for url in results.access_url.values]
+            results.drop(columns=['access_url'], inplace=True)
+            download_col = '<a href="/write_sql_spectra" target="_blank">download</a>'
+            results.insert(1, download_col, url_links)
+
         results = reference_handle(results, db_file)
         res_len = len(results)
         stringed_results = one_df_query(results)
-        return render_template('raw_query.html', form=form, results=stringed_results, res_len=res_len,
-                               version_str=version_str)
+        return render_template('raw_query.html', form=form, results=stringed_results, query=query,
+                               res_len=res_len, version_str=version_str)
 
     else:
         return render_template('raw_query.html', form=form, results=None, res_len=0, query='',
@@ -341,13 +347,8 @@ def create_spectra_files_for_download():
     results: pd.DataFrame = getattr(everything, 'spectra')
 
     # write all spectra for object to zipped file
-    zipped = write_spec_files(results.access_url.values)
-    if zipped is not None:
-        response = Response(zipped, mimetype='application/zip')
-        response = control_response(response, app_type='zip')
-        return response
-
-    abort(400, 'Could not download fits')
+    response = zip_spectra(results.access_url)
+    return response if response is not None else abort(400, 'Could not download fits')
 
 
 @app_simple.route('/write_multi_spectra', methods=['GET'])
@@ -363,13 +364,27 @@ def create_multi_spectra_files_for_download():
     spectra_df: pd.DataFrame = resultdict['Spectra']
 
     # write all spectra for object to zipped file
-    zipped = write_spec_files(spectra_df.access_url.values)
-    if zipped is not None:
-        response = Response(zipped, mimetype='application/zip')
-        response = control_response(response, app_type='zip')
-        return response
+    response = zip_spectra(spectra_df.access_url)
+    return response if response is not None else abort(400, 'Could not download fits')
 
-    abort(400, 'Could not download fits')
+
+@app_simple.route('/write_sql_spectra', methods=['GET', 'POST'])
+def create_sql_spectra_files_for_download():
+    """
+    Downloads all spectra from a raw SQL query if an access_url column is present.
+    """
+    query = session.get('query')
+    db = SimpleDB(db_file)
+
+    # query database via sql
+    results: Optional[pd.DataFrame] = db.sql_query(query, fmt='pandas')
+
+    if 'access_url' not in results.columns:
+        abort(400, 'No url column in SQL results')
+
+    # write all spectra in SQL result to zipped file
+    response = zip_spectra(results.access_url)
+    return response if response is not None else abort(400, 'Could not download fits')
 
 
 @app_simple.route('/write_filt', methods=['GET'])
