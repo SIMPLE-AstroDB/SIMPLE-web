@@ -1102,6 +1102,67 @@ def zip_spectra(url_values: pd.Series) -> Optional[Response]:
     return None
 
 
+def get_url_filename(url: str) -> str:
+    """
+    Attempts to infer a filename from a URL path.
+
+    Parameters
+    ----------
+    url
+        URL or path-like string
+
+    Returns
+    -------
+    filename
+        Inferred filename, or empty string if it cannot be inferred.
+    """
+    parsed = urlparse(url)
+    return unquote(os.path.basename(parsed.path))
+
+
+def get_header_filename(content_disposition: Optional[str]) -> str:
+    """
+    Attempts to infer a filename from a Content-Disposition header value.
+
+    Parameters
+    ----------
+    content_disposition
+        Content-Disposition header string
+
+    Returns
+    -------
+    filename
+        Inferred filename, or empty string if it cannot be inferred.
+    """
+    if not content_disposition:
+        return ''
+
+    parts = [part.strip() for part in content_disposition.split(';')]
+    for part in parts:
+        if part.startswith('filename='):
+            return part.replace('filename=', '').strip('"')
+        if part.startswith("filename*="):
+            filename_star = part.replace("filename*=", "")
+            if "''" in filename_star:
+                filename_star = filename_star.split("''", 1)[1]
+            return unquote(filename_star.strip('"'))
+    return ''
+
+
+def unique_filename(filename: str, existing: set) -> str:
+    """
+    Ensures filename uniqueness by appending an incrementing suffix.
+    """
+    if filename not in existing:
+        return filename
+
+    stem, ext = os.path.splitext(filename)
+    i = 1
+    while f'{stem}_{i}{ext}' in existing:
+        i += 1
+    return f'{stem}_{i}{ext}'
+
+
 def control_response(response: Response, key: str = '', app_type: str = 'csv') -> Response:
     """
     Edits the headers of a flask response
@@ -1212,9 +1273,12 @@ def write_spec_files(spec_files: List[str]) -> BytesIO:
         The zipped file in memory
     """
     d_spec: Dict[str, Union[BytesIO, StringIO]] = {}
+    existing_filenames = set()
 
     # processing each spectrum
     for i, spec_file in enumerate(spec_files):
+        response = None
+        content_type = ''
 
         # for fits files
         if spec_file.endswith('fits'):
@@ -1237,7 +1301,20 @@ def write_spec_files(spec_files: List[str]) -> BytesIO:
             file_mem = StringIO(response.text)
 
         file_mem.seek(0)
-        d_spec[f"spectra_{i}_" + os.path.basename(spec_file)] = file_mem
+        # infer a readable filename
+        file_name = get_url_filename(spec_file)
+        if file_name.lower() in ('', 'viewcontent', 'download'):
+            header_name = get_header_filename(response.headers.get('Content-Disposition') if response else None)
+            if len(header_name):
+                file_name = header_name
+
+        if file_name == '':
+            ext = '.fits' if spec_file.endswith('fits') or 'fits' in content_type else '.txt'
+            file_name = f'spectra_{i}{ext}'
+
+        file_name = unique_filename(file_name, existing_filenames)
+        existing_filenames.add(file_name)
+        d_spec[file_name] = file_mem
 
     # if at least one spectra downloaded correctly
     if len(d_spec):
