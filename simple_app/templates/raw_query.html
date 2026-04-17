@@ -35,6 +35,8 @@
                     or read the
                     <a href="https://github.com/SIMPLE-AstroDB/SIMPLE-db/tree/main/documentation" target="_blank">
                         documentation</a>.
+                    Download the live SQLite file
+                    <a href="{{ url_for('download_sqlite') }}">here</a>.
                     <ul style="list-style-type: none" class="display-6 sql-list">
                         <li>
                             select * from Sources
@@ -48,6 +50,24 @@
                             join Photometry<br>
                             using (source)<br>
                             where source like "%twa%"
+                        </li>
+                        <li>
+                            select * from SpectralTypes<br>
+                            join Spectra using (source)<br>
+                            where spectral_type_string like "%sd%"
+                        </li>
+                        <li>
+                            select * from SpectralTypes<br>
+                            join Spectra using (source)<br>
+                            where (spectral_type_string like "%L%" or<br>
+                            spectral_type_string like "%T%" or<br>
+                            spectral_type_string like "%Y%") and<br>
+                            instrument like "SpeX"
+                        </li>
+                        <li>
+                            select * from Spectra<br>
+                            where telescope like "JWST"<br>
+                            and instrument like "NIRspec"
                         </li>
                     </ul>
                     Note that the query backend is SQLite, be aware of any
@@ -83,10 +103,18 @@
     <div class="container table-responsive">
         {% if query != '' and results is not none %}
             <h2 class="display-3"><a href="{{ url_for('create_file_for_sql_download') }}">Results</a>:</h2>
+            {% if res_len > 10_000 %}
+                <p class="display-6">There are a large number of rows returned ({{ res_len }}),
+                please be patient whilst the table constructs itself.
+                You may wish to consider downloading the database and querying locally. </p>
+            {% endif %}
+            <p class="display-6">{{ results|safe }}</p>
         {% else %}
             <h2 class="display-3">Results:</h2>
+            {% if query != '' and results is none %}
+                <p class="display-5">No results found.</p>
+            {% endif %}
         {% endif %}
-        <p class="display-6">{{ results|safe if results is not none }}</p>
         {% if query != '' %}
         <p class="display-6">Are we missing any expected data? Please open an
             <a href="https://github.com/SIMPLE-AstroDB/SIMPLE-db/issues/new?assignees=&labels=data+ingestion&projects=&template=missing-source.md&title=Ingest+request%3A+%3Csource+name%3E" target="_blank">
@@ -97,8 +125,9 @@
         $(document).ready(function() {
             $(".table").each(function() {
                 $(this).DataTable( {
-                    responsive: true,
-                    autoWidth: false
+                    responsive: false,
+                    autoWidth: false,
+                    scrollX: true
                 });
             });
             }

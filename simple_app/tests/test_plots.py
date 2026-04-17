@@ -67,3 +67,9 @@ def test_camd_plot(db, test_main_plots, test_get_all_photometry, test_get_all_so
     assert all([type(s) == str for s in (good_script, good_div)])
     assert all([s is None for s in (bad_script, bad_div)])
     return
+
+
+def test_name_simplifier():
+    s = name_simplifier('GAIA3.G-2MASS.J-WISE.W1')
+    assert s == 'G - J - W1'
+    return

@@ -12,7 +12,7 @@ from shutil import copy  # copying files
 from sqlite3 import Warning as SqliteWarning  # errors from sqlite
 from time import localtime, strftime  # time stuff for naming files
 from typing import Dict, Generator, List, Optional, Tuple, Union  # type hinting (good in IDEs)
-from urllib.parse import quote  # handling strings into url friendly form
+from urllib.parse import quote, unquote, urlparse  # handling strings into url friendly form
 from zipfile import ZipFile  # zipping files together
 
 import astropy.units as u  # units
@@ -22,6 +22,8 @@ import pandas as pd  # running dataframes
 import pytest  # testing
 import requests  # accessing internet
 from astrodbkit.astrodb import Database  # used for pulling out database and querying
+from astrodb_utils.loaders import DatabaseSettings  # for reference tables
+from astrodb_utils.utils import AstroDBError  # error message from database settings
 from astropy.coordinates import SkyCoord  # coordinates
 from astropy.io import fits  # handling fits files
 from astropy.table import Table  # tables in astropy
