@@ -15,4 +15,3 @@ SQLAlchemy==2.0.38
 tqdm==4.67.1
 Werkzeug==3.1.5
 WTForms==3.2.1
-simple @ git+https://github.com/SIMPLE-AstroDB/SIMPLE-db

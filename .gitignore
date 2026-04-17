@@ -3,6 +3,8 @@
 *.sqlite
 *.fits
 simple_app/tmp/user*
+*yaml
+*toml
 
 # Pycharm stuff
 .idea*

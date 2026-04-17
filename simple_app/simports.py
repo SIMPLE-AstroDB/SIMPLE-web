@@ -22,6 +22,8 @@ import pandas as pd  # running dataframes
 import pytest  # testing
 import requests  # accessing internet
 from astrodbkit.astrodb import Database  # used for pulling out database and querying
+from astrodb_utils.loaders import DatabaseSettings  # for reference tables
+from astrodb_utils.utils import AstroDBError  # error message from database settings
 from astropy.coordinates import SkyCoord  # coordinates
 from astropy.io import fits  # handling fits files
 from astropy.table import Table  # tables in astropy
@@ -67,4 +69,3 @@ from sqlalchemy.exc import OperationalError, ProgrammingError, ResourceClosedErr
 from tqdm import tqdm  # progress bars
 from werkzeug.exceptions import HTTPException  # underlying http
 from wtforms import StringField, SubmitField, TextAreaField, ValidationError  # web forms
-from simple import REFERENCE_TABLES

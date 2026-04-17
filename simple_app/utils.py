@@ -1,6 +1,8 @@
 """
 The static functions for various calculations and required parameters
 """
+import os.path
+
 from .simports import *
 
 
@@ -41,8 +43,20 @@ class SimpleDB(Database):  # this keeps pycharm happy about unresolved reference
     Publications = None
 
     def __init__(self, connection_string):
+        # just need to make sure the database.toml is where we expect (same dir as sqlite file)
+        # also need to create data directory, even empty, so database settings can run
+        settings_file = os.path.relpath(connection_string).split('sqlite:/')[0] + 'database.toml'
+        if not os.path.exists('data'):
+            try:
+                os.mkdir('data')
+            except PermissionError:
+                raise PermissionError('Cannot create data directory, please create manually')
+        try:
+            db_settings = DatabaseSettings(settings_file=settings_file)
+        except AstroDBError:
+            raise FileNotFoundError('Need, in same directory as sqlite file, database.toml and schema.yaml')
         super().__init__(connection_string,
-                         reference_tables=REFERENCE_TABLES,
+                         lookup_tables=db_settings.lookup_tables,
                          connection_arguments={'check_same_thread': False})
 
 
@@ -66,12 +80,13 @@ class Inventory:
             The connection string to the database
         """
         self.results: Dict[str, List[Dict[str, List[Union[str, float, int]]]]] = d_result
+        db = SimpleDB(db_file)
 
         # look through each table in inventory
         for key in self.results:  # over every key in inventory
 
             # ignore reference tables like PhotometryFilters
-            if key in REFERENCE_TABLES:  # ignore the reference table ones
+            if key in db._lookup_tables:  # ignore the reference table ones
                 continue
 
             # convert the table result to Markdown
