@@ -218,3 +218,67 @@ def test_ra_dec_unit_parse():
     ra, dec, unit = CoordQueryForm.ra_dec_unit_parse(a, b)
     assert unit == 'hourangle,deg'
     return
+
+
+def test_absolute_magnitudes():
+    df = pd.DataFrame({
+        'parallax': [100.0, -1.0],
+        'GAIA3.G': [15.0, 18.0],
+        '2MASS.J': [12.0, 14.0],
+    })
+    out = absolute_magnitudes(df, np.array(['GAIA3.G', '2MASS.J', 'NOT.A.BAND']))
+    assert 'M_GAIA3.G' in out.columns
+    assert 'M_2MASS.J' in out.columns
+    assert np.isfinite(out.loc[0, 'M_GAIA3.G'])
+    assert np.isnan(out.loc[1, 'M_GAIA3.G'])
+
+
+def test_coordinate_project():
+    df = pd.DataFrame({'ra': [10.0, 20.0, 30.0], 'dec': [-10.0, 0.0, 10.0]})
+    ra_projected, dec_projected = coordinate_project(df)
+    assert len(ra_projected) == len(df)
+    assert len(dec_projected) == len(df)
+
+
+def test_control_response():
+    response = Response('ok')
+    out = control_response(response, key='Sources', app_type='csv')
+    assert out.headers['Content-Type'].startswith('text/csv')
+    assert 'attachment; filename=simplequery-' in out.headers['Content-Disposition']
+    assert '_Sources.csv' in out.headers['Content-Disposition']
+
+
+def test_get_header_filename():
+    assert get_header_filename(None) == ''
+    assert get_header_filename('attachment; filename="spec.fits"') == 'spec.fits'
+    assert get_header_filename("attachment; filename*=UTF-8''spec%20file.fits") == 'spec file.fits'
+
+
+def test_get_url_filename():
+    assert get_url_filename('https://example.org/a/b/spectrum.fits') == 'spectrum.fits'
+    assert get_url_filename('https://example.org/download/viewcontent') == 'viewcontent'
+
+
+def test_unique_filename():
+    existing = {'spec.fits', 'spec_1.fits'}
+    assert unique_filename('new.fits', existing) == 'new.fits'
+    assert unique_filename('spec.fits', existing) == 'spec_2.fits'
+
+
+def test_write_file():
+    df = pd.DataFrame({'a': [1, 2], 'b': ['x', 'y']})
+    lines = list(write_file(df))
+    assert lines[0].strip() == 'a,b'
+    assert lines[1].strip() == '1,x'
+    assert lines[2].strip() == '2,y'
+
+
+def test_write_multi_files():
+    d_results = {
+        'Sources': pd.DataFrame({'source': ['A']}),
+        'Photometry': pd.DataFrame({'target': ['A'], 'band': ['2MASS.J']}),
+    }
+    zip_mem = write_multi_files(d_results)
+    assert isinstance(zip_mem, BytesIO)
+    with ZipFile(zip_mem, 'r') as zf:
+        assert set(zf.namelist()) == {'Sources.csv', 'Photometry.csv'}
