@@ -3,20 +3,26 @@
 {% block content %}
     <div class="container">
         <div class="row table-responsive">
-            <div class="col-10">
+            <div class="col-9">
                 <h1 class="display-2">
                     <a href="{{ url_for('create_files_for_solo_download') }}">
                         {{ query|safe }}
                     </a>
                 </h1>
             </div>
-            <div class="col-1">
-                <button onclick="window.open('https://simbad.u-strasbg.fr/simbad/sim-basic?Ident={{ query|urlencode }}&submit=SIMBAD+search', '_blank')"
-                        class="btn btn-success" style="float: right" title="Link to SIMBAD">SIMBAD</button>
+            <div class="col-1" style="justify-content: center; display: inline-flex">
+                <button onclick="window.open('https://github.com/SIMPLE-AstroDB/SIMPLE-db/search?q={{ query|urlencode }}.json&type=code', '_blank')"
+                        class="btn btn-success" style="align-self: flex-start" title="Find source JSON in SIMPLE-db">
+                    JSON
+                </button>
             </div>
-            <div class="col-1">
-                <button onclick="share()" type="button" class="btn btn-success"
-                        style="float: right" title="Copy link to object">Share</button>
+            <div class="col-1" style="justify-content: center; display: inline-flex">
+                <button onclick="window.open('https://simbad.u-strasbg.fr/simbad/sim-basic?Ident={{ query|urlencode }}&submit=SIMBAD+search', '_blank')"
+                        class="btn btn-success" style="align-self: flex-start" title="Link to SIMBAD">SIMBAD</button>
+            </div>
+            <div class="col-1" style="justify-content: center; display: inline-flex">
+                <button onclick="share()" type="button" class="btn btn-success" style="align-self: flex-start"
+                        title="Copy link to object">Share</button>
             </div>
         </div>
         <p class="display-6">Are we missing any expected data? Please open an

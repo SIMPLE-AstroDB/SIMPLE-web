@@ -12,7 +12,7 @@ from shutil import copy  # copying files
 from sqlite3 import Warning as SqliteWarning  # errors from sqlite
 from time import localtime, strftime  # time stuff for naming files
 from typing import Dict, Generator, List, Optional, Tuple, Union  # type hinting (good in IDEs)
-from urllib.parse import quote  # handling strings into url friendly form
+from urllib.parse import quote, unquote, urlparse  # handling strings into url friendly form
 from zipfile import ZipFile  # zipping files together
 
 import astropy.units as u  # units
@@ -67,3 +67,7 @@ from sqlalchemy.exc import OperationalError, ProgrammingError, ResourceClosedErr
 from tqdm import tqdm  # progress bars
 from werkzeug.exceptions import HTTPException  # underlying http
 from wtforms import StringField, SubmitField, TextAreaField, ValidationError  # web forms
+import tomllib
+with open("database.toml", "rb") as f:
+    settings = tomllib.load(f)
+    REFERENCE_TABLES = settings['lookup_tables']
