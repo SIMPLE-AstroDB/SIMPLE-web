@@ -51,12 +51,8 @@ class SimpleDB(Database):  # this keeps pycharm happy about unresolved reference
                 os.mkdir('data')
             except PermissionError:
                 raise PermissionError('Cannot create data directory, please create manually')
-        try:
-            db_settings = DatabaseSettings(settings_file=settings_file)
-        except AstroDBError:
-            raise FileNotFoundError('Need, in same directory as sqlite file, database.toml and schema.yaml')
         super().__init__(connection_string,
-                         lookup_tables=db_settings.lookup_tables,
+                         lookup_tables=REFERENCE_TABLES,
                          connection_arguments={'check_same_thread': False})
 
 
