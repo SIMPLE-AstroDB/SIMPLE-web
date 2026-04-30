@@ -1,18 +1,9 @@
 """
 The static functions for various calculations and required parameters
 """
-from .simports import *
+import os.path
 
-REFERENCE_TABLES = [
-    "Publications",
-    "Telescopes",
-    "Instruments",
-    "PhotometryFilters",
-    "Versions",
-    "Parameters",
-    "RegimeList",
-    "CompanionList"
-]
+from .simports import *
 
 
 def sys_args():
@@ -52,8 +43,16 @@ class SimpleDB(Database):  # this keeps pycharm happy about unresolved reference
     Publications = None
 
     def __init__(self, connection_string):
+        # just need to make sure the database.toml is where we expect (same dir as sqlite file)
+        # also need to create data directory, even empty, so database settings can run
+        settings_file = os.path.relpath(connection_string).split('sqlite:/')[0] + 'database.toml'
+        if not os.path.exists('data'):
+            try:
+                os.mkdir('data')
+            except PermissionError:
+                raise PermissionError('Cannot create data directory, please create manually')
         super().__init__(connection_string,
-                         reference_tables=REFERENCE_TABLES,
+                         lookup_tables=REFERENCE_TABLES,
                          connection_arguments={'check_same_thread': False})
 
 
@@ -77,12 +76,13 @@ class Inventory:
             The connection string to the database
         """
         self.results: Dict[str, List[Dict[str, List[Union[str, float, int]]]]] = d_result
+        db = SimpleDB(db_file)
 
         # look through each table in inventory
         for key in self.results:  # over every key in inventory
 
             # ignore reference tables like PhotometryFilters
-            if key in REFERENCE_TABLES:  # ignore the reference table ones
+            if key in db._lookup_tables:  # ignore the reference table ones
                 continue
 
             # convert the table result to Markdown
@@ -1030,7 +1030,7 @@ def multi_df_query(results: Dict[str, pd.DataFrame], db_file: str,
     return d_results
 
 
-def reference_handle(df: pd.DataFrame, db_file: str, multi_dim: bool = False) -> pd.DataFrame:
+def reference_handle(df: pd.DataFrame, db_file: str) -> pd.DataFrame:
     """
     Handles any references to redirect to ADS via bibcode
 
@@ -1040,8 +1040,6 @@ def reference_handle(df: pd.DataFrame, db_file: str, multi_dim: bool = False) ->
         The connection string to the database
     df
         Dataframe with references in
-    multi_dim: bool
-        Whether the reference values are multidimensional or not
 
     Returns
     -------
@@ -1051,10 +1049,7 @@ def reference_handle(df: pd.DataFrame, db_file: str, multi_dim: bool = False) ->
     if 'reference' not in df.columns:
         return df
 
-    if not multi_dim:
-        old_reference_values = df.reference.values
-    else:
-        old_reference_values = df.reference.values[:, 0]
+    old_reference_values = np.atleast_2d(df.reference.values)[0]
     new_reference_values = []
 
     db = SimpleDB(db_file)
@@ -1093,6 +1088,90 @@ def get_filters(db_file: str) -> pd.DataFrame:
     # query the database for all of the PhotometryFilters
     phot_filters: pd.DataFrame = db.query(db.PhotometryFilters).pandas().set_index('band').T
     return phot_filters
+
+
+def zip_spectra(url_values: pd.Series) -> Optional[Response]:
+    """
+    Zipping multiple spectra together into a single zip file
+
+    Parameters
+    ----------
+    url_values
+        The series of URLs to be zipped
+
+    Returns
+    -------
+    response
+        The zipped files
+    """
+    zipped = write_spec_files(url_values.values)
+    if zipped is not None:
+        response = Response(zipped, mimetype='application/zip')
+        response = control_response(response, app_type='zip')
+        return response
+
+    return None
+
+
+def get_url_filename(url: str) -> str:
+    """
+    Attempts to infer a filename from a URL path.
+
+    Parameters
+    ----------
+    url
+        URL or path-like string
+
+    Returns
+    -------
+    filename
+        Inferred filename, or empty string if it cannot be inferred.
+    """
+    parsed = urlparse(url)
+    return unquote(os.path.basename(parsed.path))
+
+
+def get_header_filename(content_disposition: Optional[str]) -> str:
+    """
+    Attempts to infer a filename from a Content-Disposition header value.
+
+    Parameters
+    ----------
+    content_disposition
+        Content-Disposition header string
+
+    Returns
+    -------
+    filename
+        Inferred filename, or empty string if it cannot be inferred.
+    """
+    if not content_disposition:
+        return ''
+
+    parts = [part.strip() for part in content_disposition.split(';')]
+    for part in parts:
+        if part.startswith('filename='):
+            return part.replace('filename=', '').strip('"')
+        if part.startswith("filename*="):
+            filename_star = part.replace("filename*=", "")
+            if "''" in filename_star:
+                filename_star = filename_star.split("''", 1)[1]
+            return unquote(filename_star.strip('"'))
+    return ''
+
+
+def unique_filename(filename: str, existing: set) -> str:
+    """
+    Ensures filename uniqueness by appending an incrementing suffix.
+    """
+    if filename not in existing:
+        return filename
+
+    stem, ext = os.path.splitext(filename)
+    i = 1
+    while f'{stem}_{i}{ext}' in existing:
+        i += 1
+    return f'{stem}_{i}{ext}'
 
 
 def control_response(response: Response, key: str = '', app_type: str = 'csv') -> Response:
@@ -1205,9 +1284,12 @@ def write_spec_files(spec_files: List[str]) -> BytesIO:
         The zipped file in memory
     """
     d_spec: Dict[str, Union[BytesIO, StringIO]] = {}
+    existing_filenames = set()
 
     # processing each spectrum
     for i, spec_file in enumerate(spec_files):
+        response = None
+        content_type = ''
 
         # for fits files
         if spec_file.endswith('fits'):
@@ -1230,7 +1312,20 @@ def write_spec_files(spec_files: List[str]) -> BytesIO:
             file_mem = StringIO(response.text)
 
         file_mem.seek(0)
-        d_spec[f"spectra_{i}_" + os.path.basename(spec_file)] = file_mem
+        # infer a readable filename
+        file_name = get_url_filename(spec_file)
+        if file_name.lower() in ('', 'viewcontent', 'download'):
+            header_name = get_header_filename(response.headers.get('Content-Disposition') if response else None)
+            if len(header_name):
+                file_name = header_name
+
+        if file_name == '':
+            ext = '.fits' if spec_file.endswith('fits') or 'fits' in content_type else '.txt'
+            file_name = f'spectra_{i}{ext}'
+
+        file_name = unique_filename(file_name, existing_filenames)
+        existing_filenames.add(file_name)
+        d_spec[file_name] = file_mem
 
     # if at least one spectra downloaded correctly
     if len(d_spec):

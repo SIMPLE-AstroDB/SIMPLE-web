@@ -22,8 +22,10 @@ jobs:
     - name: Install dependencies
       run: |
         python -m pip install --upgrade pip
-        if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
+        if [ -f requirements.txt ]; then pip install -Ur requirements.txt; fi
         wget -O SIMPLE.sqlite https://raw.githubusercontent.com/SIMPLE-AstroDB/SIMPLE-binary/main/SIMPLE.sqlite
+        wget -O database.toml https://raw.githubusercontent.com/SIMPLE-AstroDB/SIMPLE-db/refs/heads/main/database.toml
+        mkdir data
     - name: Test with pytest
       run: |
         pytest -v simple_app/tests/test_plots.py
