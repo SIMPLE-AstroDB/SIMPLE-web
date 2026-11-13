@@ -1,6 +1,8 @@
 """
 Smoke tests of the website routes through the flask test client
 """
+import re
+
 import pytest
 
 TWA_SQL = 'select * from Sources where source like "%twa%"'
@@ -93,3 +95,26 @@ def test_bokeh_javascript_matches_installed_version(client):
     for name in ('bokeh', 'bokeh-widgets'):
         assert client.get(f'/static/js/{name}-{bokeh.__version__}.min.js').status_code == 200
     assert f'bokeh-{bokeh.__version__}.min.js' in client.get('/').get_data(as_text=True)
+
+
+def _links(page: str, route: str) -> list:
+    # href values of a route in a rendered page, html-unescaped as a browser would
+    from html import unescape
+    return [unescape(href) for href in re.findall(rf'href="({route}[^"]*)"', page)]
+
+
+def test_download_links_url_sensitive_characters(client):
+    # '+' in a source name decodes to a space, '&', '#' and '%' would cut or corrupt the query, if links were not
+    # encoded: every download link is followed as the browser would
+    source = '2MASS J00192626+4614078'
+    page = client.get(f'/solo_result/{source}').get_data(as_text=True)
+    hrefs = _links(page, '/write/Sources.csv') + _links(page, '/write_spectra')
+    assert len(hrefs) == 2 and all('%2B' in href for href in hrefs), hrefs
+    for href in hrefs:
+        res = client.get(href)
+        assert res.status_code == 200 and len(res.data), href
+    sql = "select * from Sources where source like '%+46%' and (1 & 1) and comments is not '#x'"
+    page = client.post('/raw_query', data={'sqlfield': sql}).get_data(as_text=True)
+    href, = _links(page, '/write_sql')
+    csv = client.get(href).get_data(as_text=True)
+    assert source in csv
