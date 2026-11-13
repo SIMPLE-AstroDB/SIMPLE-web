@@ -4,12 +4,20 @@ then connect to.
 """
 # local packages
 from .plots import *
+from .spectra_view import magnitudes, spectra_panel
 
 # initialise
 app_simple = Flask(__name__)  # start flask app
-app_simple.config['SECRET_KEY'] = os.urandom(32)  # need to generate csrf token as basic security for Flask
 app_simple.config['UPLOAD_FOLDER'] = 'tmp/'
 CORS(app_simple)  # makes CORS work (aladin notably)
+app_simple.jinja_env.globals['bokeh_version'] = bokeh.__version__  # names the bokeh javascript in static/js
+
+
+def filter_by_sources(results: pd.DataFrame, ref_sources: pd.DataFrame) -> pd.DataFrame:
+    """
+    Keeps only the object search results whose source is also in the full text search Sources results
+    """
+    return results[results.source.isin(ref_sources.source)].copy()
 
 
 # website pathing
@@ -45,8 +53,6 @@ def search():
     if (query := form.search.data) is None:  # content in main searchbar
         query = ''
 
-    session['query'] = query  # add query to bokeh curdoc
-    session['ref_query'] = ref_query  # add query to bokeh curdoc
     db = SimpleDB(db_file)  # open database
 
     # object search function
@@ -63,7 +69,10 @@ def search():
         return render_template('search.html', form=form, ref_query=ref_query,
                                results=stringed_results, query=query, version_str=version_str)
 
-    # full text search function
+    # full text search filter, a scan of the whole database, so skipped when empty
+    if not ref_query:
+        return render_template('search.html', form=form, ref_query=ref_query, version_str=version_str,
+                               results=one_df_query(results), query=query)
     ref_results: Optional[Dict[str, pd.DataFrame]] = db.search_string(ref_query, fmt='pandas', verbose=False)
     try:
         ref_sources: pd.DataFrame = ref_results['Sources']
@@ -74,9 +83,7 @@ def search():
 
     # otherwise, filter the Sources table by whatever is in the full text search
     else:
-        filtered_results: Optional[pd.DataFrame] = results.merge(ref_sources, on='source', suffixes=(None, 'extra'))
-        filtered_results.drop(columns=list(filtered_results.filter(regex='extra')), inplace=True)
-        stringed_results = one_df_query(filtered_results)
+        stringed_results = one_df_query(filter_by_sources(results, ref_sources))
 
     # return page with filtered Sources present
     return render_template('search.html', form=form, ref_query=ref_query, version_str=version_str,
@@ -96,7 +103,6 @@ def coordinate_query():
         if (query := form.query.data) is None:
             query = ''
 
-        session['query'] = query
         db = SimpleDB(db_file)
 
         # parse query into ra, dec, radius
@@ -127,12 +133,11 @@ def full_text_search():
         query = ''
         limmaxrows = True
 
-    session['query'] = query
     db = SimpleDB(db_file)
 
     # search through the tables using the given query
     results: Dict[str, pd.DataFrame] = db.search_string(query, fmt='pandas', verbose=False)
-    resultsout = multi_df_query(results, db_file, limmaxrows)
+    resultsout = multi_df_query(results, db_file, query, limmaxrows)
 
     return render_template('full_text_search.html', form=form, version_str=version_str,
                            results=resultsout, query=query)
@@ -153,6 +158,7 @@ def raw_query():
     """
     db = SimpleDB(db_file)  # open database
     form = SQLForm(db_file=db_file)  # main query form
+    tables = {name: [col.name for col in table.columns] for name, table in sorted(db.metadata.tables.items())}
 
     # checks that the SQL is valid, then submits form
     if form.validate_on_submit():
@@ -160,7 +166,6 @@ def raw_query():
         if (query := form.sqlfield.data) is None:
             query = ''
 
-        session['query'] = query
 
         # attempt to query the database
         try:
@@ -172,19 +177,19 @@ def raw_query():
 
         if 'access_url' in results.columns:
             url_links = [f'<a href="{url}" target="_blank">Link</a>' for url in results.access_url.values]
-            results.drop(columns=['access_url'], inplace=True)
-            download_col = '<a href="/write_sql_spectra" target="_blank">download</a>'
+            results = results.drop(columns=['access_url'])
+            download_col = f'<a href="/write_sql_spectra?query={quote(query, safe="")}" target="_blank">download</a>'
             results.insert(1, download_col, url_links)
 
         results = reference_handle(results, db_file)
         res_len = len(results)
         stringed_results = one_df_query(results)
         return render_template('raw_query.html', form=form, results=stringed_results, query=query,
-                               res_len=res_len, version_str=version_str)
+                               res_len=res_len, version_str=version_str, tables=tables)
 
     else:
         return render_template('raw_query.html', form=form, results=None, res_len=0, query='',
-                               version_str=version_str)
+                               version_str=version_str, tables=tables)
 
 
 @app_simple.route('/solo_result/<query>')
@@ -197,7 +202,6 @@ def solo_result(query: str):
     query: str
         The query -- full match to a main ID
     """
-    session['query'] = query
     db = SimpleDB(db_file)
 
     # search database for given object
@@ -212,13 +216,15 @@ def solo_result(query: str):
     everything = Inventory(resultdict, db_file)
 
     # create camd and spectra plots
-    scriptcmd, divcmd = camd_plot(query, everything, all_bands, all_results_full, all_parallaxes, all_spectral_types,
-                                  photometric_filters, all_photometry, js_callbacks, night_sky_theme, db_file)
-    scriptspectra, divspectra, nfail, failstr = spectra_plot(query, db_file, night_sky_theme, js_callbacks)
+    scriptcmd, divcmd = camd_plot(query, everything, all_bands, all_concat, photometric_filters, js_callbacks,
+                                  night_sky_theme, db_file)
+    scriptspectra, divspectra, failures = spectra_panel(resultdict['Sources'][0]['source'],
+                                                        resultdict.get('Spectra', []),
+                                                        magnitudes(resultdict.get('Photometry', [])), night_sky_theme)
 
     query = query.upper()
     return render_template('solo_result.html', resources=CDN.render(), scriptcmd=scriptcmd, divcmd=divcmd,
-                           scriptspectra=scriptspectra, divspectra=divspectra, nfail=nfail, failstr=failstr,
+                           scriptspectra=scriptspectra, divspectra=divspectra, failures=failures,
                            query=query, resultdict=resultdict, everything=everything, version_str=version_str)
 
 
@@ -230,13 +236,20 @@ def load_solo_page(query: str):
     return render_template('load_solo.html', query=query, version_str=version_str)
 
 
+@cache
+def multi_plot_components():
+    """
+    Script and div of the explore page, which only shows data loaded at startup, so are made once per process
+    """
+    return multi_plot_bokeh(all_concat, all_bands, all_modeled_parameters, js_callbacks, night_sky_theme)
+
+
 @app_simple.route('/multi_plot')
 def multi_plot_page():
     """
     The page for all the plots
     """
-    scriptmulti, divmulti = multi_plot_bokeh(all_results_full, all_bands, all_photometry, all_parallaxes,
-                                             all_spectral_types, js_callbacks, night_sky_theme)
+    scriptmulti, divmulti = multi_plot_components()
     return render_template('multi_plot.html', scriptmulti=scriptmulti, divmulti=divmulti, resources=CDN.render(),
                            version_str=version_str)
 
@@ -247,6 +260,30 @@ def load_multi_plot():
     Loading multiplot page
     """
     return render_template('load_multi_plot.html', version_str=version_str)
+
+
+@app_simple.route('/propagate/<query>', methods=['GET'])
+def propagate(query: str):
+    """
+    Coordinates of a source propagated to the epoch (decimal year or date) given as a url argument
+    """
+    try:
+        return jsonify(propagate_coordinates(SimpleDB(db_file).inventory(query), request.args.get('epoch', '')))
+    except ValueError as e:
+        return jsonify(error=str(e)), 400
+
+
+@app_simple.route('/jdaviz_notebook/<query>', methods=['GET'])
+def jdaviz_notebook_download(query: str):
+    """
+    Downloads a Jupyter notebook which opens the source's spectra in jdaviz
+    """
+    spectra = SimpleDB(db_file).inventory(query).get('Spectra')
+    if not spectra:
+        abort(404, f'"{query}" has no spectra in SIMPLE')
+    response = Response(jdaviz_notebook(query, spectra), mimetype='application/x-ipynb+json')
+    response.headers['Content-Disposition'] = f'attachment; filename={secure_filename(query)}_jdaviz.ipynb'
+    return response
 
 
 @app_simple.route('/autocomplete', methods=['GET'])
@@ -293,7 +330,7 @@ def create_file_for_download(key: str):
     key: str
         The dataframe string
     """
-    query: str = session.get('query')
+    query = request.args.get('query', '')
     db = SimpleDB(db_file)
 
     # search for a given object and a given key
@@ -303,9 +340,7 @@ def create_file_for_download(key: str):
     # writes table to csv
     if key in resultdict:
         results: pd.DataFrame = getattr(everything, key.lower())
-        response = Response(write_file(results), mimetype='text/csv')
-        response = control_response(response, key)
-        return response
+        return csv_response(results, key)
 
     abort(400, 'Could not write table')
 
@@ -315,7 +350,7 @@ def create_files_for_solo_download():
     """
     Creates and downloads all dataframes from solo results
     """
-    query = session.get('query')
+    query = request.args.get('query', '')
     db = SimpleDB(db_file)
 
     # search for a given object
@@ -338,7 +373,7 @@ def create_spectra_files_for_download():
     """
     Downloads the spectra files and zips together
     """
-    query = session.get('query')
+    query = request.args.get('query', '')
     db = SimpleDB(db_file)
 
     # search for a given object and specifically its spectra
@@ -356,7 +391,7 @@ def create_multi_spectra_files_for_download():
     """
     Downloads the spectra files and zips together
     """
-    query = session.get('query')
+    query = request.args.get('query', '')
     db = SimpleDB(db_file)
 
     # search for the spectra within a given free search
@@ -373,7 +408,7 @@ def create_sql_spectra_files_for_download():
     """
     Downloads all spectra from a raw SQL query if an access_url column is present.
     """
-    query = session.get('query')
+    query = request.args.get('query', '')
     db = SimpleDB(db_file)
 
     # query database via sql
@@ -392,23 +427,18 @@ def create_file_for_filtered_download():
     """
     Creates and downloads the shown dataframe when in filtered search
     """
-    query = session.get('query')
-    refquery = session.get('ref_query')
+    query = request.args.get('query', '')
+    refquery = request.args.get('ref_query', '')
     db = SimpleDB(db_file)
 
     # search for a given object and a full text search at the same time
     results: Optional[pd.DataFrame] = db.search_object(query, fmt='pandas')
+    if not refquery:
+        return csv_response(results)
     ref_results: Optional[dict] = db.search_string(refquery, fmt='pandas', verbose=False)
     ref_sources: pd.DataFrame = ref_results['Sources']
 
-    # filter the search by the reference search
-    filtered_results: Optional[pd.DataFrame] = results.merge(ref_sources, on='source', suffixes=(None, 'extra'))
-    filtered_results.drop(columns=list(filtered_results.filter(regex='extra')), inplace=True)
-
-    # write to a csv
-    response = Response(write_file(filtered_results), mimetype='text/csv')
-    response = control_response(response)
-    return response
+    return csv_response(filter_by_sources(results, ref_sources))
 
 
 @app_simple.route('/write_coord', methods=['GET', 'POST'])
@@ -416,7 +446,7 @@ def create_file_for_coordinate_download():
     """
     Creates and downloads the shown dataframe when in coordinate search
     """
-    query = session.get('query')
+    query = request.args.get('query', '')
     db = SimpleDB(db_file)
 
     # query the database for given coordinates and parse those coordinates
@@ -426,10 +456,7 @@ def create_file_for_coordinate_download():
     c = SkyCoord(ra=ra, dec=dec, unit=unit)
     results: pd.DataFrame = db.query_region(c, fmt='pandas', radius=radius)
 
-    # write results to a csv
-    response = Response(write_file(results), mimetype='text/csv')
-    response = control_response(response)
-    return response
+    return csv_response(results)
 
 
 @app_simple.route('/write_full/<key>', methods=['GET'])
@@ -442,18 +469,15 @@ def create_file_for_full_download(key: str):
     key: str
         The dataframe string
     """
-    query = session.get('query')
+    query = request.args.get('query', '')
     db = SimpleDB(db_file)
 
     # search database with a free-text search and specific table
     resultdict: Dict[str, pd.DataFrame] = db.search_string(query, fmt='pandas', verbose=False)
-    print(query, key, resultdict.keys())
     # write to csv
     if key in resultdict:
         results: pd.DataFrame = resultdict[key]
-        response = Response(write_file(results), mimetype='text/csv')
-        response = control_response(response, key)
-        return response
+        return csv_response(results, key)
 
     abort(400, 'Could not write table')
 
@@ -463,7 +487,7 @@ def create_files_for_multi_download():
     """
     Creates and downloads all dataframes from full results
     """
-    query = session.get('query')
+    query = request.args.get('query', '')
     db = SimpleDB(db_file)
 
     # search with full-text search
@@ -480,16 +504,13 @@ def create_file_for_sql_download():
     """
     Creates and downloads the shown dataframe when in sql query
     """
-    query = session.get('query')
+    query = request.args.get('query', '')
     db = SimpleDB(db_file)
 
     # query database via sql
     results: Optional[pd.DataFrame] = db.sql_query(query, fmt='pandas')
 
-    # write results to a csv
-    response = Response(write_file(results), mimetype='text/csv')
-    response = control_response(response)
-    return response
+    return csv_response(results)
 
 
 @app_simple.route('/download_sqlite', methods=['GET'])
@@ -503,8 +524,8 @@ def download_sqlite():
     return send_from_directory(directory, filename, as_attachment=True)
 
 
-args, db_file, photometric_filters, all_results, all_results_full, version_str, \
-    all_photometry, all_bands, all_parallaxes, all_spectral_types = main_utils()
+args, db_file, photometric_filters, all_results, version_str, all_bands, all_concat, all_modeled_parameters = \
+    main_utils()
 night_sky_theme, js_callbacks = main_plots()
 
 if __name__ == '__main__':

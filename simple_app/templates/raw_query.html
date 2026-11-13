@@ -25,6 +25,20 @@
                     {% endif %}
                     {{ form.submit(class_="btn btn-primary display-6") }}
                 </form>
+                <details class="mt-3 display-6" id="querybuilder">
+                    <summary>Build a query from drop downs</summary>
+                    <div class="row g-2 mt-1 align-items-center">
+                        <label class="col-auto" for="qbtable">Table</label>
+                        <select class="col-auto form-select w-auto" id="qbtable"></select>
+                        <label class="col-auto" for="qbjoin">joined with</label>
+                        <select class="col-auto form-select w-auto" id="qbjoin"></select>
+                    </div>
+                    <div id="qbconditions"></div>
+                    <button type="button" class="btn btn-secondary mt-2" id="qbadd">Add condition</button>
+                    <button type="button" class="btn btn-primary mt-2" id="qbbuild">Write SQL</button>
+                    <p class="mt-2">The SQL is written into the box above, edit it further before submitting.
+                        Use % as a wildcard with "like".</p>
+                </details>
             </div>
             <div class="col-5 m-lg-auto">
                 <h3 class="display-4">Examples:</h3>
@@ -78,6 +92,75 @@
         </div>
     </div>
     <script>
+        // drop down query builder: writes the SQL into the text area for the user to check and submit
+        const tables = {{ tables|tojson }};
+        const operators = ['=', '!=', '<', '<=', '>', '>=', 'like', 'not like', 'is null', 'is not null'];
+        const tableSelect = document.getElementById('qbtable');
+        const joinSelect = document.getElementById('qbjoin');
+        const conditions = document.getElementById('qbconditions');
+
+        function fillSelect(select, options) {
+            const previous = select.value;  // kept when still available, e.g. after adding a join
+            select.replaceChildren(...options.map(([value, text]) => new Option(text, value)));
+            if (options.some(([value]) => value === previous)) select.value = previous;
+        }
+
+        function chosenColumns() {
+            const chosen = [tableSelect.value, joinSelect.value].filter(Boolean);
+            return chosen.flatMap(t => tables[t].map(c => [`${t}.${c}`, chosen.length > 1 ? `${t}.${c}` : c]));
+        }
+
+        function refreshTables() {
+            // joins are on the shared source column, so only offered between tables which have one
+            const joinable = tables[tableSelect.value].includes('source')
+                ? Object.keys(tables).filter(t => t !== tableSelect.value && tables[t].includes('source')) : [];
+            fillSelect(joinSelect, [['', 'no other table'], ...joinable.map(t => [t, t])]);
+            refreshColumns();
+        }
+
+        function refreshColumns() {
+            conditions.querySelectorAll('.qbcolumn').forEach(select => fillSelect(select, chosenColumns()));
+        }
+
+        function addCondition() {
+            const row = document.createElement('div');
+            row.className = 'row g-2 mt-1 align-items-center qbcondition';
+            row.innerHTML = '<span class="col-auto">where</span>'
+                + '<select class="col-auto form-select w-auto qbcolumn" aria-label="Column"></select>'
+                + '<select class="col-auto form-select w-auto qboperator" aria-label="Operator"></select>'
+                + '<input class="col-auto form-control w-auto qbvalue" aria-label="Value">'
+                + '<button type="button" class="col-auto btn btn-outline-secondary" aria-label="Remove">&times;</button>';
+            fillSelect(row.querySelector('.qbcolumn'), chosenColumns());
+            fillSelect(row.querySelector('.qboperator'), operators.map(o => [o, o]));
+            row.querySelector('button').addEventListener('click', () => row.remove());
+            conditions.append(row);
+        }
+
+        function sqlValue(value) {
+            return value.trim() !== '' && isFinite(value) ? value.trim() : `'${value.replaceAll("'", "''")}'`;
+        }
+
+        function buildQuery() {
+            let sql = `select * from ${tableSelect.value}`;
+            if (joinSelect.value) sql += `\njoin ${joinSelect.value} using (source)`;
+            const wheres = [...conditions.querySelectorAll('.qbcondition')].map(row => {
+                const op = row.querySelector('.qboperator').value;
+                const column = row.querySelector('.qbcolumn').value;
+                return op.endsWith('null') ? `${column} ${op}` : `${column} ${op} ${sqlValue(row.querySelector('.qbvalue').value)}`;
+            });
+            if (wheres.length) sql += `\nwhere ${wheres.join('\nand ')}`;
+            document.getElementById('rawsqlarea').value = sql;
+        }
+
+        fillSelect(tableSelect, Object.keys(tables).map(t => [t, t]));
+        tableSelect.value = 'Sources';
+        tableSelect.addEventListener('change', refreshTables);
+        joinSelect.addEventListener('change', refreshColumns);
+        document.getElementById('qbadd').addEventListener('click', addCondition);
+        document.getElementById('qbbuild').addEventListener('click', buildQuery);
+        refreshTables();
+    </script>
+    <script>
     $('#rawsqlarea').keydown(
         function (e) {
             if ((e.ctrlKey || e.metaKey) && (e.keyCode === 13 || e.keyCode === 10)) {
@@ -102,7 +185,7 @@
     </script>
     <div class="container table-responsive">
         {% if query != '' and results is not none %}
-            <h2 class="display-3"><a href="{{ url_for('create_file_for_sql_download') }}">Results</a>:</h2>
+            <h2 class="display-3"><a href="{{ url_for('create_file_for_sql_download', query=query) }}">Results</a>:</h2>
             {% if res_len > 10_000 %}
                 <p class="display-6">There are a large number of rows returned ({{ res_len }}),
                 please be patient whilst the table constructs itself.

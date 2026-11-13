@@ -1,11 +1,12 @@
 {% extends "base.html" %}
 {% set active_page = "search" %}
 {% block content %}
+    {% set source = resultdict.Sources[0].source %}
     <div class="container">
         <div class="row table-responsive">
-            <div class="col-9">
+            <div class="col-7">
                 <h1 class="display-2">
-                    <a href="{{ url_for('create_files_for_solo_download') }}">
+                    <a href="{{ url_for('create_files_for_solo_download', query=source) }}">
                         {{ query|safe }}
                     </a>
                 </h1>
@@ -21,6 +22,17 @@
                         class="btn btn-success" style="align-self: flex-start" title="Link to SIMBAD">SIMBAD</button>
             </div>
             <div class="col-1" style="justify-content: center; display: inline-flex">
+                <button onclick="window.open('https://mocadb.ca/search/results?search-query={{ query|urlencode }}&search-type=star', '_blank')"
+                        class="btn btn-success" style="align-self: flex-start" title="Link to MOCAdb">MOCAdb</button>
+            </div>
+            {% if resultdict.Spectra %}
+            <div class="col-1" style="justify-content: center; display: inline-flex">
+                <a href="{{ url_for('jdaviz_notebook_download', query=resultdict.Sources[0].source) }}"
+                   class="btn btn-success" style="align-self: flex-start"
+                   title="Download a Jupyter notebook opening these spectra in jdaviz">jdaviz</a>
+            </div>
+            {% endif %}
+            <div class="col-1" style="justify-content: center; display: inline-flex">
                 <button onclick="share()" type="button" class="btn btn-success" style="align-self: flex-start"
                         title="Copy link to object">Share</button>
             </div>
@@ -30,7 +42,7 @@
                 issue</a>!</p>
         <div class="row table-responsive">
             {% if everything.sources %}
-                <h2 class="display-3"><a href="{{ url_for('create_file_for_download', key='Sources') }}">Sources</a></h2>
+                <h2 class="display-3"><a href="{{ url_for('create_file_for_download', key='Sources', query=source) }}">Sources</a></h2>
                 <p class="display-6">
                     {{ everything.sources|safe }}
                 </p>
@@ -40,7 +52,7 @@
         <div class="row">
             <div class="col-md-6 table-responsive">
                 {% if everything.names %}
-                    <h2 class="display-3"><a href="{{ url_for('create_file_for_download', key='Names') }}">Names</a></h2>
+                    <h2 class="display-3"><a href="{{ url_for('create_file_for_download', key='Names', query=source) }}">Names</a></h2>
                     <p class="display-6">
                         {{ everything.names|safe }}
                     </p>
@@ -61,7 +73,7 @@
 
         <div class="row table-responsive">
             {% if everything.photometry %}
-                <h2 class="display-3"><a href="{{ url_for('create_file_for_download', key='Photometry') }}">
+                <h2 class="display-3"><a href="{{ url_for('create_file_for_download', key='Photometry', query=source) }}">
                     Photometry</a></h2>
                 <p class="display-6">
                     {{ everything.photometry|safe }}
@@ -81,11 +93,14 @@
 
         <div class="row table-responsive">
             {% if everything.spectra %}
-                <h2 class="display-3"><a href="{{ url_for('create_file_for_download', key='Spectra') }}">Spectra</a></h2>
+                <h2 class="display-3"><a href="{{ url_for('create_file_for_download', key='Spectra', query=source) }}">Spectra</a></h2>
                 <p class="display-6">
                     {{ everything.spectra|safe }}
-                    {{ failstr if everything.spectra and nfail }}
                 </p>
+                {% if failures %}
+                <p class="display-6">Could not plot {{ failures|length }} of {{ resultdict.Spectra|length }} spectra:
+                    {{ failures|join('; ') }}</p>
+                {% endif %}
                 <div class="row table-responsive" id="specplot">
                     {{ divspectra|safe if divspectra is not none }}
                 </div>
@@ -101,7 +116,7 @@
 
         <div class="row table-responsive">
             {% if everything.spectraltypes %}
-                <h2 class="display-3"><a href="{{ url_for('create_file_for_download', key='SpectralTypes') }}">
+                <h2 class="display-3"><a href="{{ url_for('create_file_for_download', key='SpectralTypes', query=source) }}">
                     Spectral Types</a></h2>
                 <p class="display-6">
                     {{ everything.spectraltypes|safe }}
@@ -118,7 +133,7 @@
 
         <div class="row table-responsive">
             {% if everything.radialvelocities %}
-                <h2 class="display-3"><a href="{{ url_for('create_file_for_download', key='RadialVelocities') }}">
+                <h2 class="display-3"><a href="{{ url_for('create_file_for_download', key='RadialVelocities', query=source) }}">
                     Radial Velocities</a></h2>
                 <p class="display-6">
                     {{ everything.radialvelocities|safe }}
@@ -135,7 +150,7 @@
 
         <div class="row table-responsive">
             {% if everything.parallaxes %}
-                <h2 class="display-3"><a href="{{ url_for('create_file_for_download', key='Parallaxes') }}">
+                <h2 class="display-3"><a href="{{ url_for('create_file_for_download', key='Parallaxes', query=source) }}">
                     Parallaxes</a></h2>
                 <p class="display-6">
                     {{ everything.parallaxes|safe }}
@@ -152,11 +167,38 @@
 
         <div class="row table-responsive">
             {% if everything.propermotions %}
-                <h2 class="display-3"><a href="{{ url_for('create_file_for_download', key='ProperMotions') }}">
+                <h2 class="display-3"><a href="{{ url_for('create_file_for_download', key='ProperMotions', query=source) }}">
                     Proper Motions</a></h2>
                 <p class="display-6">
                     {{ everything.propermotions|safe }}
                 </p>
+                <form id="propagateform" class="row g-2 mb-4 align-items-center display-6">
+                    <label class="col-auto" for="propagateepoch">Coordinates at epoch:</label>
+                    <input class="col-auto form-control w-auto" id="propagateepoch" type="text" required
+                           placeholder="2030.5 or 2030-06-01" title="Decimal year, or UTC date with optional time">
+                    <button class="col-auto btn btn-primary" type="submit">Propagate</button>
+                    <span class="col-auto" id="propagateresult"></span>
+                </form>
+                <script>
+                    const epochInput = document.getElementById('propagateepoch');
+                    epochInput.value = new Date().toISOString().slice(0, 10);  // today
+                    document.getElementById('propagateform').addEventListener('submit', async (event) => {
+                        event.preventDefault();
+                        const out = document.getElementById('propagateresult');
+                        const url = '/propagate/{{ resultdict["Sources"][0]["source"]|urlencode }}?epoch='
+                            + encodeURIComponent(epochInput.value);
+                        const res = await (await fetch(url)).json();
+                        if (res.error) {
+                            out.textContent = res.error;
+                            return;
+                        }
+                        const used = ['proper motion'];
+                        if (res.used_parallax) used.push('parallax');
+                        if (res.used_radial_velocity) used.push('radial velocity');
+                        out.textContent = `${res.hmsdms} (${res.ra}, ${res.dec}) at ${res.date} UTC`
+                            + ` (${res.epoch}), from epoch ${res.from_epoch} using ${used.join(', ')}`;
+                    });
+                </script>
             {% else %}
                 <h2 class="display-4">Proper Motions</h2>
                 <p class="display-6">
@@ -169,7 +211,7 @@
 
         <div class="row table-responsive">
             {% if everything.gravities %}
-                <h2 class="display-3"><a href="{{ url_for('create_file_for_download', key='Gravities') }}">
+                <h2 class="display-3"><a href="{{ url_for('create_file_for_download', key='Gravities', query=source) }}">
                     Gravities</a></h2>
                 <p class="display-6">
                     {{ everything.gravities|safe }}
@@ -186,7 +228,7 @@
 
         <div class="row table-responsive">
             {% if everything.companionrelationships %}
-                <h2 class="display-3"><a href="{{ url_for('create_file_for_download', key='CompanionRelationships') }}">
+                <h2 class="display-3"><a href="{{ url_for('create_file_for_download', key='CompanionRelationships', query=source) }}">
                     Companion Relationships</a></h2>
                 <p class="display-6">
                     {{ everything.companionrelationships|safe }}
@@ -203,7 +245,7 @@
 
         <div class="row table-responsive">
             {% if everything.modeledparameters %}
-                <h2 class="display-3"><a href="{{ url_for('create_file_for_download', key='ModeledParameters') }}">
+                <h2 class="display-3"><a href="{{ url_for('create_file_for_download', key='ModeledParameters', query=source) }}">
                     Modeled Parameters</a></h2>
                 <p class="display-6">
                     {{ everything.modeledparameters|safe }}
