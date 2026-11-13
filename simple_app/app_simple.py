@@ -159,6 +159,7 @@ def raw_query():
     """
     db = SimpleDB(db_file)  # open database
     form = SQLForm(db_file=db_file)  # main query form
+    tables = {name: [col.name for col in table.columns] for name, table in sorted(db.metadata.tables.items())}
 
     # checks that the SQL is valid, then submits form
     if form.validate_on_submit():
@@ -186,11 +187,11 @@ def raw_query():
         res_len = len(results)
         stringed_results = one_df_query(results)
         return render_template('raw_query.html', form=form, results=stringed_results, query=query,
-                               res_len=res_len, version_str=version_str)
+                               res_len=res_len, version_str=version_str, tables=tables)
 
     else:
         return render_template('raw_query.html', form=form, results=None, res_len=0, query='',
-                               version_str=version_str)
+                               version_str=version_str, tables=tables)
 
 
 @app_simple.route('/solo_result/<query>')

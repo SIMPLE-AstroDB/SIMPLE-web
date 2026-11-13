@@ -46,3 +46,8 @@ def test_propagate(client):
     assert res.status_code == 200 and res.json['used_parallax']
     assert client.get('/propagate/TWA 27').status_code == 400
     assert client.get('/propagate/thisisabadquery?epoch=2030').json['error'] == 'Source not found'
+
+
+def test_query_builder_tables(client):
+    page = client.get('/raw_query').get_data(as_text=True)
+    assert 'id="querybuilder"' in page and '"Sources": ["source", "ra", "dec"' in page
