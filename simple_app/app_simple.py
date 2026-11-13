@@ -4,6 +4,7 @@ then connect to.
 """
 # local packages
 from .plots import *
+from .spectra_view import magnitudes, spectra_panel
 
 # initialise
 app_simple = Flask(__name__)  # start flask app
@@ -213,11 +214,13 @@ def solo_result(query: str):
     # create camd and spectra plots
     scriptcmd, divcmd = camd_plot(query, everything, all_bands, all_results_full, all_parallaxes, all_spectral_types,
                                   photometric_filters, all_photometry, js_callbacks, night_sky_theme, db_file)
-    scriptspectra, divspectra, nfail, failstr = spectra_plot(query, db_file, night_sky_theme, js_callbacks)
+    scriptspectra, divspectra, failures = spectra_panel(resultdict['Sources'][0]['source'],
+                                                        resultdict.get('Spectra', []),
+                                                        magnitudes(resultdict.get('Photometry', [])), night_sky_theme)
 
     query = query.upper()
     return render_template('solo_result.html', resources=CDN.render(), scriptcmd=scriptcmd, divcmd=divcmd,
-                           scriptspectra=scriptspectra, divspectra=divspectra, nfail=nfail, failstr=failstr,
+                           scriptspectra=scriptspectra, divspectra=divspectra, failures=failures,
                            query=query, resultdict=resultdict, everything=everything, version_str=version_str)
 
 

@@ -96,8 +96,11 @@
                 <h2 class="display-3"><a href="{{ url_for('create_file_for_download', key='Spectra', query=source) }}">Spectra</a></h2>
                 <p class="display-6">
                     {{ everything.spectra|safe }}
-                    {{ failstr if everything.spectra and nfail }}
                 </p>
+                {% if failures %}
+                <p class="display-6">Could not plot {{ failures|length }} of {{ resultdict.Spectra|length }} spectra:
+                    {{ failures|join('; ') }}</p>
+                {% endif %}
                 <div class="row table-responsive" id="specplot">
                     {{ divspectra|safe if divspectra is not none }}
                 </div>

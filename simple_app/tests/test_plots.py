@@ -23,14 +23,6 @@ def test_multi_plot_bokeh(sources, photometry, parallaxes, spectral_types, model
     assert 'Physical Parameters' in script
 
 
-def test_spectra_plot(db_cs, plot_settings):
-    night_sky_theme, js_callbacks = plot_settings
-    good_script, good_div = spectra_plot(GOOD_QUERY, db_cs, night_sky_theme, js_callbacks)[:2]
-    bad_script, bad_div = spectra_plot(BAD_QUERY, db_cs, night_sky_theme, js_callbacks)[:2]
-    assert isinstance(good_script, str) and isinstance(good_div, str)
-    assert bad_script is None and bad_div is None
-
-
 def test_camd_plot(db, db_cs, plot_settings, photometry, sources, parallaxes, spectral_types, filters):
     all_photometry, all_bands = photometry
     night_sky_theme, js_callbacks = plot_settings

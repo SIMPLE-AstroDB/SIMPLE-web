@@ -23,7 +23,6 @@ import requests  # accessing internet
 from astrodbkit.astrodb import Database  # used for pulling out database and querying
 from astropy.coordinates import Distance, SkyCoord  # coordinates
 from astropy.io import fits  # handling fits files
-from astropy.table import Table  # tables in astropy
 from astropy.time import Time  # epochs
 from bokeh.embed import components  # converting python bokeh to javascript
 from bokeh.layouts import column, row  # bokeh displaying nicely
@@ -33,16 +32,13 @@ from bokeh.models import (
                    CustomJS,
                    FixedTicker,
                    HoverTool,
-                   Label,
                    OpenURL,
                    Range1d,
-                   RangeSlider,
                    Select,  # bokeh models
-                   Span,
                    TapTool,
                    Toggle,
 )
-from bokeh.palettes import Colorblind8, Turbo256  # plotting palettes
+from bokeh.palettes import Turbo256  # plotting palettes
 from bokeh.plotting import figure  # bokeh plotting
 from bokeh.resources import CDN  # resources for webpage
 from bokeh.themes import Theme, built_in_themes  # appearance of bokeh glyphs
@@ -61,7 +57,6 @@ from flask import (
 from flask_cors import CORS  # cross origin fix (aladin mostly)
 from flask_wtf import FlaskForm  # web forms
 from markdown2 import markdown  # using markdown formatting
-from specutils import Spectrum
 from sqlalchemy.exc import OperationalError, ProgrammingError, ResourceClosedError  # errors from sqlalchemy
 from tqdm import tqdm  # progress bars
 from werkzeug.exceptions import HTTPException  # underlying http

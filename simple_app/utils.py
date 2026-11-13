@@ -405,8 +405,6 @@ class JSCallbacks:
     dropdown_x_js = ''
     dropdown_y_js = ''
     button_flip = ''
-    normalisation_slider = ''
-    reset_slider = ''
     reset_dropdown = ''
 
     def __init__(self):
@@ -414,8 +412,7 @@ class JSCallbacks:
         Loads simple_callbacks and unpacks the js functions within, to the python variables into instance attributes
         """
         # open js functions script
-        js_func_names = ('dropdown_x_js', 'dropdown_y_js', 'button_flip', 'normalisation_slider',
-                         'reset_slider', 'reset_dropdown')
+        js_func_names = ('dropdown_x_js', 'dropdown_y_js', 'button_flip', 'reset_dropdown')
         with open('simple_app/simple_callbacks.js', 'r') as func_call:
             which_var = ''
             out_string = """"""
