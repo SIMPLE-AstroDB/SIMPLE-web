@@ -10,6 +10,7 @@ from .spectra_view import magnitudes, spectra_panel
 app_simple = Flask(__name__)  # start flask app
 app_simple.config['UPLOAD_FOLDER'] = 'tmp/'
 CORS(app_simple)  # makes CORS work (aladin notably)
+app_simple.jinja_env.globals['bokeh_version'] = bokeh.__version__  # names the bokeh javascript in static/js
 
 
 def filter_by_sources(results: pd.DataFrame, ref_sources: pd.DataFrame) -> pd.DataFrame:
@@ -176,7 +177,7 @@ def raw_query():
 
         if 'access_url' in results.columns:
             url_links = [f'<a href="{url}" target="_blank">Link</a>' for url in results.access_url.values]
-            results.drop(columns=['access_url'], inplace=True)
+            results = results.drop(columns=['access_url'])
             download_col = f'<a href="/write_sql_spectra?query={quote(query, safe="")}" target="_blank">download</a>'
             results.insert(1, download_col, url_links)
 

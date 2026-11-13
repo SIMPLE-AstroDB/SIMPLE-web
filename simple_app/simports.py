@@ -17,6 +17,7 @@ from urllib.parse import quote, unquote, urlparse  # handling strings into url f
 from zipfile import ZipFile  # zipping files together
 
 import astropy.units as u  # units
+import bokeh  # its version names the bundled javascript
 import numpy as np  # numerical python
 import pandas as pd  # running dataframes
 import requests  # accessing internet

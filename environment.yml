@@ -2,7 +2,7 @@ name: simple
 channels:
   - defaults
 dependencies:
-  - python=3.11.11
+  - python=3.13.18
   - pip
   - pip:
     - -r requirements.txt

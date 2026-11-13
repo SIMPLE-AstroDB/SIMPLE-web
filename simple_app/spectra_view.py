@@ -18,6 +18,7 @@ import pandas as pd
 from astropy.io import fits
 from astropy.nddata import StdDevUncertainty
 from astropy.utils.data import download_file
+from astropy.wcs import FITSFixedWarning
 from bokeh.document import Document
 from bokeh.embed import components
 from bokeh.layouts import column, row
@@ -30,6 +31,10 @@ from specutils import Spectrum
 
 from .plots import bokeh_formatter
 
+# header fixes and format hints from archival spectra only fill the log; set once here, as catch_warnings() is not
+# thread-safe and spectra are read in threads
+warnings.filterwarnings('ignore', category=FITSFixedWarning)
+warnings.filterwarnings('ignore', module='specutils')
 COVERAGE = 0.9  # fraction of a filter (photoscaling) or of the normalisation window a spectrum must cover to use it
 COLOURS = Colorblind8[:7]  # its 8th colour is black, invisible on the dark theme
 DASHES = ('solid', 'dashed', 'dotted', 'dotdash', 'dashdot')  # each further set of seven spectra
@@ -237,9 +242,7 @@ def read_spectrum(url: str):
 def _read_any(path: str):
     """read_spectrum() of a local file."""
     try:
-        with warnings.catch_warnings():  # header fixes and format hints from archival files, which only fill the log
-            warnings.simplefilter('ignore')
-            spectrum = Spectrum.read(path)
+        spectrum = Spectrum.read(path)
         wave = spectrum.spectral_axis.to(u.micron, equivalencies=u.spectral()).value
         stored = spectrum.flux.value
         # standard deviation in the units the flux is stored in
@@ -338,10 +341,10 @@ def synflux(wave: np.ndarray, flux: np.ndarray, filt: tuple):
     f = np.interp(fw, wave[ok], flux[ok], left=np.nan, right=np.nan)
     cov = np.isfinite(f)
     w = ft * fw
-    tot = np.trapz(w, fw)
+    tot = np.trapezoid(w, fw)
     if cov.sum() < 2 or tot <= 0:
         return np.nan, 0.
-    return np.trapz(np.where(cov, f, 0.) * w, fw) / np.trapz(w * cov, fw), np.trapz(w * cov, fw) / tot
+    return np.trapezoid(np.where(cov, f, 0.) * w, fw) / np.trapezoid(w * cov, fw), np.trapezoid(w * cov, fw) / tot
 
 
 def magnitudes(photometry: list) -> dict:

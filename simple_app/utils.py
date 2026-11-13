@@ -117,13 +117,12 @@ class Inventory:
         url_links = [f'<a href="{url}" target="_blank">Link</a>' for url in df.access_url.values]
 
         # removing excess columns which aren't pretty on the website
-        df.drop(columns=[col for col in df.columns if
-                         any([sub_string in col for sub_string in ('wave', 'flux', 'original')])],
-                inplace=True)
+        df = df.drop(columns=[col for col in df.columns if
+                              any([sub_string in col for sub_string in ('wave', 'flux', 'original')])])
         drop_cols = ['access_url', 'local_spectrum', 'regime']
         if drop_source:
             drop_cols.append('source')
-        df.drop(columns=drop_cols, inplace=True, errors='ignore')
+        df = df.drop(columns=drop_cols, errors='ignore')
 
         df[f'<a href="{download_url}" target="_blank">download</a>'] = url_links
         df['observation_date'] = df['observation_date'].dt.date
@@ -170,7 +169,7 @@ class Inventory:
                 source = self.results['Sources'][0]['source']
                 df = self.spectra_handle(df, f'/write_spectra?query={quote(source, safe="")}')
             df = reference_handle(df, db_file)
-            df.rename(columns={s: s.replace('_', ' ') for s in df.columns if 'download' not in s}, inplace=True)
+            df = df.rename(columns={s: s.replace('_', ' ') for s in df.columns if 'download' not in s})
             return markdown(df.to_html(index=False, escape=False,
                                        classes='table table-dark table-bordered table-striped'))
         return df
@@ -605,7 +604,7 @@ def one_source_iter(one_photometry_df: pd.DataFrame):
         return f'({val})'
 
     # create dataframe of bands against only magnitudes, with different bands as columns
-    one_photometry_df.set_index('band', inplace=True)
+    one_photometry_df = one_photometry_df.set_index('band')
     this_new_phot: pd.DataFrame = one_photometry_df.loc[:, ['magnitude']].T
 
     # replace any duplicate columns with numeric, e.g. WISE W1(1), WISE W1(2)
@@ -669,7 +668,7 @@ def get_all_photometry(db_file: str, photometric_filters: pd.DataFrame):
 
     # query all photometry and extract the unique bands
     all_photometry: pd.DataFrame = db.query(db.Photometry).pandas()
-    all_bands: np.ndarray = all_photometry.band.unique()
+    all_bands: np.ndarray = all_photometry.band.unique().to_numpy()  # pandas 3 returns its own string array
 
     # process magnitudes and extract colours
     all_photometry: pd.DataFrame = parse_photometry(all_photometry, all_bands, True)
@@ -708,7 +707,7 @@ def get_all_spectral_types(db_file: str):
     # query the database for the spectral types and only take necessary columns
     all_spts: pd.DataFrame = db.query(db.SpectralTypes).pandas()
     all_spts = all_spts[['source', 'spectral_type_code', 'adopted']]
-    all_spts.rename(columns={'spectral_type_code': 'sptnum'}, inplace=True)
+    all_spts = all_spts.rename(columns={'spectral_type_code': 'sptnum'})
     return all_spts
 
 
@@ -779,7 +778,7 @@ def absolute_magnitudes(df: pd.DataFrame, all_bands: np.ndarray) -> pd.DataFrame
     # convert to dataframe version and append to original dataframe
     df_absolute_magnitudes = pd.DataFrame.from_dict(d_magnitudes)
     if 'magnitude' in df.index:
-        df_absolute_magnitudes.rename(index={0: 'magnitude'}, inplace=True)
+        df_absolute_magnitudes = df_absolute_magnitudes.rename(index={0: 'magnitude'})
     df = pd.concat([df, df_absolute_magnitudes], axis=1)
     return df
 
@@ -818,7 +817,7 @@ def results_concat(all_results: pd.DataFrame, all_photometry: pd.DataFrame,
     all_results_full = pd.merge(all_results_full, all_plx, on='source')
     all_results_full = pd.merge(all_results_full, all_spts, on='source')
     all_results_full = absolute_magnitudes(all_results_full, all_bands)
-    all_results_full.drop_duplicates('source', inplace=True)
+    all_results_full = all_results_full.drop_duplicates('source')
     return all_results_full
 
 
@@ -1154,7 +1153,16 @@ for label, url in spectra:
 specviz.show()
 """
     intro = (f'# Spectra of {source} from the SIMPLE Archive\n\n'
-             'Requires `pip install jdaviz` (Python 3.12 or later); run in Jupyter Lab or Notebook.')
+             'Opens the spectra in [jdaviz](https://jdaviz.readthedocs.io) Specviz. jdaviz needs Python 3.12 or '
+             'later; install it in a fresh environment rather than an existing one (such as conda `base`), where '
+             'it can upgrade astropy over an older copy and break it, e.g. with '
+             '`ImportError: cannot import name \'WCSLIB_VERSION\'`:\n\n'
+             '```bash\n'
+             'conda create -n jdaviz python=3.13\n'
+             'conda activate jdaviz\n'
+             'pip install jdaviz jupyterlab\n'
+             'jupyter lab\n'
+             '```')
     return json.dumps({'cells': [cell('markdown', intro), cell('code', code)], 'metadata': {},
                        'nbformat': 4, 'nbformat_minor': 5}, indent=1)
 

@@ -144,7 +144,7 @@ def multi_plot_bokeh(all_concat: pd.DataFrame, all_bands: np.ndarray, all_modele
 
     # gather all necessary data including parallaxes, spectral types and bands
     all_results_full = all_concat.merge(all_modeled_parameters, on='source', how='left')
-    all_results_full.dropna(axis=1, how='all', inplace=True)
+    all_results_full = all_results_full.dropna(axis=1, how='all')
     all_bands = all_bands[np.isin(all_bands, all_results_full.columns)]
     all_bands = np.array([band for band in COLOUR_BANDS if band in all_bands])
 
@@ -260,7 +260,7 @@ def camd_plot(query: str, everything: Inventory, all_bands: np.ndarray, all_conc
         this_photometry['parallax'] = this_parallaxes.loc[this_parallaxes.adopted].parallax.iloc[0]
         this_photometry = absolute_magnitudes(this_photometry, this_bands)  # get abs mags
 
-    this_photometry.dropna(axis=1, how='all', inplace=True)
+    this_photometry = this_photometry.dropna(axis=1, how='all')
 
     # comparing with the full sample
     all_results_full = all_concat.dropna(axis=1, how='all')

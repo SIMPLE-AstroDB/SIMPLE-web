@@ -85,3 +85,11 @@ def test_solo_spectra(client):
     # TWA 26 has only spectra specutils alone cannot read; all three must now plot
     page = client.get('/solo_result/TWA 26').get_data(as_text=True)
     assert 'Could not plot' not in page and '["scale",{"type":"map","entries":[["J",' in page
+
+
+def test_bokeh_javascript_matches_installed_version(client):
+    # base.html loads static/js/bokeh-<installed version>.min.js: after upgrading bokeh, download the matching files
+    import bokeh
+    for name in ('bokeh', 'bokeh-widgets'):
+        assert client.get(f'/static/js/{name}-{bokeh.__version__}.min.js').status_code == 200
+    assert f'bokeh-{bokeh.__version__}.min.js' in client.get('/').get_data(as_text=True)

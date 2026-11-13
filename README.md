@@ -52,6 +52,14 @@ You can also get the latest copy of the SQLite database binary file again with:
 wget https://raw.githubusercontent.com/SIMPLE-AstroDB/SIMPLE-binary/main/SIMPLE.sqlite
 ```
 
+The pages load Bokeh's javascript from `simple_app/static/js`, named after the installed Bokeh version.
+When upgrading Bokeh, replace those files with the matching release (the tests fail until you do):
+```bash
+v=$(python -c "import bokeh; print(bokeh.__version__)")
+cd simple_app/static/js && git rm bokeh-*.min.js
+for f in bokeh bokeh-widgets; do wget https://cdn.bokeh.org/bokeh/release/$f-$v.min.js; done
+```
+
 ## Apache Config
 The major requirement for running this program on Apache
 is [`mod_wsgi`](https://flask.palletsprojects.com/en/2.1.x/deploying/mod_wsgi/)
