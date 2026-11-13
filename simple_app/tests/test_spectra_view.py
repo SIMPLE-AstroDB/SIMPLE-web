@@ -8,7 +8,7 @@ from bokeh.themes import built_in_themes
 from ..spectra_view import FILTERS, magnitudes, read_spectrum, spectra_panel, synflux
 
 # formats specutils alone cannot read: the three spectra of TWA 26 and a SpeX SXD one of TWA 27
-TWA26 = {'irs_text': 'https://s3.amazonaws.com/bdnyc/1139-3159+%285-35um%29.txt',
+SPECTRA = {'irs_text': 'https://s3.amazonaws.com/bdnyc/1139-3159+%285-35um%29.txt',
          'spex_text': 'https://s3.amazonaws.com/bdnyc/SpeX/Prism/2MASS_J11395113-3159214_spex_prz.txt',
          'iraf_multispec': 'https://s3.amazonaws.com/bdnyc/U20419.fits',
          'spex_rows': 'https://s3.amazonaws.com/bdnyc/SpeX/SXD/2MASS_J12073346-3932539_spex_sxd.fits'}
@@ -17,7 +17,7 @@ TWA26 = {'irs_text': 'https://s3.amazonaws.com/bdnyc/1139-3159+%285-35um%29.txt'
 @pytest.mark.parametrize('kind, wave_range', [('irs_text', (5.217, 37.864)), ('spex_text', (0.65, 2.56)),
                                               ('iraf_multispec', (0.56, 0.99)), ('spex_rows', (0.80, 2.42))])
 def test_read_spectrum(kind, wave_range):
-    wave, flux, err = read_spectrum(TWA26[kind])
+    wave, flux, err = read_spectrum(SPECTRA[kind])
     assert wave.min() == pytest.approx(wave_range[0], abs=0.01) and wave.max() == pytest.approx(wave_range[1], abs=0.01)
     assert np.all(np.diff(wave) >= 0) and np.isfinite(flux).all()
     assert np.isfinite(err).any()
@@ -45,7 +45,7 @@ def test_magnitudes():
 
 def test_spectra_panel():
     spectra = [{'access_url': url, 'telescope': 'T', 'instrument': kind, 'mode': 'Missing', 'reference': 'Ref',
-                'observation_date': '2007-03-16'} for kind, url in TWA26.items()]
+                'observation_date': '2007-03-16'} for kind, url in SPECTRA.items()]
     spectra.append({**spectra[0], 'access_url': 'https://s3.amazonaws.com/bdnyc/notaspectrum.txt', 'instrument': 'bad'})
     script, div, failures = spectra_panel('TWA 26', spectra, {'J': 12.686}, built_in_themes['night_sky'])
     assert script and div
