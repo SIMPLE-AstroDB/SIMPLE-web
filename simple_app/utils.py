@@ -929,6 +929,52 @@ def coordinate_project(all_results_full: pd.DataFrame):
     return ra_projected, dec_projected
 
 
+def propagate_coordinates(inventory: Dict[str, List[dict]], epoch: float) -> Dict[str, Union[str, float, bool]]:
+    """
+    Propagates a source's coordinates to a new epoch (decimal year) with its adopted proper motion,
+    and its adopted parallax and radial velocity when present (perspective effects)
+
+    Parameters
+    ----------
+    inventory
+        The database inventory of the source
+    epoch
+        Target epoch as a decimal (Julian) year
+
+    Returns
+    -------
+    _
+        Propagated coordinates and which measurements were used
+    """
+    def adopted(table: str) -> Optional[dict]:
+        rows = inventory.get(table, [])
+        return max(rows, key=lambda row: bool(row['adopted'])) if rows else None
+
+    if not inventory.get('Sources'):
+        raise ValueError('Source not found')
+    source, pm, plx, rv = inventory['Sources'][0], adopted('ProperMotions'), adopted('Parallaxes'), \
+        adopted('RadialVelocities')
+    if pm is None or pd.isna(pm['mu_ra']) or pd.isna(pm['mu_dec']):
+        raise ValueError('No proper motion for this source, cannot propagate its coordinates')
+
+    from_epoch = 2000. if pd.isna(source['epoch']) else float(source['epoch'])  # null epochs assumed J2000
+    use_plx = plx is not None and not pd.isna(plx['parallax']) and plx['parallax'] > 0
+    use_rv = rv is not None and not pd.isna(rv['radial_velocity_km_s'])
+    kwargs = {'distance': Distance(parallax=plx['parallax'] * u.mas)} if use_plx else {}
+    coord = SkyCoord(ra=source['ra'] * u.deg, dec=source['dec'] * u.deg,
+                     pm_ra_cosdec=pm['mu_ra'] * u.mas / u.yr, pm_dec=pm['mu_dec'] * u.mas / u.yr,
+                     radial_velocity=(rv['radial_velocity_km_s'] if use_rv else 0) * u.km / u.s,
+                     obstime=Time(from_epoch, format='jyear'), **kwargs)
+    with warnings.catch_warnings():
+        # without a parallax erfa substitutes a large distance, fine for proper motion alone;
+        # future epochs have unknown leap seconds, irrelevant at this precision
+        warnings.filterwarnings('ignore', message='.*(distance overridden|dubious year)')
+        moved = coord.apply_space_motion(new_obstime=Time(epoch, format='jyear'))
+    return {'ra': round(moved.ra.deg, 7), 'dec': round(moved.dec.deg, 7),
+            'hmsdms': moved.to_string('hmsdms', precision=3), 'from_epoch': from_epoch, 'epoch': epoch,
+            'used_parallax': use_plx, 'used_radial_velocity': use_rv}
+
+
 def one_df_query(results: pd.DataFrame, table_id: Optional[str] = None, limit_max_rows: bool = False) -> Optional[str]:
     """
     Handling the output from a query that returns only one dataframe

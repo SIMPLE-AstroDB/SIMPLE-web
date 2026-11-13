@@ -161,6 +161,33 @@
                 <p class="display-6">
                     {{ everything.propermotions|safe }}
                 </p>
+                <form id="propagateform" class="row g-2 align-items-center display-6">
+                    <label class="col-auto" for="propagateepoch">Coordinates at epoch:</label>
+                    <input class="col-auto form-control w-auto" id="propagateepoch" type="number" step="any" required>
+                    <button class="col-auto btn btn-primary" type="submit">Propagate</button>
+                    <span class="col-auto" id="propagateresult"></span>
+                </form>
+                <script>
+                    const epochInput = document.getElementById('propagateepoch');
+                    const now = new Date();
+                    epochInput.value = (now.getFullYear() + now.getMonth() / 12).toFixed(2);
+                    document.getElementById('propagateform').addEventListener('submit', async (event) => {
+                        event.preventDefault();
+                        const out = document.getElementById('propagateresult');
+                        const url = '/propagate/{{ resultdict["Sources"][0]["source"]|urlencode }}?epoch='
+                            + encodeURIComponent(epochInput.value);
+                        const res = await (await fetch(url)).json();
+                        if (res.error) {
+                            out.textContent = res.error;
+                            return;
+                        }
+                        const used = ['proper motion'];
+                        if (res.used_parallax) used.push('parallax');
+                        if (res.used_radial_velocity) used.push('radial velocity');
+                        out.textContent = `${res.hmsdms} (${res.ra}, ${res.dec}) from epoch ${res.from_epoch}`
+                            + ` using ${used.join(', ')}`;
+                    });
+                </script>
             {% else %}
                 <h2 class="display-4">Proper Motions</h2>
                 <p class="display-6">

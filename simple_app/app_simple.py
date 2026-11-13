@@ -255,6 +255,20 @@ def load_multi_plot():
     return render_template('load_multi_plot.html', version_str=version_str)
 
 
+@app_simple.route('/propagate/<query>', methods=['GET'])
+def propagate(query: str):
+    """
+    Coordinates of a source propagated to the epoch (decimal year) given as a url argument
+    """
+    epoch = request.args.get('epoch', type=float)
+    if epoch is None:
+        return jsonify(error='epoch must be a decimal year, e.g. 2030.5'), 400
+    try:
+        return jsonify(propagate_coordinates(SimpleDB(db_file).inventory(query), epoch))
+    except ValueError as e:
+        return jsonify(error=str(e)), 400
+
+
 @app_simple.route('/autocomplete', methods=['GET'])
 def autocomplete():
     """

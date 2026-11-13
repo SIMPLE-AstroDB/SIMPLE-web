@@ -214,3 +214,14 @@ def test_write_multi_files():
     assert isinstance(zip_mem, BytesIO)
     with ZipFile(zip_mem, 'r') as zf:
         assert set(zf.namelist()) == {'Sources.csv', 'Photometry.csv'}
+
+def test_propagate_coordinates():
+    inventory = {'Sources': [{'source': 'A', 'ra': 10., 'dec': 0., 'epoch': None}],
+                 'ProperMotions': [{'mu_ra': 0., 'mu_dec': 3600., 'adopted': True}]}  # 3.6 arcsec/yr north
+    out = propagate_coordinates(inventory, 2010.)
+    assert out['from_epoch'] == 2000.
+    assert out['dec'] == pytest.approx(36 / 3600, abs=1e-6)  # 10 yr
+    assert out['ra'] == pytest.approx(10.)
+    assert not out['used_parallax'] and not out['used_radial_velocity']
+    with pytest.raises(ValueError, match='No proper motion'):
+        propagate_coordinates({'Sources': inventory['Sources']}, 2010.)

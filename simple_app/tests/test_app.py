@@ -39,3 +39,10 @@ def test_coordinate_query(client):
     assert 'id="searchtable"' in page
     page = client.post('/coordinate_query', data={'query': 'not coordinates'}).get_data(as_text=True)
     assert 'Cannot parse coordinates' in page
+
+
+def test_propagate(client):
+    res = client.get('/propagate/TWA 27?epoch=2030.5')
+    assert res.status_code == 200 and res.json['used_parallax']
+    assert client.get('/propagate/TWA 27').status_code == 400
+    assert client.get('/propagate/thisisabadquery?epoch=2030').json['error'] == 'Source not found'
