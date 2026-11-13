@@ -270,6 +270,19 @@ def propagate(query: str):
         return jsonify(error=str(e)), 400
 
 
+@app_simple.route('/jdaviz_notebook/<query>', methods=['GET'])
+def jdaviz_notebook_download(query: str):
+    """
+    Downloads a Jupyter notebook which opens the source's spectra in jdaviz
+    """
+    spectra = SimpleDB(db_file).inventory(query).get('Spectra')
+    if not spectra:
+        abort(404, f'"{query}" has no spectra in SIMPLE')
+    response = Response(jdaviz_notebook(query, spectra), mimetype='application/x-ipynb+json')
+    response.headers['Content-Disposition'] = f'attachment; filename={secure_filename(query)}_jdaviz.ipynb'
+    return response
+
+
 @app_simple.route('/autocomplete', methods=['GET'])
 def autocomplete():
     """

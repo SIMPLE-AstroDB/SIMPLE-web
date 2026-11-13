@@ -57,3 +57,12 @@ def test_query_builder_tables(client):
 def test_raw_query_keywords_in_values(client):
     sql = "select * from Sources where comments like '%updated%' or comments like '%dropped%'"
     assert 'Forbidden keyword' not in client.post('/raw_query', data={'sqlfield': sql}).get_data(as_text=True)
+
+
+def test_jdaviz_notebook(client):
+    res = client.get('/jdaviz_notebook/TWA 27')
+    assert res.status_code == 200 and 'TWA_27_jdaviz.ipynb' in res.headers['Content-Disposition']
+    code = ''.join(res.json['cells'][1]['source'])
+    compile(code, 'notebook', 'exec')  # valid python
+    assert 'specviz.load(' in code and 'https://' in code
+    assert client.get('/jdaviz_notebook/thisisabadquery').status_code == 404

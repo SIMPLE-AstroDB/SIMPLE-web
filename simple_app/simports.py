@@ -10,6 +10,7 @@ from difflib import get_close_matches  # for redirecting bad file paths
 from io import BytesIO, StringIO  # writing files without saving to disk
 from sqlite3 import Warning as SqliteWarning  # errors from sqlite
 from time import localtime, strftime  # time stuff for naming files
+import json  # writing notebooks
 from typing import Dict, List, Optional, Tuple, Union  # type hinting (good in IDEs)
 from urllib.parse import quote, unquote, urlparse  # handling strings into url friendly form
 from zipfile import ZipFile  # zipping files together
@@ -65,6 +66,7 @@ from specutils import Spectrum
 from sqlalchemy.exc import OperationalError, ProgrammingError, ResourceClosedError  # errors from sqlalchemy
 from tqdm import tqdm  # progress bars
 from werkzeug.exceptions import HTTPException  # underlying http
+from werkzeug.utils import secure_filename  # safe download names
 from wtforms import StringField, SubmitField, TextAreaField, ValidationError  # web forms
 import tomllib
 with open("database.toml", "rb") as f:

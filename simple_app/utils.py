@@ -1134,6 +1134,49 @@ def get_filters(db_file: str) -> pd.DataFrame:
     return phot_filters
 
 
+def jdaviz_notebook(source: str, spectra: List[dict]) -> str:
+    """
+    A Jupyter notebook loading all of a source's spectra into jdaviz Specviz, for quick look analysis
+    on the user's own machine rather than our server (#139)
+
+    Parameters
+    ----------
+    source
+        The source name
+    spectra
+        The Spectra table rows of the source, from its inventory
+
+    Returns
+    -------
+    _
+        The notebook as JSON
+    """
+    def cell(cell_type: str, text: str) -> dict:
+        extra = {'execution_count': None, 'outputs': []} if cell_type == 'code' else {}
+        return {'cell_type': cell_type, 'metadata': {}, 'source': text.splitlines(keepends=True), **extra}
+
+    # numbered labels as jdaviz needs them unique and one night may have several spectra from one instrument
+    labels = [f"{i}: {spec['telescope']} {spec['instrument']} {spec['observation_date']}" for i, spec in enumerate(spectra)]
+    labelled = ''.join(f"    ({label!r}, {spec['access_url']!r}),\n" for label, spec in zip(labels, spectra))
+    code = f"""from jdaviz import Specviz
+from specutils import Spectrum
+
+spectra = [
+{labelled}]
+specviz = Specviz()
+for label, url in spectra:
+    try:
+        specviz.load(Spectrum.read(url, cache=True), data_label=label)
+    except Exception as error:  # some archival files are not readable by specutils
+        print(f'Could not load {{label}} ({{url}}): {{error}}')
+specviz.show()
+"""
+    intro = (f'# Spectra of {source} from the SIMPLE Archive\n\n'
+             'Requires `pip install jdaviz` (Python 3.12 or later); run in Jupyter Lab or Notebook.')
+    return json.dumps({'cells': [cell('markdown', intro), cell('code', code)], 'metadata': {},
+                       'nbformat': 4, 'nbformat_minor': 5}, indent=1)
+
+
 def zip_spectra(url_values: pd.Series) -> Optional[Response]:
     """
     Zipping multiple spectra together into a single zip file
