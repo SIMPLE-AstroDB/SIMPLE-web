@@ -175,6 +175,7 @@ for (let i = 0; i < N; i++) {
     if (lines[i].visible) for (const x of d.flux) if (Number.isFinite(x)) all.push(x);
 }
 marks[0].location = lo; marks[1].location = hi;
+for (const mark of marks) mark.visible = how.includes(' (normalised)');  // only while the window is in use
 yaxis.axis_label = how.some(h => h.includes('photoscaled')) ? 'Fλ [erg s⁻¹ cm⁻² Å⁻¹]' : 'Normalised flux';
 if (all.length > 10) {
     const p1 = percentile(all, 1), p99 = percentile(all, 99), pad = 0.08 * (p99 - p1 || Math.abs(p99) || 1);
@@ -463,7 +464,7 @@ def spectra_panel(source: str, spectra: list, mags: dict, theme: Theme):
     p.legend.label_text_font_size = '1.2em'
     p.add_tools(HoverTool(renderers=lines, tooltips=[('', '$name'), ('λ', '@wave{0.0000} μm'),
                                                      ('flux', '@flux{0.000e}'), ('S/N', '@snr{0.0}')]))
-    marks = [Span(location=x, dimension='height', line_color='white', line_dash='dashed')
+    marks = [Span(location=x, dimension='height', line_color='white', line_dash='dashed', visible=False)
              for x in (centre - 0.5 * width, centre + 0.5 * width)]
     for mark in marks:
         p.add_layout(mark)
@@ -525,7 +526,8 @@ def spectra_panel(source: str, spectra: list, mags: dict, theme: Theme):
     telluric = Toggle(label='Telluric bands', width=180)
     errtog = Toggle(label='Uncertainties', active=True, width=180)
     norm = RangeSlider(start=round(xlo, 2), end=round(xhi, 2), value=(centre - 0.5 * width, centre + 0.5 * width),
-                       step=0.005, title='Normalisation window [μm]', sizing_mode='stretch_width')
+                       step=0.005, title='Normalisation window [μm]', sizing_mode='stretch_width',
+                       visible=not all(m['scale'] for m in meta))  # only spectra not photoscaled can use it
     smooth = Slider(start=1, end=25, value=1, step=2, title='Smoothing [pixels]', width=300)
     scale = CustomJS(args=dict(sources=sources, meta=meta, bands=list(BANDS), coverage=COVERAGE, norm=norm,
                                smooth=smooth, items=items, lines=lines, marks=marks, yaxis=p.yaxis[0], yr=p.y_range),
