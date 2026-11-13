@@ -1093,23 +1093,17 @@ def reference_handle(df: pd.DataFrame, db_file: str) -> pd.DataFrame:
     if 'reference' not in df.columns:
         return df
 
-    old_reference_values = np.atleast_2d(df.reference.values)[0]
-    new_reference_values = []
-
     db = SimpleDB(db_file)
-    publications_table: pd.DataFrame = db.query(db.Publications).pandas()
+    publications: pd.DataFrame = db.query(db.Publications).pandas()
+    bibcodes = dict(zip(publications.reference, publications.bibcode))
 
-    for old_reference in old_reference_values:
-        try:
-            bibcode = publications_table[publications_table.reference == old_reference].bibcode.values[0]
-        except IndexError:  # if no reference match, which only happens on default search view
-            new_reference_values.append(old_reference)
-            continue
-        new_reference = (f'<a href="https://ui.adsabs.harvard.edu/abs/{bibcode}/abstract"'
-                         f' target="_blank">{old_reference}</a>')
-        new_reference_values.append(new_reference)
+    def link(reference):
+        bibcode = bibcodes.get(reference)
+        if not bibcode:  # unknown reference or no bibcode: shown as is
+            return reference
+        return f'<a href="https://ui.adsabs.harvard.edu/abs/{bibcode}/abstract" target="_blank">{reference}</a>'
 
-    df['reference'] = new_reference_values
+    df['reference'] = [link(reference) for reference in df.reference]
     return df
 
 

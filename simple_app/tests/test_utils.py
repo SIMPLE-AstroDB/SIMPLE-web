@@ -231,3 +231,11 @@ def test_propagate_coordinates():
     assert not out['used_parallax'] and not out['used_radial_velocity']
     with pytest.raises(ValueError, match='No proper motion'):
         propagate_coordinates({'Sources': inventory['Sources']}, 2010.)
+
+
+def test_reference_handle(db, db_cs):
+    pubs = db.query(db.Publications).pandas()
+    with_bibcode = pubs[pubs.bibcode.fillna('') != ''].reference.iloc[0]
+    out = reference_handle(pd.DataFrame({'reference': [with_bibcode, 'notareference']}), db_cs)
+    assert out.reference[0].startswith('<a href="https://ui.adsabs.harvard.edu/abs/')
+    assert out.reference[1] == 'notareference'
