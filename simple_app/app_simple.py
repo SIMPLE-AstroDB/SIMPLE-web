@@ -243,7 +243,7 @@ def multi_plot_page():
     The page for all the plots
     """
     scriptmulti, divmulti = multi_plot_bokeh(all_results_full, all_bands, all_photometry, all_parallaxes,
-                                             all_spectral_types, js_callbacks, night_sky_theme)
+                                             all_spectral_types, all_modeled_parameters, js_callbacks, night_sky_theme)
     return render_template('multi_plot.html', scriptmulti=scriptmulti, divmulti=divmulti, resources=CDN.render(),
                            version_str=version_str)
 
@@ -507,7 +507,7 @@ def download_sqlite():
 
 
 args, db_file, photometric_filters, all_results, all_results_full, version_str, \
-    all_photometry, all_bands, all_parallaxes, all_spectral_types = main_utils()
+    all_photometry, all_bands, all_parallaxes, all_spectral_types, all_modeled_parameters = main_utils()
 night_sky_theme, js_callbacks = main_plots()
 
 if __name__ == '__main__':

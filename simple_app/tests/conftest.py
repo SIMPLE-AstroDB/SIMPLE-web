@@ -8,8 +8,8 @@ from shutil import copy
 import pytest
 
 from ..plots import main_plots
-from ..utils import (SimpleDB, get_all_parallaxes, get_all_photometry, get_all_sources, get_all_spectral_types,
-                     get_filters)
+from ..utils import (SimpleDB, get_all_modeled_parameters, get_all_parallaxes, get_all_photometry, get_all_sources,
+                     get_all_spectral_types, get_filters)
 
 
 @pytest.fixture(scope='session')
@@ -47,6 +47,11 @@ def parallaxes(db_cs):
 @pytest.fixture(scope='session')
 def spectral_types(db_cs):
     return get_all_spectral_types(db_cs)
+
+
+@pytest.fixture(scope='session')
+def modeled_parameters(db_cs):
+    return get_all_modeled_parameters(db_cs)
 
 
 @pytest.fixture(scope='session')

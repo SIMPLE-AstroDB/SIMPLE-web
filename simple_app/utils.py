@@ -5,6 +5,11 @@ import os.path
 
 from .simports import *
 
+# photometry shown in the plots; colours are named by band, so cannot be picked out by '-' (e.g. PAN-STARRS bands)
+COLOUR_BANDS = ('GAIA3.G', 'GAIA3.Grp', '2MASS.J', '2MASS.H', '2MASS.Ks', 'WISE.W1', 'WISE.W2')
+COLOURS = ('GAIA3.G-GAIA3.Grp', 'GAIA3.G-2MASS.J', '2MASS.J-2MASS.Ks', '2MASS.H-2MASS.Ks', 'WISE.W1-WISE.W2')
+ABSOLUTE_MAGNITUDE_BANDS = ('GAIA3.G', '2MASS.J', 'WISE.W1')
+
 
 def sys_args():
     """
@@ -535,9 +540,7 @@ def find_colours(photometry_df: pd.DataFrame, all_bands: np.ndarray, photometric
             raise KeyError(f'{checking_band_true} not yet a supported filter')
         return checking_band_true
 
-    wanted_mags = {'GAIA3.G', 'GAIA3.Grp', '2MASS.J', '2MASS.H', '2MASS.Ks', 'WISE.W1', 'WISE.W2'}
-    wanted_cols = {'GAIA3.G-GAIA3.Grp', 'GAIA3.G-2MASS.J', '2MASS.J-2MASS.Ks', '2MASS.H-2MASS.Ks', 'WISE.W1-WISE.W2'}
-    all_bands = np.array(list(wanted_mags.intersection(all_bands)))
+    all_bands = np.array([band for band in COLOUR_BANDS if band in all_bands])
 
     # looking at each band given in turn
     d_cols: Dict[str, np.ndarray] = {}
@@ -553,7 +556,7 @@ def find_colours(photometry_df: pd.DataFrame, all_bands: np.ndarray, photometric
             if band == next_band:
                 continue
             # only want certain colours defined above
-            elif f'{band}-{next_band}' not in wanted_cols:
+            elif f'{band}-{next_band}' not in COLOURS:
                 continue
 
             # validate band
@@ -741,6 +744,20 @@ def get_all_spectral_types(db_file: str):
     return all_spts
 
 
+def get_all_modeled_parameters(db_file: str) -> pd.DataFrame:
+    """
+    Get the modeled physical parameters (mass, effective temperature...) as one column per parameter,
+    named with the unit, e.g. 'mass [M_jup]'. None are flagged adopted, so each source takes the median over
+    its models; values in a parameter's less common units (a handful of solar unit rows) are dropped.
+    """
+    db = SimpleDB(db_file)
+    params: pd.DataFrame = db.query(db.ModeledParameters).pandas()
+    main_unit = params.groupby('parameter').unit.agg(lambda units: units.mode()[0])
+    params = params[params.unit == params.parameter.map(main_unit)]
+    params = params.assign(column=params.parameter + ' [' + params.unit + ']')
+    return params.pivot_table(index='source', columns='column', values='value', aggfunc='median').reset_index()
+
+
 def absolute_magnitudes(df: pd.DataFrame, all_bands: np.ndarray) -> pd.DataFrame:
     """
     Calculate all the absolute magnitudes in a given dataframe
@@ -777,8 +794,7 @@ def absolute_magnitudes(df: pd.DataFrame, all_bands: np.ndarray) -> pd.DataFrame
         _abs_mag[mask] = m[mask] + 5 * np.log10(df.parallax[mask]) - 10
         return _abs_mag
 
-    wanted_mags = {'GAIA3.G', '2MASS.J', 'WISE.W1'}
-    all_bands = np.array(list(wanted_mags.intersection(all_bands)))
+    all_bands = np.array([band for band in ABSOLUTE_MAGNITUDE_BANDS if band in all_bands])
 
     # create absolute magnitude for each apparent magnitude
     d_magnitudes: Dict[str, np.ndarray] = {}
@@ -1330,10 +1346,8 @@ def main_utils():
     _all_photometry, _all_bands = get_all_photometry(_db_file, _phot_filters)
     _all_plx = get_all_parallaxes(_db_file)
     _all_spts = get_all_spectral_types(_db_file)
+    _all_params = get_all_modeled_parameters(_db_file)
     return _args, _db_file, _phot_filters, _all_results, _all_results_full, _versionstr, \
-        _all_photometry, _all_bands, _all_plx, _all_spts
+        _all_photometry, _all_bands, _all_plx, _all_spts, _all_params
 
 
-if __name__ == '__main__':
-    ARGS, DB_FILE, PHOTOMETRIC_FILTERS, ALL_RESULTS, ALL_RESULTS_FULL, VERSION_STR, \
-        ALL_PHOTO, ALL_BANDS, ALL_PLX, ALL_SPTS = main_utils()

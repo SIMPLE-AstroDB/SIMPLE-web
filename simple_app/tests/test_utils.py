@@ -34,6 +34,12 @@ def test_get_all_spectral_types(spectral_types):
     assert isinstance(spectral_types, pd.DataFrame)
 
 
+def test_get_all_modeled_parameters(modeled_parameters):
+    assert modeled_parameters.source.is_unique
+    assert {'mass [M_jup]', 'T eff [K]', 'log g [dex]'} <= set(modeled_parameters.columns)
+    assert 'mass [M_sun]' not in modeled_parameters.columns
+
+
 def test_get_filters(filters):
     assert 'effective_wavelength' in filters.index
     assert filters.at['effective_wavelength', 'WISE.W1']
