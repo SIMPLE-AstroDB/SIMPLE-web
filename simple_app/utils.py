@@ -352,9 +352,9 @@ class BadSQLError(Exception):
     """
 
 
-class SQLForm(FlaskForm):
+class SQLForm(CSRFOverride):
     """
-    Searchbox class
+    Raw SQL query box; no CSRF as queries are read-only and expired tokens failed silently (#217)
     """
     sqlfield = TextAreaField('Enter SQL query here:', id='rawsqlarea', render_kw={'rows': '4'})
     submit = SubmitField('Query', id='querybutton')

@@ -7,7 +7,8 @@ from .plots import *
 
 # initialise
 app_simple = Flask(__name__)  # start flask app
-app_simple.config['SECRET_KEY'] = os.urandom(32)  # need to generate csrf token as basic security for Flask
+# fixed key keeps sessions valid across restarts and workers; random key only suits single-process local runs
+app_simple.config['SECRET_KEY'] = os.environ.get('SIMPLE_SECRET_KEY') or os.urandom(32)
 app_simple.config['UPLOAD_FOLDER'] = 'tmp/'
 CORS(app_simple)  # makes CORS work (aladin notably)
 
