@@ -9,7 +9,7 @@ import pytest
 
 from ..plots import main_plots
 from ..utils import (SimpleDB, get_all_modeled_parameters, get_all_parallaxes, get_all_photometry, get_all_sources,
-                     get_all_spectral_types, get_filters)
+                     get_all_spectral_types, get_filters, results_concat)
 
 
 @pytest.fixture(scope='session')
@@ -52,6 +52,11 @@ def spectral_types(db_cs):
 @pytest.fixture(scope='session')
 def modeled_parameters(db_cs):
     return get_all_modeled_parameters(db_cs)
+
+
+@pytest.fixture(scope='session')
+def concat(sources, photometry, parallaxes, spectral_types):
+    return results_concat(sources[1].copy(), photometry[0], parallaxes, spectral_types, photometry[1])
 
 
 @pytest.fixture(scope='session')

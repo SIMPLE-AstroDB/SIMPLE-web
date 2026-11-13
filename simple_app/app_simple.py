@@ -68,7 +68,10 @@ def search():
         return render_template('search.html', form=form, ref_query=ref_query,
                                results=stringed_results, query=query, version_str=version_str)
 
-    # full text search function
+    # full text search filter, a scan of the whole database, so skipped when empty
+    if not ref_query:
+        return render_template('search.html', form=form, ref_query=ref_query, version_str=version_str,
+                               results=one_df_query(results), query=query)
     ref_results: Optional[Dict[str, pd.DataFrame]] = db.search_string(ref_query, fmt='pandas', verbose=False)
     try:
         ref_sources: pd.DataFrame = ref_results['Sources']
@@ -212,8 +215,8 @@ def solo_result(query: str):
     everything = Inventory(resultdict, db_file)
 
     # create camd and spectra plots
-    scriptcmd, divcmd = camd_plot(query, everything, all_bands, all_results_full, all_parallaxes, all_spectral_types,
-                                  photometric_filters, all_photometry, js_callbacks, night_sky_theme, db_file)
+    scriptcmd, divcmd = camd_plot(query, everything, all_bands, all_concat, photometric_filters, js_callbacks,
+                                  night_sky_theme, db_file)
     scriptspectra, divspectra, failures = spectra_panel(resultdict['Sources'][0]['source'],
                                                         resultdict.get('Spectra', []),
                                                         magnitudes(resultdict.get('Photometry', [])), night_sky_theme)
@@ -232,13 +235,20 @@ def load_solo_page(query: str):
     return render_template('load_solo.html', query=query, version_str=version_str)
 
 
+@cache
+def multi_plot_components():
+    """
+    Script and div of the explore page, which only shows data loaded at startup, so are made once per process
+    """
+    return multi_plot_bokeh(all_concat, all_bands, all_modeled_parameters, js_callbacks, night_sky_theme)
+
+
 @app_simple.route('/multi_plot')
 def multi_plot_page():
     """
     The page for all the plots
     """
-    scriptmulti, divmulti = multi_plot_bokeh(all_results_full, all_bands, all_photometry, all_parallaxes,
-                                             all_spectral_types, all_modeled_parameters, js_callbacks, night_sky_theme)
+    scriptmulti, divmulti = multi_plot_components()
     return render_template('multi_plot.html', scriptmulti=scriptmulti, divmulti=divmulti, resources=CDN.render(),
                            version_str=version_str)
 
@@ -425,6 +435,8 @@ def create_file_for_filtered_download():
 
     # search for a given object and a full text search at the same time
     results: Optional[pd.DataFrame] = db.search_object(query, fmt='pandas')
+    if not refquery:
+        return csv_response(results)
     ref_results: Optional[dict] = db.search_string(refquery, fmt='pandas', verbose=False)
     ref_sources: pd.DataFrame = ref_results['Sources']
 
@@ -514,8 +526,8 @@ def download_sqlite():
     return send_from_directory(directory, filename, as_attachment=True)
 
 
-args, db_file, photometric_filters, all_results, all_results_full, version_str, \
-    all_photometry, all_bands, all_parallaxes, all_spectral_types, all_modeled_parameters = main_utils()
+args, db_file, photometric_filters, all_results, version_str, all_bands, all_concat, all_modeled_parameters = \
+    main_utils()
 night_sky_theme, js_callbacks = main_plots()
 
 if __name__ == '__main__':

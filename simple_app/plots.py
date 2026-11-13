@@ -44,25 +44,17 @@ def name_simplifier(s: str) -> str:
     return s
 
 
-def multi_plot_bokeh(all_results: pd.DataFrame, all_bands: np.ndarray,
-                     all_photometry: pd.DataFrame, all_parallaxes: pd.DataFrame, all_spectral_types: pd.DataFrame,
-                     all_modeled_parameters: pd.DataFrame, js_callbacks: JSCallbacks,
-                     night_sky_theme: Theme) -> Tuple[str, str]:
+def multi_plot_bokeh(all_concat: pd.DataFrame, all_bands: np.ndarray, all_modeled_parameters: pd.DataFrame,
+                     js_callbacks: JSCallbacks, night_sky_theme: Theme) -> Tuple[str, str]:
     """
     The workhorse generating the multiple plots view page
 
     Parameters
     ----------
-    all_results: pd.DataFrame
-        Every object and its basic information
+    all_concat: pd.DataFrame
+        Every object with its photometry, parallax and spectral type, from results_concat()
     all_bands: np.ndarray
         All the photometric bands for colour-colour
-    all_photometry: pd.DataFrame
-        All the photometry
-    all_parallaxes: pd.DataFrame
-        All the parallaxes
-    all_spectral_types: pd.DataFrame
-        All spectral types
     all_modeled_parameters: pd.DataFrame
         Modeled physical parameters, one column per parameter
     js_callbacks: JSCallbacks
@@ -151,8 +143,7 @@ def multi_plot_bokeh(all_results: pd.DataFrame, all_bands: np.ndarray,
         return [(col, name_simplifier(col)) for col in columns if all_results_full[col].count() > 1]
 
     # gather all necessary data including parallaxes, spectral types and bands
-    all_results_full = results_concat(all_results, all_photometry, all_parallaxes, all_spectral_types, all_bands)
-    all_results_full = all_results_full.merge(all_modeled_parameters, on='source', how='left')
+    all_results_full = all_concat.merge(all_modeled_parameters, on='source', how='left')
     all_results_full.dropna(axis=1, how='all', inplace=True)
     all_bands = all_bands[np.isin(all_bands, all_results_full.columns)]
     all_bands = np.array([band for band in COLOUR_BANDS if band in all_bands])
@@ -186,10 +177,9 @@ def multi_plot_bokeh(all_results: pd.DataFrame, all_bands: np.ndarray,
     return script, div
 
 
-def camd_plot(query: str, everything: Inventory, all_bands: np.ndarray, all_results: pd.DataFrame,
-              all_parallaxes: pd.DataFrame, all_spectral_types: pd.DataFrame, photometric_filters: pd.DataFrame,
-              all_photometry: pd.DataFrame, js_callbacks: JSCallbacks, night_sky_theme: Theme, db_file: str) -> Tuple[Optional[str],
-                                                                                                        Optional[str]]:
+def camd_plot(query: str, everything: Inventory, all_bands: np.ndarray, all_concat: pd.DataFrame,
+              photometric_filters: pd.DataFrame, js_callbacks: JSCallbacks, night_sky_theme: Theme,
+              db_file: str) -> Tuple[Optional[str], Optional[str]]:
     """
     Creates CAMD plot into html
 
@@ -201,16 +191,10 @@ def camd_plot(query: str, everything: Inventory, all_bands: np.ndarray, all_resu
         The class representation wrapping db.inventory
     all_bands: np.ndarray
         All of the photometric bands for colour-colour
-    all_results: pd.DataFrame
-        Every object and its basic information
-    all_parallaxes: pd.DataFrame
-        All of the parallaxes
-    all_spectral_types: pd.DataFrame
-        All spectral types
+    all_concat: pd.DataFrame
+        Every object with its photometry, parallax and spectral type, from results_concat()
     photometric_filters: pd.DataFrame
         All of the filters to check
-    all_photometry: pd.DataFrame
-        All of the photometry
     js_callbacks: JSCallbacks
         The javascript callbacks for bokeh
     night_sky_theme: Theme
@@ -279,8 +263,7 @@ def camd_plot(query: str, everything: Inventory, all_bands: np.ndarray, all_resu
     this_photometry.dropna(axis=1, how='all', inplace=True)
 
     # comparing with the full sample
-    all_results_full = results_concat(all_results, all_photometry, all_parallaxes, all_spectral_types, this_bands)
-    all_results_full.dropna(axis=1, how='all', inplace=True)
+    all_results_full = all_concat.dropna(axis=1, how='all')
 
     # preparing the available magnitudes and colours
     colour_bands = np.array([col for col in (*COLOURS, *(f'M_{band}' for band in ABSOLUTE_MAGNITUDE_BANDS))

@@ -6,6 +6,7 @@ import argparse  # parsing the arguments given with file
 import os  # operating system
 import re  # regular expressions
 import warnings  # silencing expected astropy warnings
+from functools import cache  # data loaded once per process
 from difflib import get_close_matches  # for redirecting bad file paths
 from io import BytesIO, StringIO  # writing files without saving to disk
 from sqlite3 import Warning as SqliteWarning  # errors from sqlite

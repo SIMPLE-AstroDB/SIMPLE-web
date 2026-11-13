@@ -74,13 +74,12 @@ class Inventory:
             The connection string to the database
         """
         self.results: Dict[str, List[Dict[str, List[Union[str, float, int]]]]] = d_result
-        db = SimpleDB(db_file)
 
         # look through each table in inventory
         for key in self.results:  # over every key in inventory
 
             # ignore reference tables like PhotometryFilters
-            if key in db._lookup_tables:  # ignore the reference table ones
+            if key in REFERENCE_TABLES:  # ignore the reference table ones
                 continue
 
             # convert the table result to Markdown
@@ -1045,6 +1044,16 @@ def multi_df_query(results: Dict[str, pd.DataFrame], db_file: str, query: str,
     return d_results
 
 
+@cache
+def get_bibcodes(db_file: str) -> Dict[str, str]:
+    """
+    {reference: bibcode} of the Publications table, read once per process like the rest of the data
+    """
+    db = SimpleDB(db_file)
+    publications: pd.DataFrame = db.query(db.Publications).pandas()
+    return dict(zip(publications.reference, publications.bibcode))
+
+
 def reference_handle(df: pd.DataFrame, db_file: str) -> pd.DataFrame:
     """
     Handles any references to redirect to ADS via bibcode
@@ -1064,9 +1073,7 @@ def reference_handle(df: pd.DataFrame, db_file: str) -> pd.DataFrame:
     if 'reference' not in df.columns:
         return df
 
-    db = SimpleDB(db_file)
-    publications: pd.DataFrame = db.query(db.Publications).pandas()
-    bibcodes = dict(zip(publications.reference, publications.bibcode))
+    bibcodes = get_bibcodes(db_file)
 
     def link(reference):
         bibcode = bibcodes.get(reference)
@@ -1355,7 +1362,7 @@ def main_utils():
     _all_plx = get_all_parallaxes(_db_file)
     _all_spts = get_all_spectral_types(_db_file)
     _all_params = get_all_modeled_parameters(_db_file)
-    return _args, _db_file, _phot_filters, _all_results, _all_results_full, _versionstr, \
-        _all_photometry, _all_bands, _all_plx, _all_spts, _all_params
+    _all_concat = results_concat(_all_results_full, _all_photometry, _all_plx, _all_spts, _all_bands)
+    return _args, _db_file, _phot_filters, _all_results, _versionstr, _all_bands, _all_concat, _all_params
 
 
