@@ -16,7 +16,6 @@ from urllib.parse import quote, unquote, urlparse  # handling strings into url f
 from zipfile import ZipFile  # zipping files together
 
 import astropy.units as u  # units
-import multiprocess as mp  # multiprocessing for efficiency
 import numpy as np  # numerical python
 import pandas as pd  # running dataframes
 import requests  # accessing internet
@@ -58,7 +57,6 @@ from flask_cors import CORS  # cross origin fix (aladin mostly)
 from flask_wtf import FlaskForm  # web forms
 from markdown2 import markdown  # using markdown formatting
 from sqlalchemy.exc import OperationalError, ProgrammingError, ResourceClosedError  # errors from sqlalchemy
-from tqdm import tqdm  # progress bars
 from werkzeug.exceptions import HTTPException  # underlying http
 from werkzeug.utils import secure_filename  # safe download names
 from wtforms import StringField, SubmitField, TextAreaField, ValidationError  # web forms

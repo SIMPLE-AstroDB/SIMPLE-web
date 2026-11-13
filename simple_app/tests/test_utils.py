@@ -239,3 +239,12 @@ def test_reference_handle(db, db_cs):
     out = reference_handle(pd.DataFrame({'reference': [with_bibcode, 'notareference']}), db_cs)
     assert out.reference[0].startswith('<a href="https://ui.adsabs.harvard.edu/abs/')
     assert out.reference[1] == 'notareference'
+
+
+def test_parse_photometry_multi_source():
+    df = pd.DataFrame({'source': ['A', 'A', 'A', 'B'], 'band': ['2MASS.J', '2MASS.J', 'WISE.W1', 'WISE.W1'],
+                       'magnitude': [12., 13., 11., 10.]})
+    out = parse_photometry(df, np.array(['2MASS.J', 'WISE.W1', '2MASS.H']), True)
+    assert list(out.columns) == ['target', '2MASS.J', 'WISE.W1', '2MASS.H']
+    assert out.loc[0, '2MASS.J'] == 12.  # first measurement of a band
+    assert np.isnan(out.loc[1, '2MASS.J']) and np.isnan(out.loc[0, '2MASS.H'])

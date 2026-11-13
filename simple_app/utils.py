@@ -639,32 +639,11 @@ def parse_photometry(photometry_df: pd.DataFrame, all_bands: np.ndarray, multi_s
     if not multi_source:
         df_new_photometry = one_source_iter(photometry_df)
 
-    # for multiple objects
+    # for multiple objects: one row per source of the first magnitude in each band
     else:
-        # initialise a DataFrame grouped by each target
-        df_group_photometry = photometry_df.groupby('source')
-
-        sources_list: List[Dict[str, object]] = []  # initialize empty list of sources
-
-        # process photometry of each source
-        with mp.Pool(processes=mp.cpu_count() - 1 or 1) as pool:
-            results = pool.map(one_source_iter, [df for _, df in df_group_photometry])
-
-        for (target, _), data in tqdm(zip(df_group_photometry, results), total=len(df_group_photometry),
-                                      desc='Photometry'):
-
-            row_data = {'target': target}
-
-            for band in all_bands:
-
-                try:
-                    row_data[band] = data.loc['magnitude', band]
-                except KeyError:
-                    row_data[band] = None
-
-            sources_list.append(row_data)
-
-        df_new_photometry = pd.DataFrame(sources_list)
+        first = photometry_df.drop_duplicates(['source', 'band'])
+        df_new_photometry = first.pivot(index='source', columns='band', values='magnitude').reindex(columns=all_bands)
+        df_new_photometry = df_new_photometry.rename_axis(columns=None).reset_index().rename(columns={'source': 'target'})
 
     return df_new_photometry
 
@@ -694,10 +673,8 @@ def get_all_photometry(db_file: str, photometric_filters: pd.DataFrame):
     all_bands: np.ndarray = all_photometry.band.unique()
 
     # process magnitudes and extract colours
-    print('Processing photometry.')
     all_photometry: pd.DataFrame = parse_photometry(all_photometry, all_bands, True)
     all_photometry = find_colours(all_photometry, all_bands, photometric_filters)
-    print('Done.')
     return all_photometry, all_bands
 
 
