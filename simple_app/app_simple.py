@@ -17,7 +17,7 @@ def filter_by_sources(results: pd.DataFrame, ref_sources: pd.DataFrame) -> pd.Da
     """
     Keeps only the object search results whose source is also in the full text search Sources results
     """
-    return results[results.source.isin(ref_sources.source)]
+    return results[results.source.isin(ref_sources.source)].copy()
 
 
 # website pathing
