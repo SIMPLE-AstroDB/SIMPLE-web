@@ -50,5 +50,11 @@ def test_spectra_panel():
     script, div, failures = spectra_panel('TWA 26', spectra, {'J': 12.686}, built_in_themes['night_sky'])
     assert script and div
     assert len(failures) == 1 and failures[0].startswith('T/bad (Ref): unreadable')
-    assert 'Photoscale' in script  # the SpeX spectra cover J
+    assert '["scale",{"type":"map","entries":[["J",' in script  # the SpeX spectra cover J: photoscaled
     assert spectra_panel('TWA 26', spectra[-1:], {}, built_in_themes['night_sky'])[:2] == (None, None)
+
+
+def test_read_spectrum_jy_table():
+    # CASSIS Spitzer table declaring its flux in Jy (about 1e-3 Jy): converted to F_lambda
+    wave, flux, err = read_spectrum(SPECTRA['irs_text'])
+    assert 1e-20 < np.nanmedian(flux) < 1e-16 and np.nanmedian(err) < np.nanmedian(flux)

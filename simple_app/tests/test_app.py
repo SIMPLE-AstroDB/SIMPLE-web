@@ -83,4 +83,4 @@ def test_downloads_without_session(client):
 def test_solo_spectra(client):
     # TWA 26 has only spectra specutils alone cannot read; all three must now plot
     page = client.get('/solo_result/TWA 26').get_data(as_text=True)
-    assert 'Could not plot' not in page and 'Photoscale' in page
+    assert 'Could not plot' not in page and '["scale",{"type":"map","entries":[["J",' in page

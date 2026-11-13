@@ -1,17 +1,15 @@
 """
-Interactive spectra plot of a source page, ported from the GUCDS spectra browser.
-
-The source's spectra share one panel with Linear and Log tabs; everything below is done in the browser:
-- the flux can be shown as stored, normalised by the median in a window (wavelength and width sliders), or photoscaled
-  to a SIMPLE magnitude (2MASS J, H, Ks, Gaia G, RP, WISE W1, W2) through the filter curves of the SVO Filter Profile
-  Service (filters.json); a spectrum that does not cover the chosen filter is normalised to the photoscaled spectra in
-  the normalisation window instead, and its legend says which was done;
-- boxcar smoothing, uncertainties as shaded bands, spectral features and telluric bands.
+Spectra plot of a source page: every spectrum of the source on one plot, scaled in the browser (see JS_SCALE) by
+photoscaling to the source's SIMPLE magnitudes through the filter curves of the SVO Filter Profile Service
+(filters.json), with normalisation as fallback. Feature labelling, telluric bands, uncertainty bands, smoothing and the
+synthetic photometry follow the GUCDS spectra browser.
 """
 import json
 import os
+import re
 import tempfile
 import warnings
+from concurrent.futures import ThreadPoolExecutor
 from urllib.parse import quote, urlparse
 
 import astropy.units as u
@@ -23,22 +21,23 @@ from astropy.utils.data import download_file
 from bokeh.document import Document
 from bokeh.embed import components
 from bokeh.layouts import column, row
-from bokeh.models import (Band, BoxAnnotation, CheckboxGroup, ColumnDataSource, CustomJS, Div, HoverTool,
-                          InlineStyleSheet, Label, Legend, LegendItem, PrintfTickFormatter, RadioButtonGroup, Range1d,
-                          RangeSlider, Select, Slider, Span, TabPanel, Tabs, Toggle)
+from bokeh.models import (Band, BoxAnnotation, ColumnDataSource, CustomJS, HoverTool, Label, RangeSlider, Select,
+                          Slider, Span, Toggle)
+from bokeh.palettes import Colorblind8
 from bokeh.plotting import figure
 from bokeh.themes import Theme
 from specutils import Spectrum
 
-COVERAGE = 0.9  # fraction of a filter (photoscaling) or of the normalisation window a spectrum must cover to be rescaled
+from .plots import bokeh_formatter
+
+COVERAGE = 0.9  # fraction of a filter (photoscaling) or of the normalisation window a spectrum must cover to use it
 MAXPOINTS = 8000  # longer spectra are binned to about this many points for display
-# colour-blind safe on the dark theme: the GUCDS order (black, blue, gold...) with white and Paul Tol's light blue
-COLOURS = ('#FFFFFF', '#77AADD', '#DDAA33', '#EE8866', '#44BB99', '#99DDFF', '#FFAABB', '#BBCC33')
-FEATURE_COLOUR, TELLURIC_COLOUR = '#BBBBBB', '#99DDFF'
 FLAMBDA = u.erg / u.s / u.cm ** 2 / u.AA
-# filters.json band: SIMPLE photometry band
-BANDS = {'J': '2MASS.J', 'H': '2MASS.H', 'Ks': '2MASS.Ks', 'G': 'GAIA3.G', 'RP': 'GAIA3.Grp',
-         'W1': 'WISE.W1', 'W2': 'WISE.W2'}
+# filters.json band: SIMPLE photometry band, in the order a spectrum is photoscaled by the first one it covers
+# (filter curves and zero points from the SVO Filter Profile Service; Pan-STARRS in AB, the others in Vega)
+BANDS = {'J': '2MASS.J', 'H': '2MASS.H', 'Ks': '2MASS.Ks', 'RP': 'GAIA3.Grp', 'G': 'GAIA3.G', 'z': 'PAN-STARRS/PS1.z',
+         'y': 'PAN-STARRS/PS1.y', 'i': 'PAN-STARRS/PS1.i', 'W1': 'WISE.W1', 'I1': 'IRAC.I1', 'W2': 'WISE.W2',
+         'I2': 'IRAC.I2', 'I3': 'IRAC.I3', 'I4': 'IRAC.I4', 'W3': 'WISE.W3', 'W4': 'WISE.W4'}
 # spectral features (micron), after SPLAT (Burgasser 2017), grouped by the spectral
 # class in which they are typical: molecular bands are shaded, atomic lines dashed
 _KI = ('line', 'K I', (0.7665, 0.7699, 1.1690, 1.1773, 1.2432, 1.2522))
@@ -65,7 +64,11 @@ TELLURIC = ((0.686, 0.695), (0.759, 0.770), (0.813, 0.835), (0.895, 0.980), (1.1
             (1.80, 1.95), (2.50, 2.90), (4.20, 4.40))  # micron, the main telluric absorption bands
 
 # ---------------------------------------------------------------------------------------------- browser-side code
-JS_FUNCTIONS = """
+JS_SCALE = """
+// Puts every spectrum on one plot, best first: 1. photoscaled to the first band it covers; 2. if it covers the
+// normalisation window, normalised to the photoscaled spectra there (to unity when none are); 3. matched in its
+// wavelength overlap to an already scaled spectrum, repeatedly; 4. otherwise matched at the nearest edge of a scaled
+// spectrum, which is only approximate. If 1 and 2 scale nothing, the widest spectrum is normalised to its median.
 function boxcar(y, n) {
     if (n <= 1) return Float64Array.from(y);
     const out = new Float64Array(y.length), h = Math.floor(n / 2);
@@ -98,107 +101,83 @@ function percentile(v, q) {
     const s = Float64Array.from(v).sort(), x = q / 100 * (s.length - 1), i = Math.floor(x);
     return i + 1 < s.length ? s[i] + (x - i) * (s[i + 1] - s[i]) : s[i];
 }
-"""
-
-JS_UPDATE = JS_FUNCTIONS + """
-const mode = modes.active;                       // 0 as stored, 1 normalise, 2 photoscale
-const band = bandsel.value;
-const lo = centre.value - 0.5 * width.value, hi = centre.value + 0.5 * width.value;
-const n = Math.round(smooth.value);
-// 1. smoothed flux and uncertainty of every spectrum
-const sm = [];
-for (let i = 0; i < sources.length; i++) {
-    const d = sources[i].data;
-    const f = boxcar(d.raw_flux, n), e = boxcar(d.raw_err, n).map(x => x / Math.sqrt(Math.max(n, 1)));
-    sm.push([f, e]);
+const lo = norm.value[0], hi = norm.value[1], n = Math.round(smooth.value), N = sources.length;
+const sm = sources.map(s => [boxcar(s.data.raw_flux, n), boxcar(s.data.raw_err, n).map(x => x / Math.sqrt(n))]);
+const wave = sources.map(s => s.data.wave);
+const scale = new Array(N).fill(NaN), how = new Array(N).fill('');
+const done = i => Number.isFinite(scale[i]);
+const good = x => Number.isFinite(x) && x > 0;
+// 1. photoscaling
+for (let i = 0; i < N; i++)
+    for (const b of bands)
+        if (Number.isFinite(meta[i].scale[b])) { scale[i] = meta[i].scale[b]; how[i] = ' (photoscaled to ' + b + ')'; break; }
+// 2. normalisation in the window
+const covers = i => Math.max(0, Math.min(hi, meta[i].wmax) - Math.max(lo, meta[i].wmin)) / (hi - lo) >= coverage;
+const inwin = [];
+for (let i = 0; i < N; i++) if (done(i) && covers(i)) inwin.push(window_median(wave[i], sm[i][0], lo, hi) * scale[i]);
+const ref = median(inwin.filter(good));
+for (let i = 0; i < N; i++) {
+    if (done(i) || !covers(i)) continue;
+    const m = window_median(wave[i], sm[i][0], lo, hi);
+    if (good(m)) { scale[i] = (good(ref) ? ref : 1) / m; how[i] = ' (normalised)'; }
 }
-// 2. scale factor and legend label of every spectrum
-const scale = new Array(sources.length).fill(1), how = new Array(sources.length).fill('');
-let ref = NaN;   // median of the photoscaled spectra in the window, for the spectra normalised to them
-if (mode == 2) {
-    const meds = [];
-    for (let i = 0; i < sources.length; i++) {
-        const s = meta[i].scale[band];
-        if (s !== undefined && s !== null && Number.isFinite(s)) {
-            scale[i] = s; how[i] = ' (photoscaled to ' + band + ')';
-            const m = window_median(sources[i].data.wave, sm[i][0], lo, hi);
-            if (Number.isFinite(m) && meta[i].wmin < lo && meta[i].wmax > hi) meds.push(m * s);
-        } else how[i] = ' (normalised)';
-    }
-    ref = meds.length ? median(meds) : 1;
+if (!scale.some(Number.isFinite)) {
+    let k = 0;
+    for (let i = 1; i < N; i++) if (meta[i].wmax - meta[i].wmin > meta[k].wmax - meta[k].wmin) k = i;
+    const m = median(sm[k][0]);
+    scale[k] = good(m) ? 1 / m : 1; how[k] = ' (normalised)';
 }
-for (let i = 0; i < sources.length; i++) {
-    if (mode == 1 || (mode == 2 && how[i] == ' (normalised)')) {
-        // only a spectrum covering most of the window is normalised; any other is left as stored
-        const covered = Math.max(0, Math.min(hi, meta[i].wmax) - Math.max(lo, meta[i].wmin)) / (hi - lo);
-        if (covered >= coverage) {
-            const m = window_median(sources[i].data.wave, sm[i][0], lo, hi);
-            scale[i] = (Number.isFinite(m) && m != 0 ? 1 / Math.abs(m) : 1) * (mode == 2 ? ref : 1);
-            if (mode == 1) how[i] = ' (normalised)';
-        } else {
-            scale[i] = 1;
-            how[i] = ' (as stored: outside window)';
+// 3. overlaps with scaled spectra, until nothing changes
+for (let changed = true; changed;) {
+    changed = false;
+    for (let j = 0; j < N; j++) {
+        if (done(j)) continue;
+        for (let k = 0; k < N; k++) {
+            if (!done(k) || k == j) continue;
+            const olo = Math.max(meta[j].wmin, meta[k].wmin), ohi = Math.min(meta[j].wmax, meta[k].wmax);
+            if (ohi <= olo) continue;
+            const mj = window_median(wave[j], sm[j][0], olo, ohi), mk = window_median(wave[k], sm[k][0], olo, ohi) * scale[k];
+            if (!good(mj) || !good(mk)) continue;
+            scale[j] = mk / mj; how[j] = ' (matched in overlap)'; changed = true;
+            break;
         }
     }
+}
+// 4. the nearest edge of a scaled spectrum
+for (let j = 0; j < N; j++) {
+    if (done(j)) continue;
+    let best = null;
+    for (let k = 0; k < N; k++) {
+        if (!done(k) || k == j) continue;
+        const red = meta[j].wmin >= meta[k].wmax, gap = red ? meta[j].wmin - meta[k].wmax : meta[k].wmin - meta[j].wmax;
+        if (best === null || gap < best[1]) best = [k, gap, red];
+    }
+    if (best === null) { scale[j] = 1; continue; }
+    const [k, , red] = best, wj = 0.05 * (meta[j].wmax - meta[j].wmin), wk = 0.05 * (meta[k].wmax - meta[k].wmin);
+    const mj = red ? window_median(wave[j], sm[j][0], meta[j].wmin, meta[j].wmin + wj)
+                   : window_median(wave[j], sm[j][0], meta[j].wmax - wj, meta[j].wmax);
+    const mk = scale[k] * (red ? window_median(wave[k], sm[k][0], meta[k].wmax - wk, meta[k].wmax)
+                               : window_median(wave[k], sm[k][0], meta[k].wmin, meta[k].wmin + wk));
+    scale[j] = good(mj) && good(mk) ? mk / mj : scale[k];
+    how[j] = ' (approximate: no overlap)';
+}
+// scaled fluxes, legend, window marks, axis label and the y range fitted to every spectrum
+const all = [];
+for (let i = 0; i < N; i++) {
     const d = sources[i].data, f = sm[i][0], e = sm[i][1];
-    const nf = new Float64Array(f.length), nl = new Float64Array(f.length), nu = new Float64Array(f.length);
-    for (let k = 0; k < f.length; k++) {
-        nf[k] = f[k] * scale[i];
-        nl[k] = (f[k] - e[k]) * scale[i];
-        nu[k] = (f[k] + e[k]) * scale[i];
-    }
-    d.flux = nf; d.lower = nl; d.upper = nu;
+    d.flux = f.map(x => x * scale[i]);
+    d.lower = f.map((x, k) => (x - e[k]) * scale[i]);
+    d.upper = f.map((x, k) => (x + e[k]) * scale[i]);
     sources[i].change.emit();
-    for (const item of items[i]) item.label = {value: meta[i].label + how[i]};
-    const showmark = how[i] == ' (normalised)';
-    for (const sp of marks[i]) { sp.visible = showmark && lines[i][0].visible; }
-    marks[i][0].location = lo; marks[i][1].location = hi; marks[i][2].location = lo; marks[i][3].location = hi;
+    items[i].label = {value: meta[i].label + how[i]};
+    if (lines[i].visible) for (const x of d.flux) if (Number.isFinite(x)) all.push(x);
 }
-// 3. axis labels, and the plotting window: the y-range is fitted to the visible spectra in the shown wavelength range,
-//    and the reset button returns to a window showing every visible spectrum in full, for this mode
-const ylab = ['Flux as stored', 'Normalised flux', 'Fλ [erg s⁻¹ cm⁻² Å⁻¹]'][mode];
-for (const ax of yaxes) ax.axis_label = ylab;
-const xr = figs[0].x_range, shown = [], all = [];
-// spectra left as stored do not set the flux range while others are rescaled, which they would dwarf or flatten
-const unscaled = how.map(h => h.includes('outside window')), anyscaled = unscaled.some(x => !x);
-let wlo = Infinity, whi = -Infinity;
-for (let i = 0; i < sources.length; i++) {
-    if (!lines[i][0].visible) continue;
-    const d = sources[i].data, sets_flux = !(unscaled[i] && anyscaled);
-    for (let k = 0; k < d.wave.length; k++) {
-        if (!Number.isFinite(d.flux[k])) continue;
-        if (d.wave[k] < wlo) wlo = d.wave[k];
-        if (d.wave[k] > whi) whi = d.wave[k];
-        if (!sets_flux) continue;
-        all.push(d.flux[k]);
-        if (d.wave[k] >= xr.start && d.wave[k] <= xr.end) shown.push(d.flux[k]);
-    }
-}
-function linrange(v) {   // 1st-99th percentiles, padded; from zero unless the fluxes go clearly negative
-    const lo = percentile(v, 1), hi = percentile(v, 99), pad = 0.08 * (hi - lo || Math.abs(hi) || 1);
-    return [lo < -0.02 * Math.abs(hi) ? lo - pad : 0, hi + pad];
-}
-function logrange(v) {
-    const pos = v.filter(x => x > 0);
-    return pos.length > 10 ? [percentile(pos, 1) / 2, percentile(pos, 99) * 2] : null;
-}
+marks[0].location = lo; marks[1].location = hi;
+yaxis.axis_label = how.some(h => h.includes('photoscaled')) ? 'Fλ [erg s⁻¹ cm⁻² Å⁻¹]' : 'Normalised flux';
 if (all.length > 10) {
-    const [ylo, yhi] = linrange(shown.length > 10 ? shown : all);
-    const [rlo, rhi] = linrange(all);
-    const wpad = 0.02 * (whi - wlo);
-    for (const f of figs) { f.x_range.reset_start = wlo - wpad; f.x_range.reset_end = whi + wpad; }
-    figs[0].y_range.reset_start = rlo; figs[0].y_range.reset_end = rhi;
-    // slider bounds around the full range of this mode in the tab shown, before the ranges (and so the slider) change
-    const lrr0 = logrange(all);
-    if (tabs.active == 1 && lrr0 !== null) {
-        yslider.start = lrr0[0] / 10; yslider.end = lrr0[1] * 10; yslider.step = (yslider.end - yslider.start) / 400;
-    } else {
-        yslider.start = rlo - 0.5 * (rhi - rlo); yslider.end = rhi + 0.5 * (rhi - rlo); yslider.step = (rhi - rlo) / 400;
-    }
-    figs[0].y_range.start = ylo; figs[0].y_range.end = yhi;
-    const lr = logrange(shown.length > 10 ? shown : all), lrr = logrange(all);
-    if (lr !== null) { figs[1].y_range.start = lr[0]; figs[1].y_range.end = lr[1]; }
-    if (lrr !== null) { figs[1].y_range.reset_start = lrr[0]; figs[1].y_range.reset_end = lrr[1]; }
+    const p1 = percentile(all, 1), p99 = percentile(all, 99), pad = 0.08 * (p99 - p1 || Math.abs(p99) || 1);
+    const ylo = p1 < -0.02 * Math.abs(p99) ? p1 - pad : 0, yhi = p99 + pad;
+    yr.start = ylo; yr.end = yhi; yr.reset_start = ylo; yr.reset_end = yhi;
 }
 """
 
@@ -219,22 +198,15 @@ for (const l of cand) {
     const r = [0, 1, 2].find(k => px - w / 2 > last[k]);
     if (r === undefined) { l.visible = false; continue; }
     last[r] = px + w / 2;
-    const f = [0.05, 0.11, 0.17][r];
     l.tags = [r, cls, l.tags[2], l.tags[3]];
-    l.y = (is_log && yr.start > 0) ? Math.pow(10, Math.log10(yr.end) - f * (Math.log10(yr.end) - Math.log10(yr.start)))
-                                   : yr.end - f * (yr.end - yr.start);
+    l.y = yr.end - [0.05, 0.11, 0.17][r] * (yr.end - yr.start);
     l.visible = true;
 }
 """
 
 JS_KEEP_LABELS_ON_TOP = """
-// keep the feature labels in their rows along the top of the plot, whatever the zoom
-const yr = cb_obj, logy = is_log;
-for (const lab of labels) {
-    const f = [0.05, 0.11, 0.17, 0.95][lab.tags[0]];
-    if (logy && yr.start > 0) lab.y = Math.pow(10, Math.log10(yr.end) - f * (Math.log10(yr.end) - Math.log10(yr.start)));
-    else lab.y = yr.end - f * (yr.end - yr.start);
-}
+// keep the feature labels in their rows along the top (and the telluric marks along the bottom), whatever the zoom
+for (const lab of labels) lab.y = cb_obj.end - [0.05, 0.11, 0.17, 0.95][lab.tags[0]] * (cb_obj.end - cb_obj.start);
 """
 
 
@@ -308,11 +280,21 @@ def to_micron(wave: np.ndarray) -> np.ndarray:
 
 
 def _read_table(path: str):
-    """Columns of a whitespace or comma separated text spectrum: wavelength, flux and (when present) uncertainty."""
-    with open(path, errors='replace') as fh:  # only the lines starting with a number
-        lines = [line for line in fh if line.strip() and line.lstrip()[0] in '0123456789+-.']
-    data = np.loadtxt(lines, ndmin=2, delimiter=',' if ',' in lines[0] else None)
-    return to_micron(data[:, 0]), data[:, 1], data[:, 2] if data.shape[1] > 2 else np.full(len(data), np.nan)
+    """Columns of a whitespace or comma separated text spectrum: wavelength, flux and (when present) uncertainty.
+    Fluxes declared in Jy or mJy (IPAC table units line, as in CASSIS Spitzer spectra, or YUNITS) become F_lambda;
+    other units differ from F_lambda by a constant at most, which the scaling absorbs."""
+    with open(path, errors='replace') as fh:
+        lines = [line for line in fh if line.strip()]
+    numeric = [line for line in lines if line.lstrip()[0] in '0123456789+-.']
+    data = np.loadtxt(numeric, ndmin=2, delimiter=',' if ',' in numeric[0] else None)
+    wave = to_micron(data[:, 0])
+    flux, err = data[:, 1], data[:, 2] if data.shape[1] > 2 else np.full(len(data), np.nan)
+    header = ''.join(line for line in lines if line.lstrip()[0] not in '0123456789+-.')
+    fnu = re.search(r"YUNITS\s*=\s*'\s*(m?Jy)\b|\|\s*(?:microns?|um)\s*\|\s*(m?Jy)\s*\|", header)
+    if fnu:
+        to_flambda = u.Unit(fnu.group(1) or fnu.group(2)).to(FLAMBDA, equivalencies=u.spectral_density(wave * u.micron))
+        flux, err = flux * to_flambda, err * to_flambda
+    return wave, flux, err
 
 
 def _read_image(path: str):
@@ -392,6 +374,14 @@ def default_window(wmin: float):
 
 
 # ---------------------------------------------------------------------------------------------- plot
+def _try_read(spec: dict):
+    """read_spectrum() of a Spectra row, or the ValueError saying why it could not be read."""
+    try:
+        return read_spectrum(spec['access_url'])
+    except ValueError as error:
+        return error
+
+
 def spectra_panel(source: str, spectra: list, mags: dict, theme: Theme):
     """
     The script and div of the spectra plot of a source, and the descriptions of the spectra that could not be read
@@ -399,7 +389,7 @@ def spectra_panel(source: str, spectra: list, mags: dict, theme: Theme):
     Parameters
     ----------
     source
-        The source name, as plot title
+        The source name
     spectra
         The Spectra table rows of the source (dicts with access_url, telescope, instrument, mode, observation_date,
         reference)
@@ -415,30 +405,31 @@ def spectra_panel(source: str, spectra: list, mags: dict, theme: Theme):
     failures
         Description of each spectrum which could not be read
     """
+    with ThreadPoolExecutor(max_workers=8) as pool:  # mostly waiting on downloads
+        read = list(pool.map(_try_read, spectra))
     sources, meta, failures = [], [], []
-    for spec in spectra:
-        name = '/'.join(str(spec[k]) for k in ('telescope', 'instrument', 'mode') if spec[k] not in (None, 'Missing'))
-        try:
-            wave, flux, err = read_spectrum(spec['access_url'])
-        except ValueError as error:
-            failures.append(f'{name} ({spec["reference"]}): {error}')
+    for spec, result in zip(spectra, read):
+        if isinstance(result, ValueError):
+            name = '/'.join(str(spec[k]) for k in ('telescope', 'instrument', 'mode')
+                            if spec[k] not in (None, 'Missing'))
+            failures.append(f'{name} ({spec["reference"]}): {result}')
             continue
-        date = pd.Timestamp(spec['observation_date']).date() if spec['observation_date'] is not None else ''
-        label = f'{spec["telescope"]}-{spec["instrument"]}: {date}'
+        wave, flux, err = result
         scales = {}
         for band, mag in mags.items():
             sf, cov = synflux(wave, flux, FILTERS[band])
             if cov >= COVERAGE and np.isfinite(sf) and sf != 0:
                 scales[band] = float(FILTERS[band][2] * 10 ** (-0.4 * mag) / sf)
+        date = pd.Timestamp(spec['observation_date']).date() if spec['observation_date'] is not None else ''
+        label = f'{spec["telescope"]}-{spec["instrument"]}: {date}'
         wave, flux, err, nbin = bin_for_display(wave, flux, err)
         if nbin > 1:
             label += f' [binned ×{nbin}]'
-        snr = np.where(err > 0, flux / err, np.nan)
         sources.append(ColumnDataSource(data=dict(
             wave=wave.astype(np.float32), raw_flux=flux.astype(np.float32), raw_err=err.astype(np.float32),
             flux=flux.astype(np.float32), lower=(flux - err).astype(np.float32), upper=(flux + err).astype(np.float32),
-            snr=snr.astype(np.float32))))
-        meta.append(dict(label=label, scale=scales, wmin=float(np.nanmin(wave)), wmax=float(np.nanmax(wave)),
+            snr=np.where(err > 0, flux / err, np.nan).astype(np.float32))))
+        meta.append(dict(label=label, scale=scales, wmin=float(wave.min()), wmax=float(wave.max()),
                          has_err=bool(np.isfinite(err).any())))
     if not sources:
         return None, None, failures
@@ -447,222 +438,119 @@ def spectra_panel(source: str, spectra: list, mags: dict, theme: Theme):
         if labels.count(lab) > 1:
             meta[i]['label'] = f'{lab} ({i + 1})'
 
-    wmin = min(m['wmin'] for m in meta)
-    win = default_window(wmin) or (float(np.median(np.concatenate([s.data['wave'] for s in sources]))), 0.2)
-    available = [b for b in BANDS if b in mags and any(b in m['scale'] for m in meta)]
-    # the plot opens photoscaled to the first band, or normalised; spectra it leaves as stored (see JS_UPDATE) start
-    # hidden while others are rescaled, as their flux would be off the scale (shown again from the legend)
-    lo_, hi_ = win[0] - 0.5 * win[1], win[0] + 0.5 * win[1]
-    rescaled = [(available and available[0] in m['scale'])
-                or max(0., min(hi_, m['wmax']) - max(lo_, m['wmin'])) / (hi_ - lo_) >= COVERAGE for m in meta]
-    hidden = [not r and any(rescaled) for r in rescaled]
-
-    # opening plot window around the spectra shown
-    shown = [i for i, h in enumerate(hidden) if not h]
-    wmin, wmax = min(meta[i]['wmin'] for i in shown), max(meta[i]['wmax'] for i in shown)
+    wmin, wmax = min(m['wmin'] for m in meta), max(m['wmax'] for m in meta)
     pad = 0.02 * (wmax - wmin)
     xlo, xhi = wmin - pad, wmax + pad
-    fpad = 0.02 * (max(m['wmax'] for m in meta) - min(m['wmin'] for m in meta))
-    flo, fhi = min(m['wmin'] for m in meta) - fpad, max(m['wmax'] for m in meta) + fpad  # every spectrum
-    allf = np.concatenate([sources[i].data['raw_flux'] for i in shown])
-    allf = allf[np.isfinite(allf)]
-    p1, p99 = (np.percentile(allf, (1, 99)) if len(allf) > 10 else (0., 1.))
-    pad = 0.08 * ((p99 - p1) or abs(p99) or 1.)  # the same window as linrange() in the browser code
-    ylo, yhi = (p1 - pad if p1 < -0.02 * abs(p99) else 0.), p99 + pad
-    pos = allf[allf > 0]
-    lylo, lyhi = (np.percentile(pos, 1) / 2, np.percentile(pos, 99) * 2) if len(pos) > 10 else (1e-3, 10.)
+    centre, width = default_window(wmin) or (float(np.median(np.concatenate([s.data['wave'] for s in sources]))), 0.2)
+    p = figure(title='Spectra', outer_height=500, active_scroll='wheel_zoom', active_drag='box_zoom',
+               tools='pan,wheel_zoom,box_zoom,save,reset', toolbar_location='left', sizing_mode='stretch_width',
+               x_range=(xlo, xhi), x_axis_label='Wavelength [μm]', y_axis_label='Normalised flux')
+    p = bokeh_formatter(p)
+    lines, items, bands_err = [], [], []
+    for i, (src, m) in enumerate(zip(sources, meta)):
+        colour = Colorblind8[i % len(Colorblind8)]
+        line = p.line('wave', 'flux', source=src, line_color=colour, line_width=2, name=m['label'],
+                      line_dash='solid' if i < len(Colorblind8) else 'dashed', legend_label=m['label'])
+        band = Band(base='wave', lower='lower', upper='upper', source=src, fill_color=colour, fill_alpha=0.2,
+                    line_width=0, level='underlay', visible=m['has_err'])
+        p.add_layout(band)
+        lines.append(line)
+        items.append(p.legend.items[-1])
+        bands_err.append(band)
+    p.legend.click_policy = 'hide'
+    p.legend.label_text_font_size = '1.2em'
+    p.add_tools(HoverTool(renderers=lines, tooltips=[('', '$name'), ('λ', '@wave{0.0000} μm'),
+                                                     ('flux', '@flux{0.000e}'), ('S/N', '@snr{0.0}')]))
+    marks = [Span(location=x, dimension='height', line_color='white', line_dash='dashed')
+             for x in (centre - 0.5 * width, centre + 0.5 * width)]
+    for mark in marks:
+        p.add_layout(mark)
 
-    n_spec = len(sources)
-    figs, lines, bands_err, marks, items = [], [[] for _ in range(n_spec)], [[] for _ in range(n_spec)], \
-        [[] for _ in range(n_spec)], [[] for _ in range(n_spec)]
-    feature_sets, telluric_objs, top_labels, feature_labels = {}, [], [[], []], [[], []]
-    for k, ytype in enumerate(('linear', 'log')):
-        p = figure(tools='pan,box_zoom,wheel_zoom,reset,save', toolbar_location='left', title=source, height=640,
-                   sizing_mode='stretch_width', active_drag='box_zoom', active_scroll='wheel_zoom', y_axis_type=ytype,
-                   x_axis_label='Wavelength [µm]', y_axis_label='Flux as stored', x_range=Range1d(xlo, xhi),
-                   y_range=Range1d(ylo, yhi) if ytype == 'linear' else Range1d(lylo, lyhi))
-        p.title.text_font_size = '16pt'
-        p.title.align = 'center'
-        for ax in (p.xaxis, p.yaxis):
-            ax.major_label_text_font_size = '12pt'
-            ax.axis_label_text_font_size = '13pt'
-        legend_items = []
-        for i, (src, m) in enumerate(zip(sources, meta)):
-            c = COLOURS[i % len(COLOURS)]
-            ln = p.line('wave', 'flux', source=src, color=c, line_width=1.2, name=m['label'],
-                        line_dash='solid' if i < len(COLOURS) else 'dashed', visible=not hidden[i])
-            b = Band(base='wave', lower='lower', upper='upper', source=src, fill_color=c, fill_alpha=0.2,
-                     line_width=0, level='underlay', visible=m['has_err'] and not hidden[i])
-            p.add_layout(b)
-            for loc in win[0] - 0.5 * win[1], win[0] + 0.5 * win[1]:
-                sp = Span(location=loc, dimension='height', line_color=c, line_dash='dashed', line_width=1,
-                          visible=False)
-                p.add_layout(sp)
-                marks[i].append(sp)
-            item = LegendItem(label=m['label'], renderers=[ln])
-            legend_items.append(item)
-            items[i].append(item)
-            lines[i].append(ln)
-            bands_err[i].append(b)
-        p.add_layout(Legend(items=legend_items, click_policy='hide', label_text_font_size='11pt', title='Spectra'),
-                     'right')
-        p.add_tools(HoverTool(renderers=[r for ls in lines for r in ls[-1:]], mode='mouse',
-                              tooltips=[('', '$name'), ('λ', '@wave{0.0000} µm'), ('flux', '@flux{0.000e}'),
-                                        ('S/N', '@snr{0.0}')]))
-
-        # features: shaded bands and dashed lines with grey labels along the top, one set per spectral class (shown
-        # with the Spectral features menu); tellurics shaded with a ⊕ along the bottom
-        def label_y(r):  # height of a label in row r: 0-2 along the top, 3 along the bottom
-            fr = (0.05, 0.11, 0.17, 0.95)[r]
-            if ytype == 'log':
-                return 10 ** (np.log10(lyhi) - fr * (np.log10(lyhi) - np.log10(lylo)))
-            return yhi - fr * (yhi - ylo)
-
-        char = 0.011 * (fhi - flo)  # approximate width of one character of a 9 pt label, as a fraction of the range
-        for cls, feats in FEATURE_SETS.items():
-            objs = feature_sets.setdefault(cls, [])
-            candidates = []  # (x, name, edges) of every label, placed below from blue to red
-            for kind, name, waves in feats:
-                for w in waves:
-                    lo_, hi_ = (w if kind == 'band' else (w, w))
-                    if hi_ < flo or lo_ > fhi:
-                        continue
-                    if kind == 'band':
-                        obj = BoxAnnotation(left=lo_, right=hi_, fill_color=FEATURE_COLOUR, fill_alpha=0.08,
-                                            visible=False, level='underlay')
-                    else:
-                        obj = Span(location=lo_, dimension='height', line_color=FEATURE_COLOUR, line_dash='dashed',
-                                   line_width=1, visible=False)
-                    p.add_layout(obj)
-                    objs.append(obj)
-                if kind == 'band':  # one label per band, which knows its edges
-                    candidates += [(0.5 * (w[0] + w[1]), name, w[0], w[1]) for w in waves
-                                   if w[1] > flo and w[0] < fhi]
+    # features: shaded bands and dashed lines with labels along the top, one set per spectral class (shown with the
+    # Spectral features menu); tellurics shaded with a ⊕ along the bottom
+    char = 0.011 * (xhi - xlo)  # approximate width of one character of a label, as a fraction of the range
+    feature_sets, feature_labels, edge_labels, telluric_objs = {}, [], [], []
+    for cls, feats in FEATURE_SETS.items():
+        objs = feature_sets.setdefault(cls, [])
+        candidates = []  # (x, name, edges) of every label, placed below from blue to red
+        for kind, name, waves in feats:
+            for w in waves:
+                lo, hi = (w if kind == 'band' else (w, w))
+                if hi < xlo or lo > xhi:
                     continue
-                ws = sorted(w for w in waves if flo < w < fhi)
-                groups = []  # lines of one multiplet closer than 3 per cent of the range share one label
-                for x in ws:
-                    if groups and x - groups[-1][-1] < 0.03 * (fhi - flo):
-                        groups[-1].append(x)
-                    else:
-                        groups.append([x])
-                candidates += [(float(np.mean(g)), name, float(np.mean(g)), float(np.mean(g))) for g in groups]
-            last = [(-1e9, ''), (-1e9, ''), (-1e9, '')]
-            for x, name, edge0, edge1 in sorted(candidates):
-                gap = [x - last[r][0] - (0.5 * (len(last[r][1]) + len(name)) + 1) * char for r in range(3)]
-                row_ = next((r for r in range(3) if gap[r] > 0), int(np.argmax(gap)))  # every feature is labelled
-                last[row_] = (x, name)
-                lab = Label(x=x, y=label_y(row_), text=name, text_font_size='9pt', text_color=FEATURE_COLOUR,
-                            text_align='center', visible=False, tags=[row_, cls, edge0, edge1])
-                feature_labels[k].append(lab)
-                p.add_layout(lab)
-                objs.append(lab)
-                top_labels[k].append(lab)
-        for lo_, hi_ in TELLURIC:
-            if hi_ < flo or lo_ > fhi:
-                continue
-            box = BoxAnnotation(left=lo_, right=hi_, fill_color=TELLURIC_COLOUR, fill_alpha=0.10, visible=False,
-                                level='underlay')
-            lab = Label(x=0.5 * (lo_ + hi_), y=label_y(3), text='⊕', text_font_size='11pt', text_color=TELLURIC_COLOUR,
-                        text_align='center', visible=False, tags=[3])
-            for obj in (box, lab):
+                obj = BoxAnnotation(left=lo, right=hi, fill_color='white', fill_alpha=0.08, visible=False,
+                                    level='underlay') if kind == 'band' else \
+                    Span(location=lo, dimension='height', line_color='white', line_dash='dotted', visible=False)
                 p.add_layout(obj)
-                telluric_objs.append(obj)
-            top_labels[k].append(lab)
-        keep = CustomJS(args=dict(labels=top_labels[k], is_log=(k == 1)), code=JS_KEEP_LABELS_ON_TOP)
-        p.y_range.js_on_change('start', keep)
-        p.y_range.js_on_change('end', keep)
-        figs.append(p)
-    figs[1].x_range = figs[0].x_range  # the two tabs share the wavelength range
+                objs.append(obj)
+            if kind == 'band':  # one label per band, which knows its edges
+                candidates += [(0.5 * (w[0] + w[1]), name, w[0], w[1]) for w in waves if w[1] > xlo and w[0] < xhi]
+                continue
+            groups = []  # lines of one multiplet closer than 3 per cent of the range share one label
+            for x in sorted(w for w in waves if xlo < w < xhi):
+                if groups and x - groups[-1][-1] < 0.03 * (xhi - xlo):
+                    groups[-1].append(x)
+                else:
+                    groups.append([x])
+            candidates += [(float(np.mean(g)), name, float(np.mean(g)), float(np.mean(g))) for g in groups]
+        last = [(-1e9, ''), (-1e9, ''), (-1e9, '')]
+        for x, name, edge0, edge1 in sorted(candidates):
+            gap = [x - last[r][0] - (0.5 * (len(last[r][1]) + len(name)) + 1) * char for r in range(3)]
+            row_ = next((r for r in range(3) if gap[r] > 0), int(np.argmax(gap)))  # every feature is labelled
+            last[row_] = (x, name)
+            lab = Label(x=x, y=0, text=name, text_color='white', text_align='center', visible=False,
+                        tags=[row_, cls, edge0, edge1])
+            p.add_layout(lab)
+            objs.append(lab)
+            feature_labels.append(lab)
+            edge_labels.append(lab)
+    for lo, hi in TELLURIC:
+        if hi < xlo or lo > xhi:
+            continue
+        box = BoxAnnotation(left=lo, right=hi, fill_color='white', fill_alpha=0.10, visible=False, level='underlay')
+        lab = Label(x=0.5 * (lo + hi), y=0, text='⊕', text_color='white', text_align='center', visible=False,
+                    tags=[3])
+        for obj in (box, lab):
+            p.add_layout(obj)
+            telluric_objs.append(obj)
+        edge_labels.append(lab)
+    keep = CustomJS(args=dict(labels=edge_labels), code=JS_KEEP_LABELS_ON_TOP)
+    p.y_range.js_on_change('start', keep)
+    p.y_range.js_on_change('end', keep)
 
-    # controls
-    active_style = InlineStyleSheet(css='.bk-btn.bk-active {background-color: #77AADD; color: #000; '
-                                        'border-color: #77AADD; font-weight: bold;}')
-    # SIMPLE spectra come in mixed units, so they open photoscaled when possible, otherwise normalised
-    modes = RadioButtonGroup(labels=['As stored', 'Normalise'] + (['Photoscale'] if available else []),
-                             active=2 if available else 1,
-                             width=240, stylesheets=[active_style])
-    bandsel = Select(title='Photoscale to', value=available[0] if available else '',
-                     options=[(b, f'{b} = {mags[b]:.2f} mag') for b in available], visible=bool(available), width=240)
-    centre = Slider(title='Normalisation wavelength [µm]', start=round(flo, 3), end=round(fhi, 3),
-                    value=round(win[0], 3), step=0.005, width=240)
-    width = Slider(title='Normalisation width [µm]', start=0.005, end=0.5, value=win[1], step=0.005, width=240)
-    smooth = Slider(title='Smoothing [pixels]', start=1, end=25, value=1, step=2, width=240)
-    xslider = RangeSlider(title='Wavelength range [µm]', start=round(flo, 2), end=round(fhi, 2), step=0.01,
-                          value=(round(xlo, 2), round(xhi, 2)), width=240)
-    yslider = RangeSlider(title='Flux range', start=ylo - (yhi - ylo), end=yhi + (yhi - ylo),
-                          step=abs(yhi - ylo) / 200 or 0.01, value=(ylo, yhi), width=240,
-                          format=PrintfTickFormatter(format='%.2e'))
-    errtog = Toggle(label='Show uncertainties', active=True, button_type='primary', width=240)
-    featsel = Select(title='Spectral features', value='None', options=['None'] + list(FEATURE_SETS), width=240)
-    overlays = CheckboxGroup(labels=['Telluric bands'], active=[], width=240)
-    tabs = Tabs(tabs=[TabPanel(child=figs[0], title='Linear'), TabPanel(child=figs[1], title='Log')],
-                sizing_mode='stretch_width')
-    note = Div(text='<small>Photoscaled spectra are scaled so that their synthetic magnitude in the chosen filter '
-                    'equals the SIMPLE value; spectra marked (normalised) do not cover it, and are matched to the '
-                    'photoscaled spectra in the normalisation window instead. Spectra covering less than '
-                    f'{COVERAGE:.0%} of that window are never rescaled.</small>', width=240,
-               visible=bool(available))
-    update = CustomJS(args=dict(sources=sources, meta=meta, modes=modes, bandsel=bandsel, centre=centre, width=width,
-                                smooth=smooth, figs=figs, yaxes=[f.yaxis[0] for f in figs], lines=lines, items=items,
-                                marks=marks, yslider=yslider, tabs=tabs, coverage=COVERAGE), code=JS_UPDATE)
-    for w, attr in ((modes, 'active'), (bandsel, 'value'), (centre, 'value'), (width, 'value'), (smooth, 'value')):
-        w.js_on_change(attr, update)
-    for ls in lines:
-        for ln in ls:
-            ln.js_on_change('visible', update)
-    xslider.js_on_change('value', CustomJS(args=dict(r=figs[0].x_range),
-                                           code='r.start = cb_obj.value[0]; r.end = cb_obj.value[1];'))
-    yslider.js_on_change('value', CustomJS(args=dict(lin=figs[0].y_range, log=figs[1].y_range, tabs=tabs), code='''
-        // the flux slider sets the range of the tab shown; the lower edge stays positive on the log scale
-        let lo = cb_obj.value[0], hi = cb_obj.value[1];
-        if (tabs.active == 1) {
-            if (!(hi > 0)) return;
-            if (!(lo > 0)) lo = hi * 1e-4;
-            log.start = lo; log.end = hi;
-        } else { lin.start = lo; lin.end = hi; }'''))
-    # the sliders follow the plot whenever it is zoomed, panned, reset or refitted
-    follow = '''
-        const lo = Math.min(r.start, r.end), hi = Math.max(r.start, r.end), span = hi - lo;
-        if (!(span > 0)) return;
-        if (lo < s.start || hi > s.end || span < 0.02 * (s.end - s.start)) {
-            s.start = lo - span; s.end = hi + span; s.step = span / 200;
-        }
-        if (Math.abs(s.value[0] - lo) > 1e-9 * span || Math.abs(s.value[1] - hi) > 1e-9 * span) s.value = [lo, hi];'''
-    for r, sl, tab in ((figs[0].x_range, xslider, -1), (figs[0].y_range, yslider, 0), (figs[1].y_range, yslider, 1)):
-        cb = CustomJS(args=dict(r=r, s=sl, tabs=tabs, tab=tab),
-                      code='if (tab >= 0 && tabs.active != tab) return;' + follow)
-        r.js_on_change('start', cb)
-        r.js_on_change('end', cb)
-    tabs.js_on_change('active', CustomJS(args=dict(rs=[figs[0].y_range, figs[1].y_range], s=yslider), code='''
-        // on changing tab, the flux slider takes the range of the tab now shown
-        const r = rs[cb_obj.active], lo = Math.min(r.start, r.end), hi = Math.max(r.start, r.end), span = hi - lo;
-        s.start = cb_obj.active == 1 ? lo / 10 : lo - span; s.end = cb_obj.active == 1 ? hi * 10 : hi + span;
-        s.step = (s.end - s.start) / 400; s.value = [lo, hi];'''))
-    errtog.js_on_click(CustomJS(args=dict(bands=bands_err, lines=lines, meta=meta), code="""
-        for (let i = 0; i < bands.length; i++)
-            for (let k = 0; k < bands[i].length; k++)
-                bands[i][k].visible = cb_obj.active && meta[i].has_err && lines[i][k].visible;"""))
-    for i in range(n_spec):  # the uncertainty band follows its spectrum when hidden from the legend
-        for k, ln in enumerate(lines[i]):
-            ln.js_on_change('visible', CustomJS(args=dict(b=bands_err[i][k], tog=errtog, has=meta[i]['has_err']),
-                                                code='b.visible = cb_obj.visible && tog.active && has;'))
-    layouts = [CustomJS(args=dict(labs=feature_labels[k], sel=featsel, p=figs[k], is_log=(k == 1)),
-                        code=JS_LAYOUT_LABELS) for k in range(2)]
-    featsel.js_on_change('value', CustomJS(args=dict(sets=feature_sets, layouts=layouts), code="""
+    # controls: feature, telluric and uncertainty switches beside the plot, scaling below it
+    featsel = Select(title='Spectral features', value='None', options=['None'] + list(FEATURE_SETS), width=180)
+    telluric = Toggle(label='Telluric bands', width=180)
+    errtog = Toggle(label='Uncertainties', active=True, width=180)
+    norm = RangeSlider(start=round(xlo, 2), end=round(xhi, 2), value=(centre - 0.5 * width, centre + 0.5 * width),
+                       step=0.005, title='Normalisation window [μm]', sizing_mode='stretch_width')
+    smooth = Slider(start=1, end=25, value=1, step=2, title='Smoothing [pixels]', width=300)
+    scale = CustomJS(args=dict(sources=sources, meta=meta, bands=list(BANDS), coverage=COVERAGE, norm=norm,
+                               smooth=smooth, items=items, lines=lines, marks=marks, yaxis=p.yaxis[0], yr=p.y_range),
+                     code=JS_SCALE)
+    for widget in (norm, smooth):
+        widget.js_on_change('value', scale)
+    for line in lines:
+        line.js_on_change('visible', scale)
+    layout_labels = CustomJS(args=dict(labs=feature_labels, sel=featsel, p=p), code=JS_LAYOUT_LABELS)
+    featsel.js_on_change('value', CustomJS(args=dict(sets=feature_sets, layout=layout_labels), code="""
         for (const [cls, objs] of Object.entries(sets))
             for (const o of objs) if (o.type != 'Label') o.visible = (cls == cb_obj.value);
-        for (const L of layouts) L.execute(cb_obj);"""))
-    for k in range(2):
-        figs[0].x_range.js_on_change('start', layouts[k])
-        figs[0].x_range.js_on_change('end', layouts[k])
-        figs[k].js_on_change('inner_width', layouts[k])
-    overlays.js_on_change('active', CustomJS(args=dict(t=telluric_objs), code="""
-        for (const o of t) o.visible = cb_obj.active.includes(0);"""))
-    controls = column(modes, bandsel, centre, width, smooth, xslider, yslider, errtog, featsel, overlays, note,
-                      width=260, sizing_mode='fixed')
-    layout = row(controls, tabs, sizing_mode='stretch_width')
+        layout.execute(cb_obj);"""))
+    for attr in ('start', 'end'):
+        p.x_range.js_on_change(attr, layout_labels)
+    p.js_on_change('inner_width', layout_labels)
+    telluric.js_on_change('active', CustomJS(args=dict(objs=telluric_objs), code="""
+        for (const o of objs) o.visible = cb_obj.active;"""))
+    errtog.js_on_change('active', CustomJS(args=dict(bands=bands_err, lines=lines, meta=meta), code="""
+        bands.forEach((b, i) => { b.visible = cb_obj.active && meta[i].has_err && lines[i].visible; });"""))
+    for band, line, m in zip(bands_err, lines, meta):  # an uncertainty band follows its spectrum when hidden
+        line.js_on_change('visible', CustomJS(args=dict(b=band, tog=errtog, has=m['has_err']),
+                                              code='b.visible = cb_obj.visible && tog.active && has;'))
+
+    layout = column(row(p, column(featsel, telluric, errtog, width=200), sizing_mode='stretch_width'),
+                    row(norm, smooth, sizing_mode='stretch_width'), sizing_mode='stretch_width')
     Document().add_root(layout)
-    layout.document.js_on_event('document_ready', update)  # applies the opening mode
+    layout.document.js_on_event('document_ready', scale)  # scales the spectra as the page opens
     script, div = components(layout, theme=theme)
     return script, div, failures
