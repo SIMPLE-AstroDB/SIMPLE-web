@@ -4,14 +4,11 @@ Importing all packages
 
 import argparse  # parsing the arguments given with file
 import os  # operating system
-import sys  # system arguments
-from copy import deepcopy  # memory control
 from difflib import get_close_matches  # for redirecting bad file paths
-from io import BufferedIOBase, BytesIO, StringIO  # writing files without saving to disk
-from shutil import copy  # copying files
+from io import BytesIO, StringIO  # writing files without saving to disk
 from sqlite3 import Warning as SqliteWarning  # errors from sqlite
 from time import localtime, strftime  # time stuff for naming files
-from typing import Dict, Generator, List, Optional, Tuple, Union  # type hinting (good in IDEs)
+from typing import Dict, List, Optional, Tuple, Union  # type hinting (good in IDEs)
 from urllib.parse import quote, unquote, urlparse  # handling strings into url friendly form
 from zipfile import ZipFile  # zipping files together
 
@@ -19,7 +16,6 @@ import astropy.units as u  # units
 import multiprocess as mp  # multiprocessing for efficiency
 import numpy as np  # numerical python
 import pandas as pd  # running dataframes
-import pytest  # testing
 import requests  # accessing internet
 from astrodbkit.astrodb import Database  # used for pulling out database and querying
 from astropy.coordinates import SkyCoord  # coordinates
@@ -43,7 +39,7 @@ from bokeh.models import (
                    Toggle,
 )
 from bokeh.palettes import Colorblind8, Turbo256  # plotting palettes
-from bokeh.plotting import curdoc, figure  # bokeh plotting
+from bokeh.plotting import figure  # bokeh plotting
 from bokeh.resources import CDN  # resources for webpage
 from bokeh.themes import Theme, built_in_themes  # appearance of bokeh glyphs
 from bokeh.transform import linear_cmap  # making colour maps

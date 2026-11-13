@@ -8,6 +8,10 @@ absmags -- called by results_concat
 coordinate_project -- called by results_concat
 """
 # local packages
+from shutil import copy
+
+import pytest
+
 from ..utils import *
 
 db_name = 'temp.sqlite'
@@ -243,7 +247,6 @@ def test_coordinate_project():
 def test_control_response():
     response = Response('ok')
     out = control_response(response, key='Sources', app_type='csv')
-    assert out.headers['Content-Type'].startswith('text/csv')
     assert 'attachment; filename=simplequery-' in out.headers['Content-Disposition']
     assert '_Sources.csv' in out.headers['Content-Disposition']
 
@@ -265,12 +268,12 @@ def test_unique_filename():
     assert unique_filename('spec.fits', existing) == 'spec_2.fits'
 
 
-def test_write_file():
-    df = pd.DataFrame({'a': [1, 2], 'b': ['x', 'y']})
-    lines = list(write_file(df))
-    assert lines[0].strip() == 'a,b'
-    assert lines[1].strip() == '1,x'
-    assert lines[2].strip() == '2,y'
+def test_csv_response():
+    df = pd.DataFrame({'a': [1, 2], 'b': ['x', 'y, z']})
+    out = csv_response(df, 'Sources')
+    assert out.mimetype == 'text/csv'
+    assert '_Sources.csv' in out.headers['Content-Disposition']
+    assert out.get_data(as_text=True).splitlines() == ['a,b', '1,x', '2,"y, z"']
 
 
 def test_write_multi_files():

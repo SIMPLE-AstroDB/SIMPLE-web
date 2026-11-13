@@ -13,6 +13,13 @@ app_simple.config['UPLOAD_FOLDER'] = 'tmp/'
 CORS(app_simple)  # makes CORS work (aladin notably)
 
 
+def filter_by_sources(results: pd.DataFrame, ref_sources: pd.DataFrame) -> pd.DataFrame:
+    """
+    Keeps only the object search results whose source is also in the full text search Sources results
+    """
+    return results[results.source.isin(ref_sources.source)]
+
+
 # website pathing
 @app_simple.route('/')
 @app_simple.route('/index', methods=['GET'])
@@ -75,9 +82,7 @@ def search():
 
     # otherwise, filter the Sources table by whatever is in the full text search
     else:
-        filtered_results: Optional[pd.DataFrame] = results.merge(ref_sources, on='source', suffixes=(None, 'extra'))
-        filtered_results.drop(columns=list(filtered_results.filter(regex='extra')), inplace=True)
-        stringed_results = one_df_query(filtered_results)
+        stringed_results = one_df_query(filter_by_sources(results, ref_sources))
 
     # return page with filtered Sources present
     return render_template('search.html', form=form, ref_query=ref_query, version_str=version_str,
@@ -304,9 +309,7 @@ def create_file_for_download(key: str):
     # writes table to csv
     if key in resultdict:
         results: pd.DataFrame = getattr(everything, key.lower())
-        response = Response(write_file(results), mimetype='text/csv')
-        response = control_response(response, key)
-        return response
+        return csv_response(results, key)
 
     abort(400, 'Could not write table')
 
@@ -402,14 +405,7 @@ def create_file_for_filtered_download():
     ref_results: Optional[dict] = db.search_string(refquery, fmt='pandas', verbose=False)
     ref_sources: pd.DataFrame = ref_results['Sources']
 
-    # filter the search by the reference search
-    filtered_results: Optional[pd.DataFrame] = results.merge(ref_sources, on='source', suffixes=(None, 'extra'))
-    filtered_results.drop(columns=list(filtered_results.filter(regex='extra')), inplace=True)
-
-    # write to a csv
-    response = Response(write_file(filtered_results), mimetype='text/csv')
-    response = control_response(response)
-    return response
+    return csv_response(filter_by_sources(results, ref_sources))
 
 
 @app_simple.route('/write_coord', methods=['GET', 'POST'])
@@ -427,10 +423,7 @@ def create_file_for_coordinate_download():
     c = SkyCoord(ra=ra, dec=dec, unit=unit)
     results: pd.DataFrame = db.query_region(c, fmt='pandas', radius=radius)
 
-    # write results to a csv
-    response = Response(write_file(results), mimetype='text/csv')
-    response = control_response(response)
-    return response
+    return csv_response(results)
 
 
 @app_simple.route('/write_full/<key>', methods=['GET'])
@@ -448,13 +441,10 @@ def create_file_for_full_download(key: str):
 
     # search database with a free-text search and specific table
     resultdict: Dict[str, pd.DataFrame] = db.search_string(query, fmt='pandas', verbose=False)
-    print(query, key, resultdict.keys())
     # write to csv
     if key in resultdict:
         results: pd.DataFrame = resultdict[key]
-        response = Response(write_file(results), mimetype='text/csv')
-        response = control_response(response, key)
-        return response
+        return csv_response(results, key)
 
     abort(400, 'Could not write table')
 
@@ -487,10 +477,7 @@ def create_file_for_sql_download():
     # query database via sql
     results: Optional[pd.DataFrame] = db.sql_query(query, fmt='pandas')
 
-    # write results to a csv
-    response = Response(write_file(results), mimetype='text/csv')
-    response = control_response(response)
-    return response
+    return csv_response(results)
 
 
 @app_simple.route('/download_sqlite', methods=['GET'])

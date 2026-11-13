@@ -43,14 +43,7 @@ class SimpleDB(Database):  # this keeps pycharm happy about unresolved reference
     Publications = None
 
     def __init__(self, connection_string):
-        # just need to make sure the database.toml is where we expect (same dir as sqlite file)
-        # also need to create data directory, even empty, so database settings can run
-        settings_file = os.path.relpath(connection_string).split('sqlite:/')[0] + 'database.toml'
-        if not os.path.exists('data'):
-            try:
-                os.mkdir('data')
-            except PermissionError:
-                raise PermissionError('Cannot create data directory, please create manually')
+        os.makedirs('data', exist_ok=True)  # astrodbkit needs the data directory to exist, even empty
         super().__init__(connection_string,
                          lookup_tables=REFERENCE_TABLES,
                          connection_arguments={'check_same_thread': False})
@@ -118,11 +111,7 @@ class Inventory:
             The edited table
         """
 
-        # convert links to spectra files from plaintext to hyperlinks
-        url_links = []
-        for source in df.access_url.values:
-            source_link = f'<a href="{source}" target="_blank">Link</a>'
-            url_links.append(source_link)
+        url_links = [f'<a href="{url}" target="_blank">Link</a>' for url in df.access_url.values]
 
         # removing excess columns which aren't pretty on the website
         df.drop(columns=[col for col in df.columns if
@@ -967,16 +956,8 @@ def one_df_query(results: pd.DataFrame, table_id: Optional[str] = None, limit_ma
 
         # make the source always hyperlink to the solo_result page
         if 'source' in results.columns:
-            source_links = []
-
-            for source in results.source.values:
-                if not isinstance(source, str):
-                    source = source[0]
-                url_link = quote(source)
-                source_link = f'<a href="/load_solo/{url_link}" target="_blank">{source}</a>'
-                source_links.append(source_link)
-
-            results['source'] = source_links
+            sources = [s if isinstance(s, str) else s[0] for s in results.source.values]
+            results['source'] = [f'<a href="/load_solo/{quote(s)}" target="_blank">{s}</a>' for s in sources]
 
         # for very large tables (e.g. just searching for '2MASS'), limit max rows
         if limit_max_rows:
@@ -1176,62 +1157,19 @@ def unique_filename(filename: str, existing: set) -> str:
 
 def control_response(response: Response, key: str = '', app_type: str = 'csv') -> Response:
     """
-    Edits the headers of a flask response
-
-    Parameters
-    ----------
-    response
-        The response as streamed out
-    key
-        The key used in the query, to differentiate returned results
-    app_type
-        The type of application being returned
-
-    Returns
-    -------
-    response
-        The response with edited headers
+    Sets a timestamped download filename, suffixed with the table key if given, on a flask response
     """
-    # adding to filename to differentiate results
-    if len(key):  # if something provided to append
-        key = '_' + key
-
-    # checking application/content/mime types to be returned
-    if app_type == 'csv':
-        content_type = 'text/csv'
-    elif app_type == 'zip':
-        content_type = 'application/zip'
-    else:
-        content_type = 'text/plain'
-
-    # handling headers and filename
-    suffix = '.' + app_type
-    response.headers['Content-Type'] = f"{content_type}; charset=utf-8"
-    now_time = strftime("%Y-%m-%d--%H-%M-%S", localtime())
-    filename = 'simplequery-' + now_time + key + suffix
-    response.headers['Content-Disposition'] = f"attachment; filename={filename}"
+    key = f'_{key}' if key else ''
+    filename = f'simplequery-{strftime("%Y-%m-%d--%H-%M-%S", localtime())}{key}.{app_type}'
+    response.headers['Content-Disposition'] = f'attachment; filename={filename}'
     return response
 
 
-def write_file(results: pd.DataFrame) -> Generator:
+def csv_response(results: pd.DataFrame, key: str = '') -> Response:
     """
-    Creates a csv file ready for download on a line by line basis
-
-    Parameters
-    ----------
-    results: pd.DataFrame
-        The dataframe to be written
-
-    Yields
-    -------
-    _
-        Each line of the outputted csv
+    Wraps a dataframe as a csv file download
     """
-    yield f"{','.join(results.columns)}\n"
-
-    for i, _row in results.iterrows():
-        row_pack = [str(val) for val in _row.tolist()]
-        yield f"{','.join(row_pack)}\n"
+    return control_response(Response(results.to_csv(index=False), mimetype='text/csv'), key)
 
 
 # noinspection PyTypeChecker
@@ -1249,20 +1187,10 @@ def write_multi_files(d_results: Dict[str, pd.DataFrame]) -> BytesIO:
     zip_mem
         The zipped file in memory
     """
-    d_csv: Dict[str, StringIO] = {}
-
-    # creating each csv file corresponding to each datafarme
-    for key, df in d_results.items():
-        csv_data = StringIO()
-        df.to_csv(csv_data, index=False)
-        csv_data.seek(0)
-        d_csv[key] = csv_data
-
-    # creating a zipped file containing all csv files
     zip_mem = BytesIO()
     with ZipFile(zip_mem, 'w') as zipper:
-        for key, csv_data in d_csv.items():
-            zipper.writestr(f"{key}.csv", csv_data.getvalue())
+        for key, df in d_results.items():
+            zipper.writestr(f'{key}.csv', df.to_csv(index=False))
 
     zip_mem.seek(0)
     return zip_mem

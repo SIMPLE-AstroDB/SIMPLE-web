@@ -165,8 +165,7 @@ def spectra_plot(query: str, db_file: str, night_sky_theme: Theme,
     p = bokeh_formatter(p)
     p.xaxis.axis_label = 'Wavelength [μm]'
     p.yaxis.axis_label = 'Normalised Flux'
-    line_dash = 'solid'
-    i, j = 0, 0
+    i = 0
     cds_list, line_plots = [], []
     normalised_min_wave, normalised_max_wave = 0.81, 0.82
     flux_min, flux_max = np.inf, -np.inf
@@ -217,15 +216,10 @@ def spectra_plot(query: str, db_file: str, night_sky_theme: Theme,
         cds = ColumnDataSource(data=dict(wave=wave, flux=flux, normalised_flux=normalised_flux))
         cds_list.append(cds)
 
-        # handle line plot styling
-        if j > len(Colorblind8):
-            j = 0
-            line_dash = 'dashed'
-        else:
-            j = i
-
+        # cycle the palette, dashed once it is exhausted
+        line_dash = 'solid' if i < len(Colorblind8) else 'dashed'
         lineplot = p.line(x='wave', y='normalised_flux', source=cds, legend_label=label,
-                          line_color=Colorblind8[j], line_dash=line_dash, line_width=2)
+                          line_color=Colorblind8[i % len(Colorblind8)], line_dash=line_dash, line_width=2)
         line_plots.append(lineplot)
         i += 1
 
