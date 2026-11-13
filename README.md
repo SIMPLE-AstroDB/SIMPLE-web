@@ -16,9 +16,10 @@ conda env create -f environment.yml
 ```
 
 ### Refresh the database
-Get a fresh copy of the database from the binary repo.
+Get a fresh copy of the database from the binary repo, and its settings file from the database repo.
 ```bash
 wget https://raw.githubusercontent.com/SIMPLE-AstroDB/SIMPLE-binary/main/SIMPLE.sqlite
+wget https://raw.githubusercontent.com/SIMPLE-AstroDB/SIMPLE-db/main/database.toml
 ```
 
 ### Running
@@ -32,6 +33,12 @@ python -m simple_app.app_simple -h
 ```
 Launch a browser and enter the URL [http://127.0.0.1:8000](http://127.0.0.1:8000).  
 If you have changed either the host or port with system arguments, use those instead.  
+
+### Testing
+With the database files above in the repo root:
+```bash
+pytest simple_app/tests
+```
 
 ### Updating
 We also recommend keeping up to date with the repo changes, and most importantly, 
@@ -48,6 +55,11 @@ wget https://raw.githubusercontent.com/SIMPLE-AstroDB/SIMPLE-binary/main/SIMPLE.
 ## Apache Config
 The major requirement for running this program on Apache
 is [`mod_wsgi`](https://flask.palletsprojects.com/en/2.1.x/deploying/mod_wsgi/)
+
+Set the `SIMPLE_SECRET_KEY` environment variable on the server (e.g. from
+`python -c "import secrets; print(secrets.token_hex(32))"`) and keep it out of the repo.
+Without it a random key is made at every start, so user sessions (used by the download links) break on restarts
+and between worker processes.
 
 Refer to our GitHub Wiki pages for more detailed setup instructions.
 
