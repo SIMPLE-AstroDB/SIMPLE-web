@@ -27,7 +27,8 @@ def test_raw_query(client):
 
 @pytest.mark.parametrize('sql, error', [('select * from NotaTable', 'Invalid SQL'),
                                         ('delete from Sources', 'Queries must start with'),
-                                        ('select * from Sources; drop table Sources', 'Forbidden keyword')])
+                                        ('select * from Sources; drop table Sources', 'Forbidden keyword'),
+                                        ('select * from Sources join Spectra', 'you must provide either')])
 def test_raw_query_errors(client, sql, error):
     page = client.post('/raw_query', data={'sqlfield': sql}).get_data(as_text=True)
     assert error in page
@@ -51,3 +52,8 @@ def test_propagate(client):
 def test_query_builder_tables(client):
     page = client.get('/raw_query').get_data(as_text=True)
     assert 'id="querybuilder"' in page and '"Sources": ["source", "ra", "dec"' in page
+
+
+def test_raw_query_keywords_in_values(client):
+    sql = "select * from Sources where comments like '%updated%' or comments like '%dropped%'"
+    assert 'Forbidden keyword' not in client.post('/raw_query', data={'sqlfield': sql}).get_data(as_text=True)

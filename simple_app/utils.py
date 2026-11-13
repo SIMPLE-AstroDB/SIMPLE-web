@@ -377,11 +377,12 @@ class SQLForm(CSRFOverride):
                 raise BadSQLError('Queries must start with "select" and contain "from".')
 
             # checking joins are done correctly
-            if 'join' in query_low and not any([sub_string in query_low for sub_string in ('using', 'on')]):
+            words = set(re.findall(r'\w+', query_low))  # whole words, so e.g. 'updated' or 'source' do not match
+            if 'join' in words and not words & {'using', 'on'}:
                 raise BadSQLError('When performing a join, you must provide either "using" or "on".')
 
             # look for malicious commands (David)
-            if any([sub_string in query_low for sub_string in forbidden]):
+            if words & set(forbidden):
                 raise BadSQLError('Forbidden keyword detected.')
 
             # only then, attempt query

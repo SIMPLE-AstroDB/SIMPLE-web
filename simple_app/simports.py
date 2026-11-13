@@ -4,6 +4,7 @@ Importing all packages
 
 import argparse  # parsing the arguments given with file
 import os  # operating system
+import re  # regular expressions
 import warnings  # silencing expected astropy warnings
 from difflib import get_close_matches  # for redirecting bad file paths
 from io import BytesIO, StringIO  # writing files without saving to disk
