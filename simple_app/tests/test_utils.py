@@ -123,7 +123,7 @@ def test_multi_df_query(db, db_cs):
     assert isinstance(results, dict)
     assert 'Sources' in results
     assert isinstance(results['Sources'], pd.DataFrame)
-    results_out = multi_df_query(results, db_cs)
+    results_out = multi_df_query(results, db_cs, good_query)
     assert isinstance(results_out, dict)
     assert 'Sources' in results_out
     assert isinstance(results_out['Sources'], str)

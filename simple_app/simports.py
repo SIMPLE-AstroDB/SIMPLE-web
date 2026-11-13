@@ -56,7 +56,6 @@ from flask import (
                    render_template,
                    request,
                    send_from_directory,
-                   session,
                    url_for,
 )
 from flask_cors import CORS  # cross origin fix (aladin mostly)

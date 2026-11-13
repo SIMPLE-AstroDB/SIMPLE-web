@@ -21,7 +21,8 @@ def test_raw_query(client):
     # no csrf token posted: the form must still submit (#217)
     page = client.post('/raw_query', data={'sqlfield': TWA_SQL}).get_data(as_text=True)
     assert 'id="searchtable"' in page
-    csv = client.get('/write_sql').get_data(as_text=True)
+    assert '/write_sql?query=' in page  # downloads carry the query, no server session
+    csv = client.get('/write_sql', query_string={'query': TWA_SQL}).get_data(as_text=True)
     assert csv.startswith('source,') and 'TWA' in csv
 
 
@@ -66,3 +67,14 @@ def test_jdaviz_notebook(client):
     compile(code, 'notebook', 'exec')  # valid python
     assert 'specviz.load(' in code and 'https://' in code
     assert client.get('/jdaviz_notebook/thisisabadquery').status_code == 404
+
+
+def test_downloads_without_session(client):
+    # a fresh client has no cookies: every download must work from its url alone
+    page = client.get('/solo_result/TWA 27').get_data(as_text=True)
+    assert '/write/Sources.csv?query=TWA+27' in page and '/write_spectra?query=TWA%2027' in page
+    with client.application.test_client() as fresh:
+        csv = fresh.get('/write/Sources.csv?query=TWA 27').get_data(as_text=True)
+        assert csv.startswith('source,') and 'TWA 27' in csv
+        res = fresh.get('/write_filt', query_string={'query': 'twa', 'ref_query': 'Kell15'})
+        assert res.status_code == 200 and res.get_data(as_text=True).startswith('source,')

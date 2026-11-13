@@ -97,7 +97,7 @@ class Inventory:
         return
 
     @staticmethod
-    def spectra_handle(df: pd.DataFrame, drop_source: bool = True, multi_obj: bool = False):
+    def spectra_handle(df: pd.DataFrame, download_url: str, drop_source: bool = True):
         """
         Handles spectra, converting files to links
 
@@ -105,17 +105,16 @@ class Inventory:
         ----------
         df: pd.DataFrame
             The table for the spectra
+        download_url: str
+            Link downloading all these spectra as a zip, which heads the link column
         drop_source: bool
-            Switch to keep source in the dataframe
-        multi_obj: bool
-            Switch on multiple objects being looked at or just one individual object
+            Switch to drop the source column
 
         Returns
         -------
         df: pd.DataFrame
             The edited table
         """
-
         url_links = [f'<a href="{url}" target="_blank">Link</a>' for url in df.access_url.values]
 
         # removing excess columns which aren't pretty on the website
@@ -127,12 +126,7 @@ class Inventory:
             drop_cols.append('source')
         df.drop(columns=drop_cols, inplace=True, errors='ignore')
 
-        # editing dataframe with nicely formatted columns
-        if multi_obj:
-            href_path = 'write_multi_spectra'
-        else:
-            href_path = 'write_spectra'
-        df[f'<a href="/{href_path}" target="_blank">download</a>'] = url_links
+        df[f'<a href="{download_url}" target="_blank">download</a>'] = url_links
         df['observation_date'] = df['observation_date'].dt.date
         return df
 
@@ -174,7 +168,8 @@ class Inventory:
         # switch whether to have a Markdown version of the table, or a normal DataFrame
         if return_markdown:
             if key == 'Spectra':
-                df = self.spectra_handle(df)
+                source = self.results['Sources'][0]['source']
+                df = self.spectra_handle(df, f'/write_spectra?query={quote(source, safe="")}')
             df = reference_handle(df, db_file)
             df.rename(columns={s: s.replace('_', ' ') for s in df.columns if 'download' not in s}, inplace=True)
             return markdown(df.to_html(index=False, escape=False,
@@ -1036,7 +1031,7 @@ def one_df_query(results: pd.DataFrame, table_id: Optional[str] = None, limit_ma
     return stringed_results
 
 
-def multi_df_query(results: Dict[str, pd.DataFrame], db_file: str,
+def multi_df_query(results: Dict[str, pd.DataFrame], db_file: str, query: str,
                    limit_max_rows: bool = False) -> Dict[str, Optional[str]]:
     """
     Handling the output from a query which returns multiple dataframes
@@ -1047,6 +1042,8 @@ def multi_df_query(results: Dict[str, pd.DataFrame], db_file: str,
         The dictionary of dataframes
     db_file: str
         The connection string to the database
+    query: str
+        The full text search, for the spectra download link
     limit_max_rows
         Limit max rows switch
 
@@ -1067,7 +1064,7 @@ def multi_df_query(results: Dict[str, pd.DataFrame], db_file: str,
         # wrapping the one_df_query method for each table
         for table_name, df in results.items():
             if table_name == 'Spectra':
-                df = Inventory.spectra_handle(df, False, True)
+                df = Inventory.spectra_handle(df, f'/write_multi_spectra?query={quote(query, safe="")}', False)
             df = reference_handle(df, db_file)
             stringed_df = one_df_query(df, table_name.lower() + 'table', limit_max_rows)
             d_results[table_name] = stringed_df

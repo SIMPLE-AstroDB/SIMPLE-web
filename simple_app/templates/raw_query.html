@@ -185,7 +185,7 @@
     </script>
     <div class="container table-responsive">
         {% if query != '' and results is not none %}
-            <h2 class="display-3"><a href="{{ url_for('create_file_for_sql_download') }}">Results</a>:</h2>
+            <h2 class="display-3"><a href="{{ url_for('create_file_for_sql_download', query=query) }}">Results</a>:</h2>
             {% if res_len > 10_000 %}
                 <p class="display-6">There are a large number of rows returned ({{ res_len }}),
                 please be patient whilst the table constructs itself.

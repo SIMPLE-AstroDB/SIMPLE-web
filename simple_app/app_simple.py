@@ -7,8 +7,6 @@ from .plots import *
 
 # initialise
 app_simple = Flask(__name__)  # start flask app
-# fixed key keeps sessions valid across restarts and workers; random key only suits single-process local runs
-app_simple.config['SECRET_KEY'] = os.environ.get('SIMPLE_SECRET_KEY') or os.urandom(32)
 app_simple.config['UPLOAD_FOLDER'] = 'tmp/'
 CORS(app_simple)  # makes CORS work (aladin notably)
 
@@ -53,8 +51,6 @@ def search():
     if (query := form.search.data) is None:  # content in main searchbar
         query = ''
 
-    session['query'] = query  # add query to bokeh curdoc
-    session['ref_query'] = ref_query  # add query to bokeh curdoc
     db = SimpleDB(db_file)  # open database
 
     # object search function
@@ -102,7 +98,6 @@ def coordinate_query():
         if (query := form.query.data) is None:
             query = ''
 
-        session['query'] = query
         db = SimpleDB(db_file)
 
         # parse query into ra, dec, radius
@@ -133,12 +128,11 @@ def full_text_search():
         query = ''
         limmaxrows = True
 
-    session['query'] = query
     db = SimpleDB(db_file)
 
     # search through the tables using the given query
     results: Dict[str, pd.DataFrame] = db.search_string(query, fmt='pandas', verbose=False)
-    resultsout = multi_df_query(results, db_file, limmaxrows)
+    resultsout = multi_df_query(results, db_file, query, limmaxrows)
 
     return render_template('full_text_search.html', form=form, version_str=version_str,
                            results=resultsout, query=query)
@@ -167,7 +161,6 @@ def raw_query():
         if (query := form.sqlfield.data) is None:
             query = ''
 
-        session['query'] = query
 
         # attempt to query the database
         try:
@@ -180,7 +173,7 @@ def raw_query():
         if 'access_url' in results.columns:
             url_links = [f'<a href="{url}" target="_blank">Link</a>' for url in results.access_url.values]
             results.drop(columns=['access_url'], inplace=True)
-            download_col = '<a href="/write_sql_spectra" target="_blank">download</a>'
+            download_col = f'<a href="/write_sql_spectra?query={quote(query, safe="")}" target="_blank">download</a>'
             results.insert(1, download_col, url_links)
 
         results = reference_handle(results, db_file)
@@ -204,7 +197,6 @@ def solo_result(query: str):
     query: str
         The query -- full match to a main ID
     """
-    session['query'] = query
     db = SimpleDB(db_file)
 
     # search database for given object
@@ -327,7 +319,7 @@ def create_file_for_download(key: str):
     key: str
         The dataframe string
     """
-    query: str = session.get('query')
+    query = request.args.get('query', '')
     db = SimpleDB(db_file)
 
     # search for a given object and a given key
@@ -347,7 +339,7 @@ def create_files_for_solo_download():
     """
     Creates and downloads all dataframes from solo results
     """
-    query = session.get('query')
+    query = request.args.get('query', '')
     db = SimpleDB(db_file)
 
     # search for a given object
@@ -370,7 +362,7 @@ def create_spectra_files_for_download():
     """
     Downloads the spectra files and zips together
     """
-    query = session.get('query')
+    query = request.args.get('query', '')
     db = SimpleDB(db_file)
 
     # search for a given object and specifically its spectra
@@ -388,7 +380,7 @@ def create_multi_spectra_files_for_download():
     """
     Downloads the spectra files and zips together
     """
-    query = session.get('query')
+    query = request.args.get('query', '')
     db = SimpleDB(db_file)
 
     # search for the spectra within a given free search
@@ -405,7 +397,7 @@ def create_sql_spectra_files_for_download():
     """
     Downloads all spectra from a raw SQL query if an access_url column is present.
     """
-    query = session.get('query')
+    query = request.args.get('query', '')
     db = SimpleDB(db_file)
 
     # query database via sql
@@ -424,8 +416,8 @@ def create_file_for_filtered_download():
     """
     Creates and downloads the shown dataframe when in filtered search
     """
-    query = session.get('query')
-    refquery = session.get('ref_query')
+    query = request.args.get('query', '')
+    refquery = request.args.get('ref_query', '')
     db = SimpleDB(db_file)
 
     # search for a given object and a full text search at the same time
@@ -441,7 +433,7 @@ def create_file_for_coordinate_download():
     """
     Creates and downloads the shown dataframe when in coordinate search
     """
-    query = session.get('query')
+    query = request.args.get('query', '')
     db = SimpleDB(db_file)
 
     # query the database for given coordinates and parse those coordinates
@@ -464,7 +456,7 @@ def create_file_for_full_download(key: str):
     key: str
         The dataframe string
     """
-    query = session.get('query')
+    query = request.args.get('query', '')
     db = SimpleDB(db_file)
 
     # search database with a free-text search and specific table
@@ -482,7 +474,7 @@ def create_files_for_multi_download():
     """
     Creates and downloads all dataframes from full results
     """
-    query = session.get('query')
+    query = request.args.get('query', '')
     db = SimpleDB(db_file)
 
     # search with full-text search
@@ -499,7 +491,7 @@ def create_file_for_sql_download():
     """
     Creates and downloads the shown dataframe when in sql query
     """
-    query = session.get('query')
+    query = request.args.get('query', '')
     db = SimpleDB(db_file)
 
     # query database via sql
