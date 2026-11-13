@@ -10,8 +10,9 @@ The source's spectra share one panel with Linear and Log tabs; everything below 
 """
 import json
 import os
+import tempfile
 import warnings
-from urllib.parse import quote
+from urllib.parse import quote, urlparse
 
 import astropy.units as u
 import numpy as np
@@ -247,9 +248,23 @@ def read_spectrum(url: str):
     """
     url = quote(url, safe=':/?&=%+#')  # e.g. a unicode minus in a file name
     try:
+        cached = download_file(url, cache=True)
+    except Exception as error:
+        raise ValueError(f'unreadable ({error})') from None
+    # specutils guesses formats partly by file name, which the cached download lacks, and would otherwise download
+    # the url again for every format it tries: it reads a link carrying the original name
+    with tempfile.TemporaryDirectory() as tmp:
+        path = os.path.join(tmp, os.path.basename(urlparse(url).path) or 'spectrum')
+        os.symlink(cached, path)
+        return _read_any(path)
+
+
+def _read_any(path: str):
+    """read_spectrum() of a local file."""
+    try:
         with warnings.catch_warnings():  # header fixes and format hints from archival files, which only fill the log
             warnings.simplefilter('ignore')
-            spectrum = Spectrum.read(url, cache=True)
+            spectrum = Spectrum.read(path)
         wave = spectrum.spectral_axis.to(u.micron, equivalencies=u.spectral()).value
         stored = spectrum.flux.value
         # standard deviation in the units the flux is stored in
@@ -264,11 +279,11 @@ def read_spectrum(url: str):
             flux = stored
     except Exception as specutils_error:
         # the extension only sets the order: some text tables are named .fits
-        readers = (_read_image, _read_table) if url.lower().endswith(('.fits', '.fits.gz', '.fit')) \
+        readers = (_read_image, _read_table) if path.lower().endswith(('.fits', '.fits.gz', '.fit')) \
             else (_read_table, _read_image)
         for reader in readers:
             try:
-                wave, flux, err = reader(url)
+                wave, flux, err = reader(path)
                 break
             except Exception:
                 continue
@@ -292,19 +307,19 @@ def to_micron(wave: np.ndarray) -> np.ndarray:
     return wave / (1 if median < 100 else 1e3 if median < 4000 else 1e4)
 
 
-def _read_table(url: str):
+def _read_table(path: str):
     """Columns of a whitespace or comma separated text spectrum: wavelength, flux and (when present) uncertainty."""
-    with open(download_file(url, cache=True), errors='replace') as fh:  # only the lines starting with a number
+    with open(path, errors='replace') as fh:  # only the lines starting with a number
         lines = [line for line in fh if line.strip() and line.lstrip()[0] in '0123456789+-.']
     data = np.loadtxt(lines, ndmin=2, delimiter=',' if ',' in lines[0] else None)
     return to_micron(data[:, 0]), data[:, 1], data[:, 2] if data.shape[1] > 2 else np.full(len(data), np.nan)
 
 
-def _read_image(url: str):
+def _read_image(path: str):
     """An image spectrum: rows (SpeX) or columns (X-shooter) of wavelength, flux and uncertainty when there is no
     wavelength solution, otherwise a 1D spectrum with a linear wavelength solution; for IRAF multispec cubes the first
     aperture, with the sigma band as uncertainty when there is one."""
-    with fits.open(url, cache=True) as hdus:
+    with fits.open(path) as hdus:
         head, data = hdus[0].header, np.asarray(hdus[0].data, dtype=float)
     if 'CRVAL1' not in head and data.ndim == 2:
         rows = data.T if data.shape[1] < data.shape[0] else data  # spectrum stored as columns
