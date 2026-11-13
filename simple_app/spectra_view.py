@@ -31,6 +31,8 @@ from specutils import Spectrum
 from .plots import bokeh_formatter
 
 COVERAGE = 0.9  # fraction of a filter (photoscaling) or of the normalisation window a spectrum must cover to use it
+COLOURS = Colorblind8[:7]  # its 8th colour is black, invisible on the dark theme
+DASHES = ('solid', 'dashed', 'dotted', 'dotdash', 'dashdot')  # each further set of seven spectra
 MAXPOINTS = 8000  # longer spectra are binned to about this many points for display
 FLAMBDA = u.erg / u.s / u.cm ** 2 / u.AA
 # filters.json band: SIMPLE photometry band, in the order a spectrum is photoscaled by the first one it covers
@@ -448,9 +450,9 @@ def spectra_panel(source: str, spectra: list, mags: dict, theme: Theme):
     p = bokeh_formatter(p)
     lines, items, bands_err = [], [], []
     for i, (src, m) in enumerate(zip(sources, meta)):
-        colour = Colorblind8[i % len(Colorblind8)]
+        colour = COLOURS[i % len(COLOURS)]
         line = p.line('wave', 'flux', source=src, line_color=colour, line_width=2, name=m['label'],
-                      line_dash='solid' if i < len(Colorblind8) else 'dashed', legend_label=m['label'])
+                      line_dash=DASHES[i // len(COLOURS) % len(DASHES)], legend_label=m['label'])
         band = Band(base='wave', lower='lower', upper='upper', source=src, fill_color=colour, fill_alpha=0.2,
                     line_width=0, level='underlay', visible=m['has_err'])
         p.add_layout(band)
