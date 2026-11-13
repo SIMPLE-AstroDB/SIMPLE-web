@@ -47,6 +47,7 @@ def test_propagate(client):
     res = client.get('/propagate/TWA 27?epoch=2030.5')
     assert res.status_code == 200 and res.json['used_parallax']
     assert client.get('/propagate/TWA 27').status_code == 400
+    assert client.get('/propagate/TWA 27?epoch=2030-07-01').json['date'] == '2030-07-01 00:00'
     assert client.get('/propagate/thisisabadquery?epoch=2030').json['error'] == 'Source not found'
 
 

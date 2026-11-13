@@ -224,13 +224,13 @@ def test_write_multi_files():
 def test_propagate_coordinates():
     inventory = {'Sources': [{'source': 'A', 'ra': 10., 'dec': 0., 'epoch': None}],
                  'ProperMotions': [{'mu_ra': 0., 'mu_dec': 3600., 'adopted': True}]}  # 3.6 arcsec/yr north
-    out = propagate_coordinates(inventory, 2010.)
-    assert out['from_epoch'] == 2000.
+    out = propagate_coordinates(inventory, '2010')
+    assert out['from_epoch'] == 2000. and out['epoch'] == 2010.
     assert out['dec'] == pytest.approx(36 / 3600, abs=1e-6)  # 10 yr
     assert out['ra'] == pytest.approx(10.)
     assert not out['used_parallax'] and not out['used_radial_velocity']
     with pytest.raises(ValueError, match='No proper motion'):
-        propagate_coordinates({'Sources': inventory['Sources']}, 2010.)
+        propagate_coordinates({'Sources': inventory['Sources']}, '2010')
 
 
 def test_reference_handle(db, db_cs):
@@ -248,3 +248,14 @@ def test_parse_photometry_multi_source():
     assert list(out.columns) == ['target', '2MASS.J', 'WISE.W1', '2MASS.H']
     assert out.loc[0, '2MASS.J'] == 12.  # first measurement of a band
     assert np.isnan(out.loc[1, '2MASS.J']) and np.isnan(out.loc[0, '2MASS.H'])
+
+
+def test_propagate_coordinates_date():
+    inventory = {'Sources': [{'source': 'A', 'ra': 10., 'dec': 0., 'epoch': 2000.}],
+                 'ProperMotions': [{'mu_ra': 0., 'mu_dec': 3600., 'adopted': True}]}
+    by_date = propagate_coordinates(inventory, '2010-01-01T12:00')
+    assert by_date['epoch'] == pytest.approx(2010.0, abs=1e-3) and by_date['date'] == '2010-01-01 12:00'
+    # J2010.0 is hours from that date: 3.6 arcsec/yr moves the source ~1e-6 deg in that time
+    assert by_date['dec'] == pytest.approx(propagate_coordinates(inventory, '2010.0')['dec'], abs=1e-5)
+    with pytest.raises(ValueError, match='decimal year'):
+        propagate_coordinates(inventory, 'next tuesday')

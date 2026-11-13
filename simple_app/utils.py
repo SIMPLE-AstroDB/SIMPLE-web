@@ -914,9 +914,9 @@ def coordinate_project(all_results_full: pd.DataFrame):
     return ra_projected, dec_projected
 
 
-def propagate_coordinates(inventory: Dict[str, List[dict]], epoch: float) -> Dict[str, Union[str, float, bool]]:
+def propagate_coordinates(inventory: Dict[str, List[dict]], epoch: str) -> Dict[str, Union[str, float, bool]]:
     """
-    Propagates a source's coordinates to a new epoch (decimal year) with its adopted proper motion,
+    Propagates a source's coordinates to a new epoch (decimal year or date) with its adopted proper motion,
     and its adopted parallax and radial velocity when present (perspective effects)
 
     Parameters
@@ -924,7 +924,7 @@ def propagate_coordinates(inventory: Dict[str, List[dict]], epoch: float) -> Dic
     inventory
         The database inventory of the source
     epoch
-        Target epoch as a decimal (Julian) year
+        Target epoch: a decimal (Julian) year such as 2030.5, or a UTC date such as 2030-06-01 or 2030-06-01T22:30
 
     Returns
     -------
@@ -935,6 +935,15 @@ def propagate_coordinates(inventory: Dict[str, List[dict]], epoch: float) -> Dic
         rows = inventory.get(table, [])
         return max(rows, key=lambda row: bool(row['adopted'])) if rows else None
 
+    try:
+        target = Time(float(epoch), format='jyear')
+    except ValueError:
+        try:
+            with warnings.catch_warnings():  # future dates have unknown leap seconds, irrelevant at this precision
+                warnings.filterwarnings('ignore', message='.*dubious year')
+                target = Time(epoch.strip(), scale='utc')
+        except ValueError:
+            raise ValueError('Epoch must be a decimal year (e.g. 2030.5) or a date (e.g. 2030-06-01)') from None
     if not inventory.get('Sources'):
         raise ValueError('Source not found')
     source, pm, plx, rv = inventory['Sources'][0], adopted('ProperMotions'), adopted('Parallaxes'), \
@@ -954,10 +963,11 @@ def propagate_coordinates(inventory: Dict[str, List[dict]], epoch: float) -> Dic
         # without a parallax erfa substitutes a large distance, fine for proper motion alone;
         # future epochs have unknown leap seconds, irrelevant at this precision
         warnings.filterwarnings('ignore', message='.*(distance overridden|dubious year)')
-        moved = coord.apply_space_motion(new_obstime=Time(epoch, format='jyear'))
+        moved = coord.apply_space_motion(new_obstime=target)
+        epoch_year, date = round(float(target.jyear), 3), target.utc.iso[:16]
     return {'ra': round(moved.ra.deg, 7), 'dec': round(moved.dec.deg, 7),
-            'hmsdms': moved.to_string('hmsdms', precision=3), 'from_epoch': from_epoch, 'epoch': epoch,
-            'used_parallax': use_plx, 'used_radial_velocity': use_rv}
+            'hmsdms': moved.to_string('hmsdms', precision=3), 'from_epoch': from_epoch, 'epoch': epoch_year,
+            'date': date, 'used_parallax': use_plx, 'used_radial_velocity': use_rv}
 
 
 def one_df_query(results: pd.DataFrame, table_id: Optional[str] = None, limit_max_rows: bool = False) -> Optional[str]:

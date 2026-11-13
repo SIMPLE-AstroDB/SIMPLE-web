@@ -174,14 +174,14 @@
                 </p>
                 <form id="propagateform" class="row g-2 mb-4 align-items-center display-6">
                     <label class="col-auto" for="propagateepoch">Coordinates at epoch:</label>
-                    <input class="col-auto form-control w-auto" id="propagateepoch" type="number" step="any" required>
+                    <input class="col-auto form-control w-auto" id="propagateepoch" type="text" required
+                           placeholder="2030.5 or 2030-06-01" title="Decimal year, or UTC date with optional time">
                     <button class="col-auto btn btn-primary" type="submit">Propagate</button>
                     <span class="col-auto" id="propagateresult"></span>
                 </form>
                 <script>
                     const epochInput = document.getElementById('propagateepoch');
-                    const now = new Date();
-                    epochInput.value = (now.getFullYear() + now.getMonth() / 12).toFixed(2);
+                    epochInput.value = new Date().toISOString().slice(0, 10);  // today
                     document.getElementById('propagateform').addEventListener('submit', async (event) => {
                         event.preventDefault();
                         const out = document.getElementById('propagateresult');
@@ -195,8 +195,8 @@
                         const used = ['proper motion'];
                         if (res.used_parallax) used.push('parallax');
                         if (res.used_radial_velocity) used.push('radial velocity');
-                        out.textContent = `${res.hmsdms} (${res.ra}, ${res.dec}) from epoch ${res.from_epoch}`
-                            + ` using ${used.join(', ')}`;
+                        out.textContent = `${res.hmsdms} (${res.ra}, ${res.dec}) at ${res.date} UTC`
+                            + ` (${res.epoch}), from epoch ${res.from_epoch} using ${used.join(', ')}`;
                     });
                 </script>
             {% else %}
